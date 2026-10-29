@@ -10,7 +10,7 @@ public interface INoteRepository
 
     public Task<Note?> GetByIdAsync(string ownerId, Guid id, CancellationToken ct);
 
-    public Task<Note?> UpdateNoteAsync(string ownerId, long expectedVersion, Guid id, string title, string content, CancellationToken ct);
+    public Task<Note?> UpdateNoteAsync(string ownerId, long expectedVersion, Guid id, string title, string content, Guid? categoryId, List<Guid>? tagsId, CancellationToken ct);
 
     public Task<bool> DeleteNoteAsync(string ownerId, Guid id, CancellationToken ct);
 }

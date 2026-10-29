@@ -45,14 +45,14 @@ public class NoteRepository : INoteRepository
         return note;
     }
 
-    public async Task<Note?> UpdateNoteAsync(string ownerId, long expectedVersion, Guid id, string title, string content, CancellationToken ct)
+    public async Task<Note?> UpdateNoteAsync(string ownerId, long expectedVersion, Guid id, string title, string content,Guid? categoryId, List<Guid>? tagIds, CancellationToken ct)
     {
         if (id == Guid.Empty)
         {
             return null;
         }
         
-        Note note = await this._db.Notes.SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
+        Note note = await this._db.Notes.Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
 
         if (note == null)
         {
@@ -62,6 +62,21 @@ public class NoteRepository : INoteRepository
         if (note.Version != expectedVersion) 
         {
             throw new DbUpdateConcurrencyException("Incompatibilidade de versão");
+        }
+
+        if (categoryId.HasValue)
+        {
+            var category = await _db.Categories.SingleOrDefaultAsync(c => c.Id == categoryId && c.OwnerId == ownerId, ct);
+            if (category != null) note.SetCategory(category);
+        }
+
+        if (tagIds != null && tagIds.Any())
+        {
+            var tags = await _db.Tags.Where(t => tagIds.Contains(t.Id) && t.OwnerId == ownerId).ToListAsync(ct);
+            foreach (var tag in tags)
+            {
+                note.AddTag(tag);
+            }
         }
 
         note.Update(new NoteTitle(title), content);
