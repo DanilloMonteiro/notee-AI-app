@@ -33,8 +33,6 @@ public sealed class Note
     {
         Title = title;
         Content = content;
-        Version++;
-        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void Archive()
@@ -66,44 +64,26 @@ public sealed class Note
         }
     
         CategoryId = category.Id;
-        Version++;
-        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public void AddTag(Tag tag)
+    public void UpdateTags(IEnumerable<Tag> newTags)
     {
-        if (tag == null)
+        if (!newTags.Any() || newTags == null)
         {
-            throw new DomainException("Cannot set a null tag to a note");
+            throw new DomainException("Cannot set null tags to a note");
         }
 
-        if (tag.OwnerId != OwnerId)
+        if (newTags.Any(t => t.OwnerId != OwnerId))
         {
             throw new DomainException("Cannot set a tag of other owner to this note");
         }
 
-        if (_tags.Any(t => t.Id == tag.Id)) return;
-
-        _tags.Add(tag);
-        Version++;
-        UpdatedAt = DateTimeOffset.UtcNow;
+        _tags.Clear();
+        _tags.AddRange(newTags);
     }
 
-    public void RemoveTag(Tag tag)
+    public void RegisterUpdate()
     {
-        if (tag == null)
-        {
-            throw new DomainException("Cannot set a null tag to a note");
-        }
-
-        if (tag.OwnerId != OwnerId)
-        {
-            throw new DomainException("Cannot set a tag of other owner to this note");
-        }  
-
-        if (!_tags.Any(t => t.Id == tag.Id)) return;
-
-        _tags.Remove(tag);
         Version++;
         UpdatedAt = DateTimeOffset.UtcNow;
     }

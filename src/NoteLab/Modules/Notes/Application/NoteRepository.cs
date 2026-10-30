@@ -16,8 +16,8 @@ public class NoteRepository : INoteRepository
     async public Task<List<NoteResponse>> GetNotesAsync(string ownerId, int page, int pageSize, CancellationToken ct)
     {
 
-        List<NoteResponse> notes = await this._db.Notes.AsNoTracking()
-            .Select(n => new NoteResponse(n.Id, n.Title.Value, n.Status.ToString()))
+        List<NoteResponse> notes = await this._db.Notes.AsNoTracking().Where(n => n.OwnerId == ownerId)
+            .Select(n => new NoteResponse(n.Id, n.Title.Value, n.Status.ToString(), n.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList()))
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
 
         return notes;
@@ -30,7 +30,7 @@ public class NoteRepository : INoteRepository
             return null;
         }
 
-        Note note = await this._db.Notes.AsNoTracking().SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
+        Note note = await this._db.Notes.AsNoTracking().Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
 
         return note;
     }
@@ -73,13 +73,12 @@ public class NoteRepository : INoteRepository
         if (tagIds != null && tagIds.Any())
         {
             var tags = await _db.Tags.Where(t => tagIds.Contains(t.Id) && t.OwnerId == ownerId).ToListAsync(ct);
-            foreach (var tag in tags)
-            {
-                note.AddTag(tag);
-            }
+            note.UpdateTags(tags);
         }
 
         note.Update(new NoteTitle(title), content);
+
+        note.RegisterUpdate();
 
         await _db.SaveChangesAsync(ct);
 

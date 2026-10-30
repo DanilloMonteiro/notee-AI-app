@@ -20,5 +20,7 @@ public sealed class NoteDbContext : IdentityDbContext
         modelBuilder.Entity<Note>().Property(n => n.Title).HasConversion(title => title.Value, texto => new NoteTitle(texto));
         modelBuilder.Entity<Note>().Property(n => n.Version).IsConcurrencyToken();
         modelBuilder.Entity<Note>().Navigation(n => n.Tags).UsePropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<Note>().HasMany(n => n.Tags).WithMany().UsingEntity("NoteTags");
+        modelBuilder.Entity<Note>().Metadata.FindNavigation(nameof(Note.Tags))?.SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

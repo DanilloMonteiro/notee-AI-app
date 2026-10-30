@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NoteLab")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+06e9831880de10a5d9f836c95ce12064a5ce4325")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f2a6da2b1da869da57dc98fb09f8f9bf883ff66a")]
 [assembly: System.Reflection.AssemblyProductAttribute("NoteLab")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NoteLab")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

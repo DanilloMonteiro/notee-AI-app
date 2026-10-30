@@ -285,18 +285,28 @@ namespace NoteLab.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("NoteId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NoteId");
-
                     b.ToTable("Tags");
+                });
+
+            modelBuilder.Entity("NoteTags", b =>
+                {
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagsId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("NoteId", "TagsId");
+
+                    b.HasIndex("TagsId");
+
+                    b.ToTable("NoteTags");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -350,16 +360,19 @@ namespace NoteLab.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("NoteLab.Domain.Tag", b =>
+            modelBuilder.Entity("NoteTags", b =>
                 {
                     b.HasOne("NoteLab.Domain.Note", null)
-                        .WithMany("Tags")
-                        .HasForeignKey("NoteId");
-                });
+                        .WithMany()
+                        .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-            modelBuilder.Entity("NoteLab.Domain.Note", b =>
-                {
-                    b.Navigation("Tags");
+                    b.HasOne("NoteLab.Domain.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
