@@ -1,0 +1,44 @@
+using System.Security.Claims;
+using NoteLab.Domain;
+
+namespace NoteLab.Application;
+
+public static class ResearchEndpoints
+{
+    public static void MapResearchEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/doubts").RequireAuthorization();
+
+        group.MapPost("/", async (CreateDoubtRequest request, INoteRepository noteRepo, IDoubtRepository doubtRepo, ClaimsPrincipal user ,CancellationToken ct) =>
+        {
+            string ownerId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException();
+
+            Note? note = await noteRepo.GetByIdAsync(ownerId, request.NoteId,ct);
+
+            if (note == null) return Results.NotFound("Nota nao encontrada.");
+
+            var anchor = new DoubtAnchor(request.BlockId, request.ExactQuote, request.StartIndex, request.EndIndex);
+
+            Doubt doubt = await doubtRepo.AddDoubtAsync(new Doubt(ownerId, note.Id, note.Version, anchor, request.Question), ct);
+
+            return Results.Ok(new { DoubtId = doubt.Id, Status = doubt.Status.ToString() });
+        });
+
+        group.MapGet("/{id}", async (Guid id, IDoubtRepository doubtRepo, ClaimsPrincipal user ,CancellationToken ct) =>
+        {
+            string ownerId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException();
+
+            Doubt? doubt = await doubtRepo.GetByIdAsync(ownerId, id, ct);
+
+            if (doubt == null) return Results.NotFound("Duvida nao encontrada.");
+    
+            return Results.Ok(new 
+            { 
+                Id = doubt.Id, 
+                Question = doubt.Question, 
+                Answer = doubt.Answer, 
+                Status = doubt.Status.ToString() 
+            });
+        });
+    }
+}

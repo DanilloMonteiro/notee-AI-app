@@ -30,7 +30,7 @@ public class NoteRepository : INoteRepository
             return null;
         }
 
-        Note note = await this._db.Notes.AsNoTracking().Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
+        Note? note = await this._db.Notes.AsNoTracking().Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
 
         return note;
     }
@@ -52,7 +52,7 @@ public class NoteRepository : INoteRepository
             return null;
         }
         
-        Note note = await this._db.Notes.Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
+        Note? note = await this._db.Notes.Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
 
         if (note == null)
         {
@@ -92,7 +92,7 @@ public class NoteRepository : INoteRepository
             return false;
         }
         
-        Note note = await this.GetByIdAsync(ownerId, id, ct);
+        Note? note = await this.GetByIdAsync(ownerId, id, ct);
 
         if (note == null)
         {

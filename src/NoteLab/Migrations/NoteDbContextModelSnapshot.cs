@@ -237,6 +237,43 @@ namespace NoteLab.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.Doubt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Answer")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("NoteRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Doubts");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.Note", b =>
                 {
                     b.Property<Guid>("Id")
@@ -357,6 +394,43 @@ namespace NoteLab.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.Doubt", b =>
+                {
+                    b.OwnsOne("NoteLab.Domain.DoubtAnchor", "Anchor", b1 =>
+                        {
+                            b1.Property<Guid>("DoubtId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("BlockId")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("AnchorBlockId");
+
+                            b1.Property<int>("EndIndex")
+                                .HasColumnType("integer")
+                                .HasColumnName("AnchorEndIndex");
+
+                            b1.Property<string>("ExactQuote")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("AnchorExactQuote");
+
+                            b1.Property<int>("StartIndex")
+                                .HasColumnType("integer")
+                                .HasColumnName("AnchorStartIndex");
+
+                            b1.HasKey("DoubtId");
+
+                            b1.ToTable("Doubts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DoubtId");
+                        });
+
+                    b.Navigation("Anchor")
                         .IsRequired();
                 });
 

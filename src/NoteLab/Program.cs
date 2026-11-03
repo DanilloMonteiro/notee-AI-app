@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using NoteLab.Infrastructure;
 
 
 string connectionString = "Host=localhost;Port=5434;Database=notelab_db;Username=postgres;Password=admin";
@@ -12,12 +13,15 @@ string connectionString = "Host=localhost;Port=5434;Database=notelab_db;Username
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
+builder.Services.AddScoped<IDoubtRepository, DoubtRepository>();
+builder.Services.AddScoped<IAiService, FakeAiService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHostedService<DoubtProcessingWorker>(); // É assim que se regista um BackgroundService
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services
@@ -48,5 +52,6 @@ app.UseAuthorization();
 
 app.MapIdentityEndpoints();
 app.MapNoteEndpoints();
+app.MapResearchEndpoints();
 
 app.Run();
