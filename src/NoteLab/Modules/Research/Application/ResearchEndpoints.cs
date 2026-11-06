@@ -40,5 +40,56 @@ public static class ResearchEndpoints
                 Status = doubt.Status.ToString() 
             });
         });
+
+        group.MapGet("/", async (IDoubtRepository doubtRepo, ClaimsPrincipal user ,CancellationToken ct) =>
+        {
+            string ownerId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException();
+            List<Doubt> doubts = await doubtRepo.GetAllAsync(ownerId, ct);
+
+            if (doubts == null || !doubts.Any()) return Results.NotFound("Duvidas nao encontrada.");
+
+            var response = doubts.Select(d => new DoubtResponse(d.Id, d.Question, d.Answer, d.Status.ToString(), d.Anchor.BlockId, d.Anchor.StartIndex, d.Anchor.EndIndex)).ToList();
+
+            return Results.Ok(response);
+        });
+
+        group.MapGet("/note/{noteId:guid}", async (
+            Guid noteId,
+            IDoubtRepository doubtRepo,
+            ClaimsPrincipal user,
+            ILogger<Program> logger,
+            CancellationToken ct) =>
+        {
+            var ownerId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (ownerId is null)
+                return Results.Unauthorized();
+
+            logger.LogInformation(
+                "Buscando dúvidas da nota {NoteId}",
+                noteId
+            );
+
+            var doubts = await doubtRepo.GetByNoteIdAsync(
+                ownerId, noteId, ct
+            );
+
+            logger.LogInformation(
+                "Encontradas {Count} dúvidas",
+                doubts.Count
+            );
+
+            var response = doubts.Select(d => new DoubtResponse(
+                d.Id,
+                d.Question,
+                d.Answer,
+                d.Status.ToString(),
+                d.Anchor.BlockId,
+                d.Anchor.StartIndex,
+                d.Anchor.EndIndex
+            )).ToList();
+
+            return Results.Ok(response);
+        });
     }
 }
