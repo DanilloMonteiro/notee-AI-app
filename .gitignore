@@ -1,0 +1,43 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+*.log
+
+# Configuração com segredos (chaves de API, connection strings)
+appsettings.json
+appsettings.*.json
+!appsettings.Example.json
+*.env
+.env*
+secrets.json
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+*.userprefs
+*.rsuser
+
+# Testes / cobertura
+TestResults/
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+*.coverage
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
