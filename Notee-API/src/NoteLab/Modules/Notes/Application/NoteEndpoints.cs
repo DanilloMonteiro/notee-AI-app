@@ -30,15 +30,21 @@ public static class NoteEndpoints
                 return Results.NotFound();
             }
 
-            NoteResponse notesResponse =  new NoteResponse(note.Id, note.Title.Value, note.Status.ToString(), note.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList());
+            NoteResponse notesResponse =  new NoteResponse(note.Id, note.Title.Value, note.Version, note.Status.ToString(), note.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList());
 
             return Results.Ok(notesResponse);
         }).RequireAuthorization();
 
-        group.MapPut("/{id}", async (INoteRepository repo, ClaimsPrincipal user, CancellationToken ct, Guid id, UpdateNoteRequest data) =>
+        group.MapPut("/{id}", async (INoteRepository repo, ClaimsPrincipal user, ILogger<Program> logger, CancellationToken ct, Guid id, UpdateNoteRequest data) =>
         {
             string ownerId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException();
 
+
+            logger.LogInformation(
+                            "Buscando dúvidas da nota {NoteId}",
+                            data
+                        );
+                        
             Note? note = await repo.UpdateNoteAsync(ownerId, data.ExpectedVersion, id, data.Title, data.Content ?? "", data.CategoryId, data.TagIds, ct);
 
             if (note == null)
@@ -46,7 +52,7 @@ public static class NoteEndpoints
                 return Results.NotFound();
             }
 
-            NoteResponse notesResponse =  new NoteResponse(note.Id, note.Title.Value, note.Status.ToString(), note.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList());
+            NoteResponse notesResponse =  new NoteResponse(note.Id, note.Title.Value, note.Version, note.Status.ToString(), note.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList());
 
             return Results.Ok(notesResponse);
         }).RequireAuthorization();
@@ -57,7 +63,7 @@ public static class NoteEndpoints
 
             Note note = await repo.AddNoteAsync(ownerId, new Note(new NoteTitle(data.Title), ownerId, data.Content), ct);
 
-            NoteResponse noteResponse = new NoteResponse(note.Id, note.Title.Value, note.Status.ToString(), new List<TagResponse>());
+            NoteResponse noteResponse = new NoteResponse(note.Id, note.Title.Value, note.Version, note.Status.ToString(), new List<TagResponse>());
 
             return Results.Created($"/{noteResponse.Id}", noteResponse);
         }).RequireAuthorization();

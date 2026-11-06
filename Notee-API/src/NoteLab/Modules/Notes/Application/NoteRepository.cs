@@ -16,7 +16,7 @@ public class NoteRepository : INoteRepository
     async public Task<List<NoteResponse>> GetNotesAsync(string ownerId, int page, int pageSize, CancellationToken ct)
     {
         List<NoteResponse> notes = await this._db.Notes.AsNoTracking().Where(n => n.OwnerId == ownerId)
-            .Select(n => new NoteResponse(n.Id, n.Title.Value, n.Status.ToString(), n.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList()))
+            .Select(n => new NoteResponse(n.Id, n.Title.Value, n.Version, n.Status.ToString(), n.Tags.Select(t => new TagResponse(t.Id, t.Name)).ToList()))
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
 
         return notes;
@@ -44,7 +44,7 @@ public class NoteRepository : INoteRepository
         return note;
     }
 
-    public async Task<Note?> UpdateNoteAsync(string ownerId, long expectedVersion, Guid id, string title, string content,Guid? categoryId, List<Guid>? tagIds, CancellationToken ct)
+    public async Task<Note?> UpdateNoteAsync(string ownerId, long expectedVersion, Guid id, string title, string content, Guid? categoryId, List<Guid>? tagIds, CancellationToken ct)
     {
         if (id == Guid.Empty)
         {
@@ -59,7 +59,7 @@ public class NoteRepository : INoteRepository
         }
 
         if (note.Version != expectedVersion) 
-        {
+        {   
             throw new DbUpdateConcurrencyException("Incompatibilidade de versão");
         }
 
