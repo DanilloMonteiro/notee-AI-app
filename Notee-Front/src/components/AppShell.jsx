@@ -50,6 +50,10 @@ export function AppShell() {
             <Icon name="spark" />
             <span>Dúvidas e pesquisas</span>
           </NavLink>
+          <NavLink to="/search" className={navClass}>
+            <Icon name="search" />
+            <span>Buscar nas notas</span>
+          </NavLink>
 
           <div className="nav-label">Organizar</div>
           <NavLink to="/settings" className={navClass}>

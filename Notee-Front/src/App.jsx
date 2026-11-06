@@ -10,6 +10,7 @@ import { Home } from './pages/Home';
 import { ResearchDetail } from './pages/ResearchDetails';
 import { Research } from './pages/Research';
 import { Settings } from './pages/Settings';
+import { Search } from './pages/Search';
 import { ToastProvider } from './context/ToastContext';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
               <Route path="/research/:id" element={<ResearchDetail />} />
               <Route path="/research" element={<Research />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/search" element={<Search />} />
             </Route>
           </Route>
         </Routes>
