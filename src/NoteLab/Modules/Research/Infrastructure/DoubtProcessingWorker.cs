@@ -38,11 +38,21 @@ public class DoubtProcessingWorker : BackgroundService
                     doubt.MarkAsRunning();
                     await db.SaveChangesAsync(stoppingToken);
 
-                    // d) Chame o aiService.GetAnswerAsync(...)
-                    string respostaDaIA = await aiService.GetAnswerAsync(doubt.Question, doubt.Anchor.ExactQuote, stoppingToken);
+                    try
+                    {
+                        // d) Chame o aiService.GetAnswerAsync(...)
+                        string respostaDaIA = await aiService.GetAnswerAsync(doubt.Question, doubt.Anchor.ExactQuote, stoppingToken);
 
-                    // e) Chame doubt.Complete(respostaDaIA) e dê um SaveChanges final.
-                    doubt.Complete(respostaDaIA);
+                        // e) Chame doubt.Complete(respostaDaIA) e dê um SaveChanges final.
+                        doubt.Complete(respostaDaIA);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Se a IA falhar (ex: erro 404, sem internet, etc.), o sistema não morre!
+                        Console.WriteLine($"[AVISO] Falha ao processar a dúvida {doubt.Id}: {ex.Message}");
+                        doubt.Fail(); // Lembra-se do método Fail que criámos na entidade?
+                    }
+                   
                     await db.SaveChangesAsync(stoppingToken);
                 }
                 
