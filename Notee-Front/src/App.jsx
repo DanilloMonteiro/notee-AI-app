@@ -10,25 +10,28 @@ import { Home } from './pages/Home';
 import { ResearchDetail } from './pages/ResearchDetails';
 import { Research } from './pages/Research';
 import { Settings } from './pages/Settings';
+import { ToastProvider } from './context/ToastContext';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        <Route element={<PrivateRoute />}>
-          <Route element={<AppShell />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/note/:id" element={<Note />} />
-            <Route path="/research/:id" element={<ResearchDetail />} />
-            <Route path="/research" element={<Research />} />
-            <Route path="/settings" element={<Settings />} />
+          <Route element={<PrivateRoute />}>
+            <Route element={<AppShell />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/notes" element={<Notes />} />
+              <Route path="/note/:id" element={<Note />} />
+              <Route path="/research/:id" element={<ResearchDetail />} />
+              <Route path="/research" element={<Research />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 

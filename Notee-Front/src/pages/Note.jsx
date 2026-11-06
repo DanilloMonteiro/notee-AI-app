@@ -3,9 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
+import { useToast } from '../context/ToastContext';
 
 export function Note() {
   const { id } = useParams();
+  const { addToast } = useToast();
   const [note, setNote] = useState(null);
   const [doubts, setDoubts] = useState([]);
 
@@ -138,14 +140,12 @@ export function Note() {
 
   const loadNoteAndDoubts = async () => {
     try {
-      // 1. Carrega os dados da Nota
+      // CORRIGIDO: mudámos de /notas para /notes
       const noteData = await apiFetch(`/notes/${id}`);
       setNote(noteData);
       setTitle(noteData.title || '');
-      // O seu HTML usava blocos ricos, mas no MVP vamos mapear para um campo de texto contínuo
       setContent(noteData.content || '');
 
-      // 2. Lembra-se da rota GET /doubts/note/{id} que criámos no C#? Vamos usá-la!
       const doubtsData = await apiFetch(`/doubts/note/${id}`);
       setDoubts(doubtsData || []);
     } catch (err) {
@@ -159,7 +159,7 @@ export function Note() {
     setSaving(true);
     try {
       // Chama o método PUT que você construiu no NoteEndpoints.cs
-      await apiFetch(`/notas/${id}`, {
+      await apiFetch(`/notes/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
           expectedVersion: note.version || 0, // Proteção de concorrência que você configurou!
@@ -172,9 +172,12 @@ export function Note() {
 
       // Atualizamos a referência local para o botão de salvar voltar a ficar inativo
       setNote({ ...note, title, content });
-      alert('Nota salva com sucesso!');
+      // 👇 MAGIA ACONTECENDO AQUI: Substituímos o alert!
+      addToast('Alterações salvas com sucesso!', 'check');
     } catch (err) {
-      alert('Erro ao salvar a nota. Verifique se a versão conflitou.');
+      console.error('Erro ao salvar a nota:', err);
+      // Podemos usar o toast para erros também!
+      addToast('Falha ao salvar. Verifique se a nota foi alterada noutro local.', 'info');
     } finally {
       setSaving(false);
     }
