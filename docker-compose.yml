@@ -1,0 +1,70 @@
+# Sobe Postgres + migrations + API + Front com: docker compose up -d --build
+#
+# A connection string da API está fixa em "Host=localhost;Port=5434" (Program.cs).
+# Por isso a API e o job de migrations compartilham a rede do container do banco
+# (network_mode: service:db) e o Postgres escuta na porta 5434.
+# As portas da API (5000) são publicadas pelo serviço "db", dono da rede.
+
+services:
+  db:
+    image: postgres:16
+    container_name: notee-db
+    command: ["postgres", "-p", "5434"]
+    environment:
+      POSTGRES_DB: notelab_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5434:5434"   # Postgres (acesso pelo host, ex.: DBeaver)
+      - "5000:5000"   # API (rede compartilhada com o serviço "api")
+    volumes:
+      - notee-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d notelab_db -p 5434"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./Notee-API
+      target: migrate
+    container_name: notee-migrate
+    network_mode: "service:db"
+    command: ["--connection", "Host=localhost;Port=5434;Database=notelab_db;Username=postgres;Password=admin"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ./Notee-API
+      target: runtime
+    container_name: notee-api
+    network_mode: "service:db"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+      # Chaves de API ficam fora da imagem. Crie a partir do appsettings.Example.json.
+      - ./Notee-API/src/NoteLab/appsettings.json:/app/appsettings.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  front:
+    build:
+      context: ./Notee-Front
+    container_name: notee-front
+    ports:
+      - "5173:80"     # porta liberada no CORS da API
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  notee-pgdata:
