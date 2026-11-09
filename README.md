@@ -120,6 +120,12 @@ NOTEE_API=http://localhost:5099 node tests/http/run-all.mjs
 
 O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa testes de domínio, migrations, as suítes HTTP contra um PostgreSQL efêmero e lint + build do front a cada push e pull request.
 
+## Provedores de IA e painel administrativo
+
+Adaptadores: **Gemini**, **ChatGPT**, **Claude** (SDK oficial da Anthropic, modelo padrão `claude-opus-5-5`, com busca na web e fontes), **Grok** e **DeepSeek**. Chaves ficam só na configuração (`OpenAI:ApiKey`, `Claude:ApiKey`, `Grok:ApiKey`, `DeepSeek:ApiKey`, `Gemini:ApiKey`).
+
+Para habilitar o painel, defina `Admin:Email` e `Admin:Password` (ou `NOTEE_ADMIN_EMAIL`/`NOTEE_ADMIN_PASSWORD` no `.env` do compose). A conta é criada na inicialização. Acesse a rota não divulgada do front — padrão `/console-7k2q`, configurável em `VITE_ADMIN_PATH` no build — para escolher a IA ativa, trocar o modelo de cada provedor e testar a conexão. O login comum da mesma conta **não** dá acesso ao painel; só `/auth/admin/login` emite o token administrativo (30 min). A IA ativa só recebe dados de contas que consentiram.
+
 ## Fila de pesquisa (Outbox + SQS no LocalStack)
 
 Por padrão a tabela `ResearchJobs` é a fila e o Outbox só acorda o worker local (`Messaging:Provider=inprocess`). Para usar SQS **emulado** (nunca AWS real):

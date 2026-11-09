@@ -6,9 +6,9 @@ import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { publishingApi } from '../features/publishing/publishingApi';
 
-const CONSENT_TEXT =
-  'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA configurado ' +
-  '(atualmente Google Gemini) para gerar uma resposta; o provedor pode buscar na web para indicar fontes. ' +
+const consentText = providerName =>
+  'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA escolhido pela ' +
+  `administração do Notee (atualmente ${providerName || 'não definido'}) para gerar uma resposta; o provedor pode buscar na web para indicar fontes. ` +
   'Outras notas, mapas e dados da conta não são enviados. ' +
   'Posso revogar a qualquer momento; a revogação vale para as próximas pesquisas.';
 
@@ -75,7 +75,7 @@ export function Settings() {
   const toggleConsent = () => {
     if (prefs.externalAiConsent) {
       update({ externalAiConsent: false });
-    } else if (window.confirm(`${CONSENT_TEXT}\n\nConfirmar autorização?`)) {
+    } else if (window.confirm(`${consentText(prefs?.externalProviderName)}\n\nConfirmar autorização?`)) {
       update({ externalAiConsent: true, consentVersion: prefs.currentConsentVersion });
     }
   };
@@ -144,7 +144,7 @@ export function Settings() {
             <div className="settings-row">
               <div>
                 <h4>Usar IA externa</h4>
-                <p>{CONSENT_TEXT}</p>
+                <p>{consentText(prefs?.externalProviderName)}</p>
                 {prefs.consentedAt && (
                   <p className="tiny muted">
                     Autorizado em {new Date(prefs.consentedAt).toLocaleString('pt-BR')} (termo v{prefs.consentVersion}).
@@ -168,13 +168,13 @@ export function Settings() {
               <div>
                 <h4>Provedor em uso</h4>
                 <p>
-                  {prefs.effectiveProvider === 'gemini'
-                    ? 'As dúvidas são respondidas pelo Google Gemini.'
+                  {prefs.effectiveProvider !== 'fake'
+                    ? `As dúvidas são respondidas por ${prefs.externalProviderName}.`
                     : 'Respostas simuladas e determinísticas: nenhum dado sai do Notee e nenhuma fonte é inventada.'}
                 </p>
               </div>
-              <span className={`pill ${prefs.effectiveProvider === 'gemini' ? 'blue' : 'green'}`}>
-                {prefs.effectiveProvider === 'gemini' ? 'Gemini (externo)' : 'Simulado (local)'}
+              <span className={`pill ${prefs.effectiveProvider !== 'fake' ? 'blue' : 'green'}`}>
+                {prefs.effectiveProvider !== 'fake' ? `${prefs.externalProviderName} (externo)` : 'Simulado (local)'}
               </span>
             </div>
           </div>

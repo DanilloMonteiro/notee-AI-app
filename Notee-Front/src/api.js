@@ -1,6 +1,6 @@
 // src/api.js
 // A URL pode ser sobrescrita com VITE_API_URL (ex.: apontar para uma API de teste).
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /** Erro HTTP com status e Problem Details (title/detail) quando a API os envia. */
 export class ApiError extends Error {

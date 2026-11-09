@@ -15,16 +15,21 @@ public class GeminiAiService : IAiService
 
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
-    private readonly string _model;
+    private readonly string _configModel;
+    private readonly AiSettings? _settings;
     private readonly string _baseUrl;
 
-    public GeminiAiService(IConfiguration config, HttpClient httpClient)
+    public GeminiAiService(IConfiguration config, HttpClient httpClient, AiSettings? settings = null)
     {
+        _settings = settings;
         _apiKey = config["Gemini:ApiKey"] ?? throw new ArgumentNullException("API Key do Gemini não configurada.");
-        _model = config["Gemini:Model"] ?? "gemini-3.5-flash-lite";
+        _configModel = config["Gemini:Model"] ?? "gemini-3.5-flash-lite";
         _baseUrl = (config["Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com").TrimEnd('/');
         _httpClient = httpClient;
     }
+
+    /// <summary>Modelo escolhido no painel admin (se houver) ou o da configuração.</summary>
+    private string Model => _settings?.ModelFor(AiProviders.Find(AiProviders.Gemini)!) ?? _configModel;
 
     public async Task<string> GetAnswerAsync(string question, string exactQuote, CancellationToken ct) =>
         (await AnswerAsync(question, exactQuote, ct)).Text;
@@ -47,7 +52,7 @@ public class GeminiAiService : IAiService
             tools = new object[] { new { google_search = new { } } },
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1beta/models/{_model}:generateContent")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1beta/models/{Model}:generateContent")
         {
             Content = JsonContent.Create(requestBody),
         };

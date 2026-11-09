@@ -15,6 +15,8 @@ import { ToastProvider } from './contexts/ToastContext';
 import { BoardsPage } from './features/boards/BoardsPage';
 import { BoardPage } from './features/boards/BoardPage';
 import { MyPublicationsPage } from './features/publishing/MyPublicationsPage';
+import { AdminAiPage, AdminLoginPage } from './features/admin/AdminPages';
+import { ADMIN_PATH } from './features/admin/adminApi';
 import { LibraryPage, PublicNotePage, PublicProfilePage, SharedNotePage } from './features/publishing/PublicPages';
 
 function App() {
@@ -28,6 +30,9 @@ function App() {
           <Route path="/p/:handle/:slug" element={<PublicNotePage />} />
           <Route path="/s/:token" element={<SharedNotePage />} />
           <Route path="/u/:handle" element={<PublicProfilePage />} />
+          {/* Administração: rota não divulgada (VITE_ADMIN_PATH); acesso exige conta admin */}
+          <Route path={ADMIN_PATH} element={<AdminLoginPage />} />
+          <Route path={`${ADMIN_PATH}/ia`} element={<AdminAiPage />} />
 
           <Route element={<PrivateRoute />}>
             <Route element={<AppShell />}>

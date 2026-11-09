@@ -14,7 +14,11 @@ public record PreferencesResponse(
     int CurrentConsentVersion,
     bool ExternalProviderConfigured,
     string EffectiveProvider,
-    long Version);
+    long Version)
+{
+    /// <summary>Nome do provedor externo escolhido pelo administrador (para o texto de consentimento).</summary>
+    public string ExternalProviderName { get; init; } = "";
+}
 
 /// <summary>Campos nulos não são alterados. Conceder consentimento exige ConsentVersion vigente.</summary>
 public record UpdatePreferencesRequest(bool? ResearchEnabled, bool? ExternalAiConsent, int? ConsentVersion, long ExpectedVersion, bool? AutoResearch = null);
@@ -46,7 +50,8 @@ public sealed class PreferencesService
         UserPreferences.CurrentConsentVersion,
         _selector.ExternalConfigured,
         _selector.Describe(p),
-        p.Version);
+        p.Version)
+    { ExternalProviderName = _selector.Active.Name };
 
     public async Task<MapResult<PreferencesResponse>> UpdateAsync(string userId, UpdatePreferencesRequest request, CancellationToken ct)
     {

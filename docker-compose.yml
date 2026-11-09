@@ -48,6 +48,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       # Defina NOTEE_JWT_KEY num arquivo .env (não versionado). Vazio = chave de desenvolvimento.
       Jwt__Key: ${NOTEE_JWT_KEY:-}
+      # Conta do painel administrativo (defina no .env; vazio = painel desativado)
+      Admin__Email: ${NOTEE_ADMIN_EMAIL:-}
+      Admin__Password: ${NOTEE_ADMIN_PASSWORD:-}
     volumes:
       # Chaves de API ficam fora da imagem. Crie a partir do appsettings.Example.json.
       - ./Notee-API/src/NoteLab/appsettings.json:/app/appsettings.json:ro

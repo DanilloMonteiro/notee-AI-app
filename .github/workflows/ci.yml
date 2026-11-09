@@ -38,6 +38,17 @@ jobs:
       # Provider externo apontado para o servidor FALSO da suíte provider.test.mjs (nenhuma chamada real)
       Gemini__ApiKey: fake-key
       Gemini__BaseUrl: http://localhost:5199
+      # Painel admin + adaptadores apontados para o servidor FALSO da suíte admin.test.mjs (nenhuma chamada real)
+      Admin__Email: admin@notee.local
+      Admin__Password: Admin!Teste123
+      OpenAI__ApiKey: fake-key
+      OpenAI__BaseUrl: http://localhost:5198
+      Grok__ApiKey: fake-key
+      Grok__BaseUrl: http://localhost:5198
+      DeepSeek__ApiKey: fake-key
+      DeepSeek__BaseUrl: http://localhost:5198
+      Claude__ApiKey: fake-key
+      Claude__BaseUrl: http://localhost:5198
       Messaging__Sqs__ServiceUrl: http://localhost:4566
       Messaging__Sqs__QueueUrl: http://localhost:4566/000000000000/notee-research-jobs
       DOTNET_NOLOGO: "true"

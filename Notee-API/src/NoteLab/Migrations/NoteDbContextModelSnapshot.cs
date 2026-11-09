@@ -1036,6 +1036,30 @@ namespace NoteLab.Migrations
                     b.ToTable("ResearchSources");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.SystemSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("SystemSettings");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.Tag", b =>
                 {
                     b.Property<Guid>("Id")

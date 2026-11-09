@@ -23,6 +23,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<InboxMessage> InboxMessages { get; set; }
     public DbSet<ResearchSource> ResearchSources { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -102,6 +103,14 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(s => s.Url).HasMaxLength(2048).IsRequired();
             e.HasOne<Doubt>().WithMany().HasForeignKey(s => s.DoubtId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.DoubtId, s.Position });
+        });
+
+        modelBuilder.Entity<SystemSetting>(e =>
+        {
+            e.HasKey(s => s.Key);
+            e.Property(s => s.Key).HasMaxLength(100);
+            e.Property(s => s.Value).HasMaxLength(200).IsRequired();
+            e.Property(s => s.UpdatedBy).HasMaxLength(256).IsRequired();
         });
 
         // ---- Outbox / Inbox (M11) ----

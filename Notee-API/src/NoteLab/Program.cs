@@ -73,13 +73,19 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(o => o.AddPolicy(AdminEndpoints.Policy, p => p.RequireRole(AdminEndpoints.AdminRole)));
 builder.Services.AddNoteeMessaging(builder.Configuration); // Outbox + (opcional) SQS no LocalStack
 builder.Services.AddHostedService<DoubtProcessingWorker>(); // É assim que se regista um BackgroundService
 
 // Providers de IA: Fake determinístico é o padrão; externo só com consentimento do dono (ADR-019).
 builder.Services.AddSingleton<FakeAiService>();
+// Adaptadores de IA (ADR-030). O ativo é escolhido no painel admin; chaves só por configuração.
+builder.Services.AddSingleton<AiSettings>();
 builder.Services.AddHttpClient<GeminiAiService>();
+builder.Services.AddHttpClient<ChatGptAiService>();
+builder.Services.AddHttpClient<GrokAiService>();
+builder.Services.AddHttpClient<DeepSeekAiService>();
+builder.Services.AddScoped<ClaudeAiService>();
 builder.Services.AddScoped<AiProviderSelector>();
 builder.Services.AddScoped<PreferencesService>();
 
@@ -168,6 +174,7 @@ app.MapBoardEndpoints();
 app.MapGraphAiEndpoints();
 app.MapPublishingEndpoints();
 app.MapNoteAnalysisEndpoints();
+app.MapAdminEndpoints();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
@@ -214,6 +221,8 @@ catch (Exception ex)
 
     throw;
 }
+
+await AdminEndpoints.SeedAdminAsync(app.Services, app.Configuration, logger);
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {
