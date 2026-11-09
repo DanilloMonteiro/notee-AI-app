@@ -1,5 +1,13 @@
 # Estado do projeto Notee — atualizar somente com evidências
 
+## Preparação de entrega contínua (09/11/2026)
+
+- O workflow existente de CI também foi configurado para executar em pushes na branch `deploy`; pull requests continuam cobertos. A configuração ainda precisa ser enviada ao GitHub e executada para ser validada.
+- Hospedagem, branch remota, proteção de branch, credenciais e deploy automático ainda não estão configurados. A seleção da plataforma e seus custos dependem da escolha do responsável.
+- Antes de publicar, configurar URL do frontend e CORS, secrets de produção, execução de migrations e persistência das chaves de Data Protection; validar o fluxo completo no ambiente escolhido.
+- Railway escolhido pelo responsável: imagem da API ajustada para incluir o bundle de migrations e imagem do frontend aceita argumentos de build `VITE_API_URL` e `VITE_ADMIN_PATH`. Os builds Docker locais das duas imagens passaram em 09/11/2026; a execução no Railway ainda não foi verificada.
+- Railway, 09/11/2026: PostgreSQL criado com volume persistente e conexão privada configurada na API. Os logs confirmam acesso ao banco novo, mas a inicialização falha porque as migrations ainda não foram aplicadas (`AspNetUsers` ausente). O bundle no Dockerfile local precisa ser publicado antes de configurar o pré-deploy.
+
 **Data de preparação deste pacote:** 09/11/2026.
 
 > O texto original do pacote dizia que nenhum repositório havia sido inspecionado. **Isso mudou:** o repositório real foi inspecionado e evoluído em 09/11/2026; a tabela abaixo reflete o estado verificado.
