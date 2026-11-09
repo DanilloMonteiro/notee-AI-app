@@ -24,6 +24,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<InboxMessage> InboxMessages { get; set; }
     public DbSet<ResearchSource> ResearchSources { get; set; }
     public DbSet<SystemSetting> SystemSettings { get; set; }
+    public DbSet<AiProviderSecret> AiProviderSecrets { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -103,6 +104,14 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(s => s.Url).HasMaxLength(2048).IsRequired();
             e.HasOne<Doubt>().WithMany().HasForeignKey(s => s.DoubtId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.DoubtId, s.Position });
+        });
+
+        modelBuilder.Entity<AiProviderSecret>(e =>
+        {
+            e.HasKey(s => s.ProviderId);
+            e.Property(s => s.ProviderId).HasMaxLength(32);
+            e.Property(s => s.ProtectedKey).IsRequired();
+            e.Property(s => s.UpdatedBy).HasMaxLength(256).IsRequired();
         });
 
         modelBuilder.Entity<SystemSetting>(e =>

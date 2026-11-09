@@ -218,6 +218,29 @@ namespace NoteLab.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.AiProviderSecret", b =>
+                {
+                    b.Property<string>("ProviderId")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ProtectedKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("ProviderId");
+
+                    b.ToTable("AiProviderSecrets");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.Board", b =>
                 {
                     b.Property<Guid>("Id")

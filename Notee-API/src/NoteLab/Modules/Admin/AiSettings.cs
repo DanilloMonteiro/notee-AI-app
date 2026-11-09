@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using NoteLab.Domain;
 
@@ -35,8 +37,55 @@ namespace NoteLab.Domain
     }
 }
 
+namespace NoteLab.Domain
+{
+    /// <summary>
+    /// Chave de API cadastrada pelo painel admin. Só o valor CRIPTOGRAFADO (ASP.NET Data Protection) é guardado;
+    /// usada apenas quando não há chave na configuração do servidor.
+    /// </summary>
+    public sealed class AiProviderSecret
+    {
+        public string ProviderId { get; private set; }
+        public string ProtectedKey { get; private set; }
+        public DateTimeOffset UpdatedAt { get; private set; }
+        public string UpdatedBy { get; private set; }
+
+        private AiProviderSecret()
+        {
+            ProviderId = null!;
+            ProtectedKey = null!;
+            UpdatedBy = null!;
+        }
+
+        public AiProviderSecret(string providerId, string protectedKey, string updatedBy)
+        {
+            ProviderId = providerId;
+            ProtectedKey = protectedKey;
+            UpdatedBy = updatedBy;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        public void Replace(string protectedKey, string updatedBy)
+        {
+            ProtectedKey = protectedKey;
+            UpdatedBy = updatedBy;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+    }
+}
+
 namespace NoteLab.Application
 {
+    /// <summary>De onde vem a chave de um provedor.</summary>
+    public enum KeySource
+    {
+        None,
+        /// <summary>appsettings.json / variável de ambiente: tem prioridade e não pode ser alterada pelo painel.</summary>
+        Config,
+        /// <summary>Cadastrada pelo painel admin (criptografada no banco).</summary>
+        Panel
+    }
+
     /// <summary>Descrição de um provedor de IA suportado.</summary>
     public sealed record AiProviderInfo(string Id, string Name, string ConfigSection, string DefaultModel, string DefaultBaseUrl);
 
@@ -82,12 +131,15 @@ namespace NoteLab.Application
         private readonly IConfiguration _config;
         private readonly object _lock = new();
         private Dictionary<string, string> _cache = new();
+        private Dictionary<string, string> _secrets = new();
+        private readonly IDataProtector _protector;
         private DateTimeOffset _loadedAt = DateTimeOffset.MinValue;
 
-        public AiSettings(IServiceScopeFactory scopes, IConfiguration config)
+        public AiSettings(IServiceScopeFactory scopes, IConfiguration config, IDataProtectionProvider dataProtection)
         {
             _scopes = scopes;
             _config = config;
+            _protector = dataProtection.CreateProtector("Notee.AiProviderKeys.v1");
         }
 
         public string ActiveProvider =>
@@ -99,9 +151,76 @@ namespace NoteLab.Application
         public string BaseUrlFor(AiProviderInfo provider) =>
             (_config[$"{provider.ConfigSection}:BaseUrl"] ?? provider.DefaultBaseUrl).TrimEnd('/');
 
-        public string? ApiKeyFor(AiProviderInfo provider) => _config[$"{provider.ConfigSection}:ApiKey"];
+        /// <summary>Precedência: configuração do servidor; se não houver, a chave cadastrada pelo painel.</summary>
+        public string? ApiKeyFor(AiProviderInfo provider) =>
+            ConfigKey(provider) ?? PanelKey(provider);
 
         public bool IsConfigured(AiProviderInfo provider) => AiProviders.IsRealKey(ApiKeyFor(provider));
+
+        public KeySource SourceOf(AiProviderInfo provider) =>
+            ConfigKey(provider) is not null ? KeySource.Config : PanelKey(provider) is not null ? KeySource.Panel : KeySource.None;
+
+        private string? ConfigKey(AiProviderInfo provider) =>
+            _config[$"{provider.ConfigSection}:ApiKey"] is { } k && AiProviders.IsRealKey(k) ? k : null;
+
+        private string? PanelKey(AiProviderInfo provider)
+        {
+            Get(ActiveKey); // garante cache carregado
+            string? protectedKey;
+            lock (_lock)
+            {
+                _secrets.TryGetValue(provider.Id, out protectedKey);
+            }
+
+            if (protectedKey is null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return _protector.Unprotect(protectedKey);
+            }
+            catch (CryptographicException)
+            {
+                // Chaves do Data Protection trocadas/perdidas: trata como ausente (o admin cadastra de novo).
+                return null;
+            }
+        }
+
+        /// <summary>Salva a chave criptografada. Falha se já existir chave na configuração do servidor.</summary>
+        public async Task SetPanelKeyAsync(AiProviderInfo provider, string apiKey, string updatedBy, CancellationToken ct)
+        {
+            if (ConfigKey(provider) is not null)
+            {
+                throw new InvalidOperationException("Chave definida na configuração do servidor.");
+            }
+
+            using IServiceScope scope = _scopes.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NoteDbContext>();
+            string protectedKey = _protector.Protect(apiKey);
+            AiProviderSecret? secret = await db.AiProviderSecrets.SingleOrDefaultAsync(s => s.ProviderId == provider.Id, ct);
+            if (secret is null)
+            {
+                db.AiProviderSecrets.Add(new AiProviderSecret(provider.Id, protectedKey, updatedBy));
+            }
+            else
+            {
+                secret.Replace(protectedKey, updatedBy);
+            }
+
+            await db.SaveChangesAsync(ct);
+            Invalidate();
+        }
+
+        public async Task<bool> RemovePanelKeyAsync(AiProviderInfo provider, CancellationToken ct)
+        {
+            using IServiceScope scope = _scopes.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NoteDbContext>();
+            int removed = await db.AiProviderSecrets.Where(s => s.ProviderId == provider.Id).ExecuteDeleteAsync(ct);
+            Invalidate();
+            return removed > 0;
+        }
 
         public async Task SetAsync(string key, string value, string updatedBy, CancellationToken ct)
         {
@@ -147,6 +266,7 @@ namespace NoteLab.Application
                     _cache = db.SystemSettings.AsNoTracking()
                         .Where(s => s.Key.StartsWith("ai."))
                         .ToDictionary(s => s.Key, s => s.Value);
+                    _secrets = db.AiProviderSecrets.AsNoTracking().ToDictionary(s => s.ProviderId, s => s.ProtectedKey);
                     _loadedAt = DateTimeOffset.UtcNow;
                 }
 

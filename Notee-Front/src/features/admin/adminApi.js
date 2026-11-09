@@ -42,5 +42,7 @@ export const adminApi = {
   state: () => request('/admin/ai'),
   setActive: provider => request('/admin/ai/active', { method: 'PUT', body: JSON.stringify({ provider }) }),
   setModel: (id, model) => request(`/admin/ai/providers/${id}/model`, { method: 'PUT', body: JSON.stringify({ model }) }),
+  setKey: (id, apiKey) => request(`/admin/ai/providers/${id}/key`, { method: 'PUT', body: JSON.stringify({ apiKey }) }),
+  removeKey: id => request(`/admin/ai/providers/${id}/key`, { method: 'DELETE' }),
   test: id => request(`/admin/ai/providers/${id}/test`, { method: 'POST' }),
 };

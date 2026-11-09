@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NoteLab.Application;
@@ -10,30 +11,10 @@ namespace NoteLab.Tests;
 /// <summary>Adaptadores ChatGPT/Grok/DeepSeek com servidor HTTP falso (nenhuma chamada real).</summary>
 public class AiAdaptersTests
 {
-    private sealed class FakeHandler(string body) : HttpMessageHandler
-    {
-        public HttpRequestMessage? Request { get; private set; }
-        public string? Body { get; private set; }
-
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-        {
-            Request = request;
-            Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
-        }
-    }
-
     private const string Completion = """
         { "choices": [ { "message": { "role": "assistant", "content": "  ok  " } } ],
           "usage": { "prompt_tokens": 12, "completion_tokens": 3 } }
         """;
-
-    private static AiSettings Settings(Dictionary<string, string?> values)
-    {
-        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
-        var services = new ServiceCollection().BuildServiceProvider();
-        return new AiSettings(services.GetRequiredService<IServiceScopeFactory>(), config);
-    }
 
     [Theory]
     [InlineData("chatgpt", "OpenAI", "https://api.openai.com/v1", "gpt-4o-mini")]
@@ -65,4 +46,21 @@ public class AiAdaptersTests
         Assert.False(AiProviders.IsRealKey(""));
         Assert.True(AiProviders.IsRealKey("sk-de-teste"));
     }
+
+    private static AiSettings Settings(Dictionary<string, string?> values) =>
+        new(new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
+            new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
+            new EphemeralDataProtectionProvider());
+
+    [Fact]
+    public async Task Config_key_takes_precedence_and_is_not_editable()
+    {
+        AiSettings settings = Settings(new() { ["OpenAI:ApiKey"] = "sk-config" });
+        AiProviderInfo chatgpt = AiProviders.Find("chatgpt")!;
+
+        Assert.Equal(KeySource.Config, settings.SourceOf(chatgpt));
+        Assert.Equal("sk-config", settings.ApiKeyFor(chatgpt));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => settings.SetPanelKeyAsync(chatgpt, "sk-painel", "admin", CancellationToken.None));
+    }
+
 }

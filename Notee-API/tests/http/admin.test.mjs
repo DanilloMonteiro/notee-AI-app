@@ -1,7 +1,7 @@
 // Painel administrativo de IA (ADR-030) e adaptadores ChatGPT/Grok/DeepSeek/Claude de ponta a ponta,
 // SEM rede externa: esta suíte sobe um servidor falso na porta 5198. A API precisa rodar com:
 //   Admin__Email / Admin__Password (NOTEE_ADMIN_EMAIL / NOTEE_ADMIN_PASSWORD iguais aqui)
-//   OpenAI__ApiKey, Grok__ApiKey, DeepSeek__ApiKey, Claude__ApiKey = fake-key
+//   OpenAI__ApiKey, Grok__ApiKey, Claude__ApiKey = fake-key  (DeepSeek SEM chave: ela é cadastrada pelo painel)
 //   OpenAI__BaseUrl, Grok__BaseUrl, DeepSeek__BaseUrl, Claude__BaseUrl = http://localhost:5198
 // Sem essa configuração a suíte é pulada.
 import http from 'node:http';
@@ -69,7 +69,21 @@ const plain = (await call(null, 'POST', '/auth/login', { email: ADMIN_EMAIL, pas
 ok((await call(plain, 'GET', '/admin/ai')).status === 403, 'login comum da conta admin NÃO dá acesso ao painel');
 
 let state = (await call(admin, 'GET', '/admin/ai')).json;
-ok(state.providers.length === 5 && ['chatgpt', 'claude', 'grok', 'deepseek'].every(id => state.providers.find(p => p.id === id)?.configured), 'lista 5 provedores com status de configuração');
+ok(state.providers.length === 5 && ['chatgpt', 'claude', 'grok'].every(id => state.providers.find(p => p.id === id)?.configured), 'lista 5 provedores com status de configuração');
+
+// Chaves pelo painel: só onde não há chave na configuração; valor nunca é devolvido
+const ds = () => state.providers.find(p => p.id === 'deepseek');
+const gpt = state.providers.find(p => p.id === 'chatgpt');
+ok(gpt.keySource === 'config' && gpt.keyEditable === false, 'chave do appsettings aparece como "servidor" e não é editável');
+ok(ds().keySource === 'none' && ds().keyEditable && !ds().configured, 'provedor sem chave aparece como editável');
+ok((await call(admin, 'PUT', '/admin/ai/providers/chatgpt/key', { apiKey: 'sk-outra-chave' })).status === 409, 'não sobrescreve chave do servidor -> 409');
+ok((await call(admin, 'DELETE', '/admin/ai/providers/chatgpt/key')).status === 409, 'não remove chave do servidor -> 409');
+ok((await call(admin, 'PUT', '/admin/ai/providers/deepseek/key', { apiKey: 'a b' })).status === 400, 'chave inválida -> 400');
+ok((await call(user, 'PUT', '/admin/ai/providers/deepseek/key', { apiKey: 'fake-key' })).status === 403, 'usuário comum não cadastra chave');
+const saved = await call(admin, 'PUT', '/admin/ai/providers/deepseek/key', { apiKey: 'fake-key' });
+state = saved.json;
+ok(saved.status === 200 && ds().keySource === 'panel' && ds().configured, 'chave cadastrada pelo painel');
+ok(!JSON.stringify(state).includes('fake-key') && !JSON.stringify((await call(admin, 'GET', '/admin/ai')).json).includes('fake-key'), 'valor da chave nunca é devolvido');
 const original = state.activeProvider;
 ok((await call(admin, 'PUT', '/admin/ai/active', { provider: 'inexistente' })).status === 400, 'provedor desconhecido -> 400');
 ok((await call(user, 'PUT', '/admin/ai/active', { provider: 'grok' })).status === 403, 'usuário comum não troca a IA');
@@ -132,6 +146,10 @@ for (let i = 0; i < 30; i++) {
   await sleep(300);
 }
 ok(done.answerProvider === 'fake' && requests.length === before, 'sem consentimento nada vai para a IA ativa');
+
+// Remover a chave do painel deixa o provedor sem chave
+state = (await call(admin, 'DELETE', '/admin/ai/providers/deepseek/key')).json;
+ok(ds().keySource === 'none' && !ds().configured, 'remover chave do painel');
 
 await call(admin, 'PUT', '/admin/ai/active', { provider: original });
 server.close();

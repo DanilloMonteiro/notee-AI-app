@@ -7,7 +7,9 @@ using NoteLab.Infrastructure;
 
 namespace NoteLab.Application;
 
-public record AdminProviderResponse(string Id, string Name, bool Configured, bool Active, string Model, string DefaultModel);
+/// <summary>KeySource: config (appsettings/ambiente, não editável) | panel (cadastrada aqui) | none. O valor da chave nunca é devolvido.</summary>
+public record AdminProviderResponse(string Id, string Name, bool Configured, bool Active, string Model, string DefaultModel, string KeySource, bool KeyEditable);
+public record SetApiKeyRequest(string ApiKey);
 public record AdminAiStateResponse(string ActiveProvider, DateTimeOffset? UpdatedAt, string? UpdatedBy, List<AdminProviderResponse> Providers);
 public record SetActiveProviderRequest(string Provider);
 public record SetModelRequest(string Model);
@@ -88,6 +90,49 @@ public static class AdminEndpoints
             return Results.Ok(await StateAsync(settings, ct));
         });
 
+        // Chave pelo painel: só quando não há chave na configuração do servidor. Fica criptografada no banco.
+        admin.MapPut("/ai/providers/{id}/key", async (string id, SetApiKeyRequest request, AiSettings settings, ClaimsPrincipal user, ILogger<Program> logger, CancellationToken ct) =>
+        {
+            AiProviderInfo? provider = AiProviders.Find(id);
+            if (provider is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (settings.SourceOf(provider) == KeySource.Config)
+            {
+                return Results.Problem(statusCode: 409, title: "Conflito", detail: "Este provedor já tem chave na configuração do servidor; ela não pode ser alterada pelo painel.");
+            }
+
+            string key = (request.ApiKey ?? "").Trim();
+            if (key.Length is < 8 or > 500 || key.Any(char.IsWhiteSpace) || !AiProviders.IsRealKey(key))
+            {
+                return Problem(400, "Chave inválida.");
+            }
+
+            await settings.SetPanelKeyAsync(provider, key, Actor(user), ct);
+            logger.LogInformation("Chave de {Provider} cadastrada pelo painel por {Actor}", provider.Id, Actor(user)); // nunca o valor
+            return Results.Ok(await StateAsync(settings, ct));
+        });
+
+        admin.MapDelete("/ai/providers/{id}/key", async (string id, AiSettings settings, ClaimsPrincipal user, ILogger<Program> logger, CancellationToken ct) =>
+        {
+            AiProviderInfo? provider = AiProviders.Find(id);
+            if (provider is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (settings.SourceOf(provider) == KeySource.Config)
+            {
+                return Results.Problem(statusCode: 409, title: "Conflito", detail: "A chave deste provedor vem da configuração do servidor.");
+            }
+
+            await settings.RemovePanelKeyAsync(provider, ct);
+            logger.LogInformation("Chave de {Provider} removida do painel por {Actor}", provider.Id, Actor(user));
+            return Results.Ok(await StateAsync(settings, ct));
+        });
+
         // Teste de conexão com pergunta fixa (nenhum dado de usuário é enviado).
         admin.MapPost("/ai/providers/{id}/test", async (string id, AiSettings settings, AiProviderSelector selector, CancellationToken ct) =>
         {
@@ -152,7 +197,8 @@ public static class AdminEndpoints
         string active = settings.ActiveProvider;
         var record = await settings.GetRecordAsync(AiSettings.ActiveKey, ct);
         return new AdminAiStateResponse(active, record?.UpdatedAt, record?.UpdatedBy,
-            AiProviders.All.Select(p => new AdminProviderResponse(p.Id, p.Name, settings.IsConfigured(p), p.Id == active, settings.ModelFor(p), p.DefaultModel)).ToList());
+            AiProviders.All.Select(p => new AdminProviderResponse(p.Id, p.Name, settings.IsConfigured(p), p.Id == active, settings.ModelFor(p), p.DefaultModel,
+                settings.SourceOf(p).ToString().ToLowerInvariant(), settings.SourceOf(p) != KeySource.Config)).ToList());
     }
 
     private static string Actor(ClaimsPrincipal user) =>

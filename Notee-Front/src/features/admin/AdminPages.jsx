@@ -25,6 +25,8 @@ function AdminShell({ children, onLogout }) {
   );
 }
 
+const KEY_LABEL = { config: 'Chave no servidor', panel: 'Chave cadastrada no painel', none: 'Sem chave' };
+
 export function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,6 +83,7 @@ export function AdminAiPage() {
   const [state, setState] = useState(null);
   const [models, setModels] = useState({});
   const [tests, setTests] = useState({});
+  const [keys, setKeys] = useState({});
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
@@ -135,7 +138,7 @@ export function AdminAiPage() {
         <Icon name="shield" />
         <span>
           A IA escolhida aqui só recebe dados de contas que <strong>autorizaram IA externa</strong> em Configurações; as demais continuam com
-          respostas simuladas locais. Chaves de API ficam apenas na configuração do servidor (<code>Seção:ApiKey</code>), nunca neste painel.
+          respostas simuladas locais. Chaves do <code>appsettings.json</code>/ambiente têm prioridade e não podem ser alteradas aqui; sem elas, você pode cadastrar a chave abaixo (fica criptografada no banco e nunca é exibida).
         </span>
       </div>
 
@@ -161,7 +164,7 @@ export function AdminAiPage() {
                   <div>
                     <strong>{p.name}</strong>{' '}
                     {p.active && <span className="pill green">Ativa</span>}{' '}
-                    <span className={`pill ${p.configured ? '' : 'amber'}`}>{p.configured ? 'Chave configurada' : 'Sem chave no servidor'}</span>
+                    <span className={`pill ${p.configured ? '' : 'amber'}`}>{KEY_LABEL[p.keySource] || 'Sem chave'}</span>
                   </div>
                   <div className="row gap8">
                     <button
@@ -203,6 +206,48 @@ export function AdminAiPage() {
                   </button>
                   <span className="tiny muted">padrão: {p.defaultModel}</span>
                 </div>
+                {p.keyEditable ? (
+                  <form
+                    className="row gap8 wrap mt16"
+                    style={{ alignItems: 'center' }}
+                    onSubmit={async e => {
+                      e.preventDefault();
+                      const r = await run(`key-${p.id}`, () => adminApi.setKey(p.id, (keys[p.id] || '').trim()), `Chave de ${p.name} salva.`);
+                      if (r) setKeys(k => ({ ...k, [p.id]: '' }));
+                    }}
+                  >
+                    <label className="small muted" htmlFor={`key-${p.id}`}>
+                      Chave de API
+                    </label>
+                    <input
+                      id={`key-${p.id}`}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={p.keySource === 'panel' ? '•••••••• (cadastrada — digite para substituir)' : 'cole a chave aqui'}
+                      value={keys[p.id] || ''}
+                      onChange={e => setKeys(k => ({ ...k, [p.id]: e.target.value }))}
+                      style={{ width: 320, padding: 6 }}
+                    />
+                    <button className="btn compact" type="submit" disabled={busy !== '' || !(keys[p.id] || '').trim()}>
+                      Salvar chave
+                    </button>
+                    {p.keySource === 'panel' && (
+                      <button
+                        type="button"
+                        className="btn compact danger"
+                        disabled={busy !== ''}
+                        onClick={() =>
+                          window.confirm(`Remover a chave de ${p.name}?${p.active ? ' Ela é a IA ativa: as pesquisas voltarão a ser simuladas.' : ''}`) &&
+                          run(`delkey-${p.id}`, () => adminApi.removeKey(p.id), `Chave de ${p.name} removida.`)
+                        }
+                      >
+                        Remover chave
+                      </button>
+                    )}
+                  </form>
+                ) : (
+                  <p className="tiny muted mt16">Chave definida no servidor (appsettings/ambiente) — não editável pelo painel.</p>
+                )}
                 {tests[p.id] && (
                   <p className="tiny mt16" style={{ color: tests[p.id].ok ? '#376346' : '#a6452f' }}>
                     {tests[p.id].ok
