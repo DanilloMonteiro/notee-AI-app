@@ -2,22 +2,37 @@
 
 **Data de preparação deste pacote:** 09/11/2026.
 
-> **Informação confirmada nesta entrega:** recebidos e inspecionados o PDF v1.0 (51 páginas), README do pacote v1.2, HTML de protótipo local v1.2 e duas capturas. **Não foi fornecido/inspecionado repositório de aplicação React, código backend ASP.NET, migrations, testes ou infraestrutura executada.** Logo, os marcos de implementação de produção não estão verificados.
+> O texto original do pacote dizia que nenhum repositório havia sido inspecionado. **Isso mudou:** o repositório real foi inspecionado e evoluído em 09/11/2026; a tabela abaixo reflete o estado verificado.
 
-## Tabela de situação
+## Situação atual (09/11/2026, commit `1ff6603` + consolidação)
 
-| Item | Estado comprovado | Evidência |
+> Atualizado com evidência do repositório real. "Verificado" = coberto por teste automatizado executado nesta data (CI no GitHub Actions e/ou execução local). Itens não validados estão marcados.
+
+| Marco | Situação | Evidência |
 |---|---|---|
-| Planejamento Notee v1.0 | Documentado | PDF recebido de 51 páginas |
-| Comportamento v1.1 Mapas | Documentado/demonstrado no HTML | README v1.2 + código do protótipo |
-| Refinamentos de layout v1.2 | Documentados/demonstrados | README, HTML e duas capturas |
-| Arquivos de contexto Markdown | Preparados nesta entrega | `docs/*.md` e `fontes_pdf/*.md` |
-| App React | **Não verificado** | repositório real não disponibilizado |
-| API/backend .NET/PostgreSQL | **Não verificado** | repositório real não disponibilizado |
-| Worker/Outbox/SQS/LocalStack | **Não verificado** | nenhuma execução demonstrada |
-| Auth/recuperação reais | **Não verificado** | HTML é simulação |
-| Provider IA real | **Não verificado** | HTML não realiza chamadas externas |
-| Testes do produto | **Não verificado** | não foram fornecidas saídas reais |
+| M01 Base reproduzível | Feito | CI (`.github/workflows/ci.yml`): testes, migrations, suítes HTTP, lint/build front, build de imagens |
+| M02 Domínio de notas | Feito | arquivar/lixeira/restaurar/excluir só da lixeira; `NoteLifecycleTests`, suíte `notes` |
+| M03 API e persistência | Feito (parcial: sem prefixo `/api/v1` e sem cursor) | Problem Details com traceId, concorrência otimista, Idempotency-Key em jobs; suítes HTTP |
+| M04 Identidade e recuperação | Feito | refresh rotativo com detecção de reuso, logout, reset revoga sessões, rate limit; suíte `auth` |
+| M05 Design system e telas | Feito (JS, sem TS/TanStack — ADR-018) | build + lint no CI; verificação manual no Chrome |
+| M06 Editor, revisões | Feito | `NoteRevisions`, histórico e restauração; suíte `revisions` |
+| M07 Busca e organização | Feito (ILIKE, não FTS) | filtros, busca no servidor, CRUD de categorias/tags; suíte `notes` |
+| M08 Publicação revisada | Feito | snapshots, 3 visibilidades, revogação, perfil, biblioteca; suíte `publishing` |
+| M09 Dúvidas e contrato de pesquisa | Feito | 202 + job, Fake determinístico, "Sem fonte"; suíte `research` |
+| M10 Sugestões e automação | Feito | análise local, aceite/descarte, precedência conta/nota; suíte `analysis` |
+| M11 Outbox + SQS LocalStack | Feito | Outbox/Inbox; CI roda suítes em modo `sqs` com LocalStack |
+| M12 Worker recuperável | Feito | lease + fencing, retry/backoff, cancelamento; `ResearchJobTests`; recuperação de lease verificada no banco |
+| M13 Pesquisa real com fontes | Implementado, **não validado contra a API real** | servidor Gemini falso (unitário + suíte `provider`); consentimento v2 |
+| M14 Segurança e avaliação | Parcial | cabeçalhos, 500 sem detalhes, quotas, URLs http(s), conteúdo publicado como texto; **sem** pentest nem avaliação de qualidade de respostas |
+| M15 Observabilidade | Feito | OpenTelemetry (OTLP opcional), métricas/spans por JobId, health checks; suíte `ops` |
+| M16 Terraform/AWS full-local | Parcial | Terraform de SQS + DLQ aplicado no LocalStack (local e CI); SES/RDS/ECS/ALB **não** provisionados |
+| M17 Entrega/desempenho/restore | Feito (laboratório) | `docs/RUNBOOK.md`; restore verificado; carga local 800 req / 0 erros |
+| M18 Evidências e consolidação | Feito | ADRs 011–029, este arquivo, README |
+| MAP-01..05 Mapas de Ideias | Feito | suítes `maps` (AC01–AC13) e `graph-ai`; "perguntar ao mapa" com provider real fica pendente (ADR-024) |
+
+**Números da última execução local (09/11/2026):** 89 testes unitários; 12 suítes HTTP com 260 verificações, todas passando nos modos in-process e SQS.
+
+**Pendências conhecidas:** validar o Gemini com chave real (com consentimento), migrar tokens para cookie HttpOnly (ADR-003), TypeScript/TanStack Query no front (ADR-018), FTS do PostgreSQL quando houver volume, prefixo `/api/v1` e paginação por cursor, provisionar demais serviços AWS no LocalStack, testes automatizados de interface.
 
 ## Atualização 09/11/2026 — repositório inspecionado e incremento de Mapas
 

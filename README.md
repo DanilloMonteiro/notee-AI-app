@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/DanilloMonteiro/notee-AI-app/actions/workflows/ci.yml/badge.svg)](https://github.com/DanilloMonteiro/notee-AI-app/actions/workflows/ci.yml)
 
-Aplicação de anotações com módulo de pesquisa assistida por IA: você marca um trecho de uma nota, registra uma dúvida e um worker em segundo plano consulta a IA (Gemini ou OpenAI) para respondê-la.
+**Notee — Anote agora. Entenda depois.** Notas privadas em blocos com histórico de revisões, dúvidas pesquisadas em segundo plano (provider simulado por padrão; IA externa só com consentimento, com fontes), mapas de ideias que reutilizam as mesmas notas, sugestões sempre com aceite humano e publicação de snapshots revisados.
+
+Documentação: [`docs/`](docs) (planejamento, ADRs em [`docs/13_ADRS_E_DECISOES_ABERTAS.md`](docs/13_ADRS_E_DECISOES_ABERTAS.md), estado em [`docs/ESTADO_DO_PROJETO.md`](docs/ESTADO_DO_PROJETO.md), operação em [`docs/RUNBOOK.md`](docs/RUNBOOK.md)).
 
 | Pasta | Stack | Descrição |
 |-------|-------|-----------|
