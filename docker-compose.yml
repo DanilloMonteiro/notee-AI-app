@@ -51,6 +51,8 @@ services:
     volumes:
       # Chaves de API ficam fora da imagem. Crie a partir do appsettings.Example.json.
       - ./Notee-API/src/NoteLab/appsettings.json:/app/appsettings.json:ro
+      # Chaves de Data Protection (tokens de redefinição de senha) sobrevivem à recriação do contêiner.
+      - notee-dpkeys:/root/.aspnet/DataProtection-Keys
     depends_on:
       db:
         condition: service_healthy
@@ -80,3 +82,4 @@ services:
 
 volumes:
   notee-pgdata:
+  notee-dpkeys:

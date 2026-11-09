@@ -104,3 +104,15 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  images:
+    name: Docker images (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: API runtime
+        run: docker build --target runtime -t notee-api:ci Notee-API
+      - name: Migrations bundle
+        run: docker build --target migrate -t notee-migrate:ci Notee-API
+      - name: Front
+        run: docker build -t notee-front:ci Notee-Front

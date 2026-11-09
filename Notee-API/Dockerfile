@@ -3,13 +3,9 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY src/NoteLab/NoteLab.csproj src/NoteLab/
-# O csproj usa "Microsoft.NET.Sdk.web" (w minúsculo): funciona no Windows,
-# mas o Linux diferencia maiúsculas. Corrigimos só dentro da imagem.
-RUN sed -i 's/Microsoft.NET.Sdk.web"/Microsoft.NET.Sdk.Web"/' src/NoteLab/NoteLab.csproj
 RUN dotnet restore src/NoteLab/NoteLab.csproj
 
 COPY src/ src/
-RUN sed -i 's/Microsoft.NET.Sdk.web"/Microsoft.NET.Sdk.Web"/' src/NoteLab/NoteLab.csproj
 RUN dotnet publish src/NoteLab/NoteLab.csproj -c Release -o /app/publish --no-restore
 
 # Bundle executável das migrations do EF Core (usado pelo serviço "migrate")
