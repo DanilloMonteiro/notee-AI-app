@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Notee: prototipo local de notas, mapas de ideias, grafo de conhecimento, duvidas e pesquisa assistida. Dados ficticios, sem autenticacao ou chamadas de IA reais.">
+<title>Notee - Anote agora. Entenda depois.</title>
+<style>
+:root{--bg:#f7f8f5;--surface:#fff;--surface-soft:#f1f4ed;--ink:#1e2d25;--muted:#6c7a71;--line:#e1e7de;--brand:#21573d;--brand-strong:#17412d;--lime:#d8f4a1;--brand-soft:#edf5e7;--amber:#9b641f;--amber-soft:#fff6e4;--danger:#ac453c;--danger-soft:#fff0ec;--info:#3e6080;--radius:16px;--radius-sm:9px;--shadow:0 8px 28px rgba(30,45,37,.045);--sidebar:228px;--font:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;padding:0;min-width:1120px;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55}button,input,select,textarea{font:inherit}button,a,input,textarea,select{-webkit-tap-highlight-color:transparent}button,a{transition:background .15s,border-color .15s,box-shadow .15s}button{cursor:pointer}a{color:inherit;text-decoration:none}button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[contenteditable]:focus-visible{outline:3px solid #6a9562;outline-offset:3px}.icon{width:18px;height:18px;vertical-align:middle;flex:none}.icon.sm{width:15px;height:15px}.icon.lg{width:24px;height:24px}h1,h2,h3,h4,p{margin:0}h1{font-size:30px;letter-spacing:-1.1px;line-height:1.22;font-weight:620}h2{font-size:21px;letter-spacing:-.5px;font-weight:610}h3{font-size:16px;letter-spacing:-.15px;font-weight:620}h4{font-size:14px;font-weight:620}p+p{margin-top:12px}.muted{color:var(--muted)}.small{font-size:12px}.tiny{font-size:11px}.overline{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;color:var(--muted)}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}.grow{flex:1}.row{display:flex;align-items:center;gap:12px}.row.between{justify-content:space-between}.row.wrap{flex-wrap:wrap}.stack{display:flex;flex-direction:column;gap:16px}.gap8{gap:8px}.mb8{margin-bottom:8px}.mb16{margin-bottom:16px}.mb24{margin-bottom:24px}.mt16{margin-top:16px}.mt24{margin-top:24px}.mt32{margin-top:32px}.hidden{display:none!important}.ellipsis{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);padding:10px 15px;border-radius:var(--radius-sm);font-weight:550;background:white;color:var(--ink);white-space:nowrap;line-height:1.4}.btn:hover{background:var(--surface-soft);border-color:#c9d4c5}.btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}.btn.primary:hover{background:var(--brand-strong)}.btn.lime{background:var(--lime);border-color:var(--lime);color:var(--brand-strong)}.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}.btn.ghost:hover{background:var(--surface-soft);color:var(--ink)}.btn.danger{color:var(--danger);background:var(--danger-soft);border-color:#f1d7cf}.btn.compact{font-size:12px;padding:7px 10px}.icon-btn{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted)}.icon-btn:hover{background:var(--surface-soft);border-color:var(--line)}.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:570;padding:4px 8px;border-radius:6px;background:var(--surface-soft);color:var(--muted);white-space:nowrap}.pill.green{background:var(--brand-soft);color:var(--brand)}.pill.amber{background:var(--amber-soft);color:var(--amber)}.pill.red{background:var(--danger-soft);color:var(--danger)}.pill.blue{background:#eff4f8;color:var(--info)}.tag{font-size:11px;color:#66756b;background:#f2f5ef;border:1px solid #e7ece3;border-radius:5px;padding:3px 7px;white-space:nowrap}.dot{width:6px;height:6px;display:inline-block;border-radius:50%;background:currentColor}.badge-count{font-size:10px;min-width:19px;height:19px;text-align:center;line-height:19px;border-radius:5px;background:#e8eee2;color:var(--brand)}.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.card.pad{padding:24px}.divider{height:1px;background:var(--line);margin:20px 0}.callout{padding:14px 16px;border-radius:10px;background:var(--brand-soft);border:1px solid #dae7d0;display:flex;gap:10px;color:var(--brand);font-size:12px}.callout.warning{background:var(--amber-soft);border-color:#f2e0bc;color:#81561d}.callout.neutral{background:#f4f6f1;border-color:var(--line);color:var(--muted)}.field{display:flex;flex-direction:column;gap:7px;margin-bottom:18px}.field label{font-size:12px;font-weight:600;color:#435449}input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{border:1px solid #d8e1d3;background:white;color:var(--ink);padding:10px 12px;border-radius:8px;width:100%;font-size:13px}textarea{resize:vertical;min-height:90px}input::placeholder,textarea::placeholder{color:#99a297}input[type=checkbox]{accent-color:var(--brand);width:16px;height:16px}label.check{display:flex;gap:10px;align-items:flex-start;font-size:13px;cursor:pointer}label.check input{margin-top:3px;flex:none}.switch{width:38px;height:22px;border:none;background:#d4ddd0;border-radius:20px;padding:3px;display:inline-flex;align-items:center}.switch:after{content:'';width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 3px #0002}.switch.on{background:var(--brand)}.switch.on:after{transform:translateX(16px)}.tabbar{display:flex;gap:5px;border-bottom:1px solid var(--line);margin-bottom:24px;padding-bottom:0}.tab{padding:12px 16px;border:0;border-bottom:2px solid transparent;background:none;font-weight:550;font-size:12px;color:var(--muted)}.tab.active{color:var(--brand);border-color:var(--brand)}.logo{display:flex;align-items:center;gap:9px;font-size:26px;letter-spacing:-1.4px;font-weight:700}.logo-mark{width:33px;height:34px;background:var(--brand);color:var(--lime);display:inline-flex;align-items:center;justify-content:center;border-radius:10px;font-size:24px;letter-spacing:-2px;font-weight:750;padding-right:2px;transform:rotate(-3deg)}.logo.light{color:white}.logo.light .logo-mark{background:var(--lime);color:var(--brand)}.avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;width:34px;height:34px;background:#e5eddf;color:var(--brand);font-size:11px;font-weight:700;flex:none}.avatar.big{width:64px;height:64px;border-radius:18px;font-size:20px}.app-shell{display:flex;min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);border-right:1px solid var(--line);padding:27px 18px 16px;background:#fcfdf9;display:flex;flex-direction:column;z-index:10}.sidebar .logo{padding:0 10px;margin-bottom:25px}.workspace{padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:white;margin-bottom:22px}.workspace .avatar{width:27px;height:27px;border-radius:7px;font-size:10px}.nav-label{font-size:10px;color:#899586;letter-spacing:1px;text-transform:uppercase;padding:0 12px;margin:20px 0 7px}.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;margin:3px 0;border-radius:8px;color:#63745f;font-size:12px;font-weight:520}.nav-item.active{background:#eaf2df;color:var(--brand)}.nav-item:hover{background:#f0f4e9}.nav-item .icon{width:17px;height:17px}.nav-item .badge-count{margin-left:auto}.sidebar-bottom{margin-top:auto;padding-top:14px}.local-note{padding:12px;border-radius:10px;background:#f0f4e8;font-size:10px;color:#7a8872;margin:13px 0}.local-note strong{display:block;color:var(--brand);font-size:11px;margin-bottom:2px}.user-switch{padding:12px 5px 0;border-top:1px solid var(--line);margin-top:14px}.main-wrap{margin-left:var(--sidebar);width:calc(100% - var(--sidebar))}.topbar{height:70px;padding:0 34px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#ffffffc9;gap:20px}.crumb{font-size:12px;color:#7b8876;display:flex;gap:10px;align-items:center}.crumb strong{color:#4d5b47;font-weight:550}.topbar-search{display:flex;align-items:center;gap:8px;color:#869080;border:1px solid var(--line);background:white;padding:7px 10px;width:250px;font-size:11px;border-radius:7px}.kbd{border:1px solid var(--line);border-radius:4px;font-size:9px;padding:1px 4px;background:#f8faf5}.page{padding:32px 38px 50px;max-width:1560px;margin:auto}.page-heading{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:25px}.page-heading p{margin-top:7px;font-size:12px;color:var(--muted)}.page-heading .overline{margin-bottom:9px}.grid{display:grid;gap:18px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}.split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px}.hero-card{background:#edf3e6;border:1px solid #dce7d1;border-radius:16px;padding:25px 28px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden}.hero-card h2{font-size:24px;color:#284c30;margin-bottom:8px}.hero-card p{font-size:12px;color:#69805e;max-width:450px}.hero-ornament{width:115px;height:95px;position:relative;margin-right:20px;flex:none}.mini-paper{position:absolute;width:73px;height:88px;background:white;border:1px solid #ccdabe;border-radius:10px;right:20px;top:1px;transform:rotate(10deg);box-shadow:0 5px 12px #1f492210}.mini-paper:before{content:'';position:absolute;inset:23px 14px;background:repeating-linear-gradient(to bottom,#d8e7c9 0,#d8e7c9 3px,transparent 3px,transparent 12px)}.mini-paper.back{right:45px;top:9px;transform:rotate(-10deg);background:#dfedcc}.sparkle-round{position:absolute;right:2px;bottom:-2px;width:44px;height:44px;background:var(--lime);border:5px solid #edf3e6;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--brand)}.stat{padding:20px 22px}.stat .stat-number{font-size:27px;letter-spacing:-1px;font-weight:600;margin:10px 0 2px}.stat-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted)}.stat-foot{font-size:10px;color:#8b9784}.section-heading{display:flex;align-items:center;justify-content:space-between;margin:29px 0 14px}.section-heading h2{font-size:17px}.note-card{padding:22px;display:flex;flex-direction:column;gap:14px;min-height:209px;position:relative}.note-card:hover{border-color:#bcccaf;box-shadow:0 9px 22px #1b3d270c}.note-icon{width:34px;height:34px;background:#f2f5ee;border:1px solid #e4eadc;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#7b9466}.note-card h3{font-size:14px;line-height:1.4}.note-preview{font-size:11px;color:#819076;line-height:1.7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.note-card-footer{border-top:1px solid #edf0e7;padding-top:12px;display:flex;align-items:center;justify-content:space-between;margin-top:auto;font-size:10px;color:#929c8b}.research-card{padding:18px;margin-bottom:12px}.research-card blockquote{margin:10px 0;padding-left:10px;border-left:2px solid #d7e2cb;font-size:12px;color:#596f4d;line-height:1.65}.research-card p{font-size:11px;color:var(--muted)}.result-panel{padding:22px;background:white;border:1px solid var(--line);border-radius:14px}.result-panel p{font-size:12px;line-height:1.8}.result-panel h3{margin-bottom:12px}.source{display:flex;gap:10px;padding:12px;border:1px solid var(--line);border-radius:9px;margin-top:9px;background:#fafbf7;font-size:11px}.source-num{display:flex;width:21px;height:21px;align-items:center;justify-content:center;background:#edf3e5;border-radius:5px;color:var(--brand);font-size:10px;flex:none}.source a{color:var(--brand);text-decoration:underline;text-underline-offset:3px;display:block;word-break:break-word}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#fcfdf9;border-radius:15px 15px 0 0}.editor-layout{display:grid;grid-template-columns:minmax(410px,1fr) 316px;gap:22px;align-items:start}.editor-body{padding:30px 36px 38px;min-height:520px}.editor-title{width:100%;font-size:28px!important;font-weight:620;letter-spacing:-.9px;border:0!important;border-radius:0!important;padding:0!important;outline:none!important;background:transparent!important;margin:14px 0 16px}.editor-meta{display:flex;align-items:center;gap:8px;padding-bottom:20px;border-bottom:1px solid #eff2e9;flex-wrap:wrap;margin-bottom:22px}.editor-meta select{font-size:10px;width:auto;padding:5px 8px;border-color:#e5eadf}.editor-block{position:relative;line-height:1.85;font-size:13px;outline:none;min-height:31px;padding:6px 0;margin-bottom:5px;white-space:pre-wrap;overflow-wrap:anywhere}.editor-block:focus{outline:0!important}.editor-block.heading{font-size:18px;font-weight:620;margin-top:20px}.editor-block.quote{padding:7px 15px;border-left:3px solid #b8d794;color:#6c7c5e;background:#f7faf2;border-radius:0 7px 7px 0}.editor-block.code{background:#f1f4ed;border:1px solid #e2e8d9;padding:13px;border-radius:7px;font-family:Consolas,monospace;font-size:12px}.editor-block.list:before{content:'\2022';margin-right:10px;color:#829477}.doubt-mark{background:#f4edc8;color:#775b18;border-bottom:1px dashed #c9ad61;border-radius:2px;padding:1px 0}.editor-hint{font-size:11px;color:#9aa58f;margin-top:20px;display:flex;gap:6px;align-items:center}.editor-status{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:12px 20px;color:#929c88;font-size:10px}.aside-title{display:flex;gap:9px;align-items:center;font-size:13px;margin-bottom:14px}.analysis-suggestion{border:1px dashed #c9d9b7;background:#f8fbf3;padding:13px;border-radius:10px;margin-bottom:12px}.analysis-suggestion p{font-size:12px;color:#687e58;margin:8px 0 10px}.empty{padding:47px 28px;text-align:center;border:1px dashed #cfdbc3;background:#fafcf6;border-radius:14px;color:var(--muted)}.empty .icon{width:30px;height:30px;margin-bottom:13px;color:#8aa273}.empty h3{color:var(--ink);margin-bottom:7px}.empty p{font-size:12px;max-width:440px;margin:auto}.empty .btn{margin-top:18px}.filters{display:flex;align-items:center;gap:12px;margin-bottom:22px}.filters input{max-width:360px}.filters select{width:175px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:white}table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}th{padding:12px 16px;color:#7b8b6d;font-size:10px;letter-spacing:.5px;font-weight:600;background:#f8faf4;border-bottom:1px solid var(--line)}td{padding:16px;border-bottom:1px solid #edf1e7;vertical-align:middle}tr:last-child td{border-bottom:0}.category-card{padding:24px;position:relative}.category-mark{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:var(--brand);background:#eaf2df;margin-bottom:18px}.category-card p{font-size:12px;color:var(--muted);margin-top:5px}.category-card .mini-line{height:4px;background:#eaf0e0;border-radius:2px;margin-top:22px}.category-card .mini-line span{display:block;height:100%;background:#accb8a;border-radius:2px;max-width:100%}.settings-section{padding:25px}.settings-row{display:flex;align-items:center;justify-content:space-between;gap:25px;padding:18px 0;border-bottom:1px solid #edf1e6}.settings-row:first-child{padding-top:0}.settings-row:last-child{border-bottom:0;padding-bottom:0}.settings-row p{font-size:11px;color:var(--muted);margin-top:4px;max-width:550px}.settings-row select{width:200px;font-size:12px;flex:none}.steps{display:flex;gap:6px;margin:18px 0}.step{flex:1;font-size:9px;color:#86967a;padding-top:8px;border-top:3px solid #e9efdf}.step.done{border-color:#6c9851;color:var(--brand)}.skeleton{height:11px;background:#ecf1e6;border-radius:4px;margin:10px 0;animation:pulse 1s infinite alternate}.progress-bar{height:6px;background:#e8efde;border-radius:5px;overflow:hidden}.progress-bar div{height:100%;background:#8cb766;border-radius:5px;transition:width .4s}.list-item{padding:16px 18px;border-bottom:1px solid #edf1e7}.list-item:last-child{border:0}.publication-cover{height:106px;background:#edf4e2;position:relative;overflow:hidden;border-radius:14px 14px 0 0;display:flex;align-items:center;padding:22px;color:#74965e}.publication-cover:after{content:'?';font-size:120px;position:absolute;right:17px;top:-23px;color:#d2e3bf;font-weight:700;line-height:1.5}.public-header{height:86px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 6vw;background:#fcfdf9}.public-main{max-width:1150px;margin:0 auto;padding:46px 30px 75px}.public-article{max-width:740px;margin:40px auto;background:white;border:1px solid var(--line);border-radius:16px;padding:42px 48px}.public-article h1{font-size:36px;margin:22px 0}.public-article .article-body{font-size:15px;line-height:1.9;margin-top:30px}.public-article .article-body p{margin:14px 0}.public-article .article-body h2{margin:25px 0 12px}.public-footer{padding:24px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);text-align:center}.landing-nav{height:88px;display:flex;align-items:center;justify-content:space-between;max-width:1240px;margin:auto;padding:0 20px}.landing-links{display:flex;gap:29px;font-size:12px;color:#6d7d62}.landing-hero{text-align:center;padding:47px 20px 32px;max-width:980px;margin:auto}.landing-hero .pill{border:1px solid #dbe6ce;padding:5px 13px;border-radius:20px;font-size:11px;background:#eef4e6;color:var(--brand)}.landing-hero h1{font-size:66px;letter-spacing:-3.4px;line-height:1.07;max-width:850px;margin:22px auto;font-weight:600}.landing-hero h1 span{color:#749756}.landing-hero p{font-size:15px;line-height:1.7;color:#7d8c70;max-width:510px;margin:0 auto 23px}.landing-showcase{max-width:1040px;margin:21px auto 50px;border:1px solid #d5e0cb;border-radius:18px;background:white;box-shadow:0 26px 75px #2e4f2112;overflow:hidden;text-align:left;transform:rotate(-.6deg)}.showcase-header{height:42px;background:#fafcf5;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 15px;color:#8a977e;font-size:10px}.showcase-header .circle{width:6px;height:6px;border-radius:50%;background:#d9e1d0}.showcase-body{display:grid;grid-template-columns:170px 1fr 256px;min-height:310px}.showcase-nav{background:#f9fbf5;border-right:1px solid var(--line);padding:20px 13px;font-size:11px}.showcase-nav div{padding:8px;border-radius:5px;color:#7e9070}.showcase-nav div.active{background:#e7f0da;color:#3d6531}.showcase-note{padding:28px}.showcase-note h2{font-size:22px;margin:17px 0}.showcase-note p{font-size:12px;color:#7b8d6c;line-height:1.85;margin:12px 0}.showcase-research{padding:22px 17px;border-left:1px solid var(--line);background:#fdfefb}.showcase-research .card{box-shadow:none;font-size:11px;padding:13px}.feature-strip{display:grid;grid-template-columns:repeat(3,1fr);max-width:1040px;margin:auto;gap:35px;padding:0 10px 40px}.feature-strip p{font-size:12px;color:#849375;margin-top:7px}.feature-strip h3{font-size:14px}.auth-shell{min-height:100vh;display:grid;grid-template-columns:48% 52%;background:#fff}.auth-art{background:#eaf1e0;padding:38px 55px;display:flex;flex-direction:column;position:relative;overflow:hidden}.auth-art h1{font-size:50px;line-height:1.1;letter-spacing:-2px;margin-top:80px;max-width:410px;color:#284c30}.auth-art p{max-width:350px;color:#728862;font-size:13px;margin-top:20px}.auth-paper{width:310px;margin:40px auto 10px;background:white;border:1px solid #d6e1c9;box-shadow:0 15px 35px #2c4c2312;border-radius:14px;padding:25px;transform:rotate(-6deg)}.auth-paper p{font-size:12px;margin:12px 0 18px}.auth-main{display:flex;align-items:center;justify-content:center;padding:50px}.auth-form{width:355px}.auth-form h1{font-size:28px;margin-bottom:9px}.auth-form .subtitle{font-size:12px;color:var(--muted);margin-bottom:27px}.auth-form .btn.full{width:100%}.auth-form .divider-text{display:flex;align-items:center;gap:12px;color:#8b9781;font-size:10px;margin:18px 0}.auth-form .divider-text:before,.auth-form .divider-text:after{content:'';height:1px;background:var(--line);flex:1}.auth-note{font-size:10px;line-height:1.7;color:#8d997f;margin-top:25px;text-align:center}.modal-overlay{position:fixed;inset:0;background:#19281f66;backdrop-filter:blur(3px);z-index:100;display:flex;align-items:center;justify-content:center;padding:30px}.modal{width:590px;max-height:90vh;overflow:auto;background:white;border:1px solid #dbe4d2;border-radius:18px;box-shadow:0 30px 100px #12271933;padding:27px}.modal.wide{width:860px}.modal h2{font-size:22px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:20px;border-top:1px solid var(--line);margin-top:23px}.modal-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.quote-selection{background:#faf7e9;border-left:3px solid #cdb76e;border-radius:0 8px 8px 0;padding:14px;font-size:13px;margin-bottom:18px;white-space:pre-wrap}.toast-container{position:fixed;bottom:25px;right:26px;z-index:150;display:flex;flex-direction:column;gap:8px}.toast{background:#244b31;color:white;padding:13px 18px;box-shadow:0 10px 25px #18382026;border-radius:10px;font-size:12px;display:flex;gap:9px;align-items:center;max-width:420px;animation:slide .2s ease-out}.screen-map{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.screen-map a{padding:12px;border:1px solid var(--line);border-radius:8px;font-size:12px}.screen-map a:hover{background:#f0f5e9}.screen-map small{display:block;color:var(--muted);font-size:10px;margin-top:4px}.swatch{height:78px;border-radius:9px;margin-bottom:8px;border:1px solid #00000008}.screenshot-tag{font-size:10px;color:#8d997d;background:#f4f7ee;border:1px solid var(--line);padding:4px 8px;border-radius:5px}.timeline{position:relative;padding-left:25px}.timeline:before{content:'';position:absolute;left:5px;top:14px;bottom:15px;width:1px;background:#dce5d1}.timeline-item{position:relative;padding-bottom:25px}.timeline-item:before{content:'';position:absolute;width:10px;height:10px;background:#93b377;border:3px solid #edf3e5;border-radius:50%;left:-25px;top:4px}.timeline-item p{font-size:12px;color:var(--muted);margin-top:6px}.diagnostic-bars{display:flex;height:95px;align-items:flex-end;gap:7px;padding-top:15px}.diagnostic-bars i{display:block;flex:1;background:#c5d9ad;border-radius:3px 3px 0 0}.table-button{background:none;border:0;color:var(--brand);padding:3px;font-size:12px;font-weight:550}.toolbar select{font-size:11px;width:133px;padding:6px 7px}.modal .field select{font-size:13px}.public-intro{font-size:13px;color:var(--muted);margin-top:12px;max-width:560px}.no-shadow{box-shadow:none}.sticky-aside{position:sticky;top:18px}.success-circle{width:57px;height:57px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:22px}.local-warning{position:fixed;bottom:8px;left:12px;z-index:11;font-size:9px;color:#8a987d;pointer-events:none}@keyframes pulse{to{opacity:.45}}@keyframes slide{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}@media print{.sidebar,.topbar,.toolbar,.toast-container{display:none}.main-wrap{margin:0;width:100%}.page{padding:0}.editor-layout{display:block}.editor-layout>aside{margin-top:20px}.public-header,.public-footer{display:none}html,body{min-width:0}}
+
+/* --- Notee / Mapas de ideias v1.1 ------------------------------------------ */
+.graph-page{max-width:1940px;padding:30px 32px 34px}
+.graph-page .page-heading{margin-bottom:21px}
+.graph-board-head{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:15px}
+.graph-board-head p{margin-top:6px}
+.graph-board-select{width:min(340px,100%);font-size:17px;font-weight:620;letter-spacing:-.35px;padding:9px 36px 9px 13px;border-radius:10px;border-color:#dce5d5;background:#fff;box-shadow:0 2px 10px #153a2010}
+.graph-toolbar{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:11px 14px;border:1px solid var(--line);border-bottom:0;border-radius:15px 15px 0 0;background:#fcfef9}
+.graph-toolbar .btn.compact{padding:9px 12px}
+.graph-tool-active{background:#edf5e7!important;border-color:#a8bf9b!important;color:var(--brand)!important}
+.graph-connection-hint{font-size:11px;padding:7px 10px;color:#496742;background:#eff5e8;border:1px solid #cbdcc2;border-radius:7px}
+.graph-zoom-btn{font-size:19px;font-weight:550;border:1px solid var(--line);background:#fff;line-height:1}
+.graph-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:610px;border-radius:0 0 15px 15px;border:1px solid var(--line);background:#fff;overflow:hidden;box-shadow:var(--shadow)}
+.graph-surface{height:clamp(600px,69vh,790px);position:relative;background-color:#f9fbf7;background-image:radial-gradient(#cad9c4 1px,transparent 1px);background-size:23px 23px;overflow:hidden;cursor:grab;touch-action:none;user-select:none;isolation:isolate}
+.graph-surface.is-panning{cursor:grabbing}
+.graph-stage{position:absolute;left:0;top:0;width:6400px;height:6400px;transform-origin:0 0;will-change:transform}
+.graph-links{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.graph-edge{pointer-events:stroke}
+.graph-edge-line{fill:none;stroke:#a5baa0;stroke-width:2.25;stroke-linecap:round}
+.graph-edge.edge-related .graph-edge-line{stroke:#6d9977;stroke-width:2.6}
+.graph-edge-hit{fill:none;stroke:transparent;stroke-width:20;cursor:pointer;pointer-events:stroke}
+.graph-edge-label-bg{fill:#fff;stroke:#d4dfcf;stroke-width:1;pointer-events:none}
+.graph-edge-text{font-size:11px;fill:#5d7555;font-family:var(--font);font-weight:550;pointer-events:none}
+.graph-doubt-wire{fill:none;stroke:#d3be8d;stroke-width:1.5;stroke-dasharray:4 5;pointer-events:none}
+.graph-note{width:206px;height:124px;position:absolute;display:flex;flex-direction:column;gap:6px;align-items:stretch;text-align:left;padding:12px 13px 10px;border:1px solid #d8e3d4;border-radius:14px;background:#fff;color:var(--ink);box-shadow:0 7px 24px #1e3d2310;cursor:grab;user-select:none;overflow:visible;transition:box-shadow .15s,border-color .15s,background .15s}
+.graph-note:hover{border-color:#91b18b;box-shadow:0 12px 28px #1b40241a}
+.graph-note:active{cursor:grabbing}
+.graph-note.selected{border:2px solid #386b45;padding:11px 12px 9px;box-shadow:0 0 0 4px #dff0d7,0 12px 30px #1d50211a}
+.graph-note.context-selected{background:#eff7ea;border-color:#80a877}
+.graph-note.selected.context-selected{background:#eaf3e2}
+.graph-note-top{display:flex;align-items:center;gap:7px;width:100%;min-height:23px}
+.graph-note-symbol{width:23px;height:23px;border-radius:7px;background:#eaf2e2;color:#376c41;display:flex;align-items:center;justify-content:center;flex:none}
+.graph-note-category{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#8c9a86}
+.graph-context-check{display:flex;margin-left:auto;color:#21573d}
+.graph-note-title{font-size:14px;line-height:1.2;letter-spacing:-.16px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.graph-note-summary{font-size:10px;line-height:1.55;color:#7a8974;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1}
+.graph-note-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eff3ed;padding-top:5px;color:#869381;font-size:10px}
+.graph-note-foot span{display:inline-flex;align-items:center;gap:5px}
+.graph-note-foot .icon{width:12px;height:12px}
+.graph-connector{position:absolute;right:-6px;top:51px;background:#b2d091;border:2px solid #fff;width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 1px #b8cbaa;pointer-events:none}
+.graph-doubt{position:absolute;width:174px;height:52px;display:flex;align-items:center;gap:9px;overflow:hidden;text-align:left;padding:7px 10px;border:1px solid #e7d9b6;background:#fffdf5;border-radius:10px;color:#755927;box-shadow:0 5px 14px #4736150e;cursor:pointer}
+.graph-doubt:hover,.graph-doubt.selected{border-color:#bd9b50;background:#fff8df;box-shadow:0 0 0 3px #f3e6c1}
+.graph-doubt-symbol{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:7px;background:#faeecd}
+.graph-doubt-content{display:flex;flex-direction:column;min-width:0;gap:1px}
+.graph-doubt-content strong{font-size:10px}
+.graph-doubt-content small{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#9a885f}
+.graph-viewport-help{position:absolute;left:16px;bottom:13px;max-width:calc(100% - 32px);font-size:10px;color:#879780;background:#ffffffdf;border:1px solid #e3e9dc;border-radius:8px;padding:6px 10px;display:flex;gap:7px;align-items:center;pointer-events:none;z-index:3}
+.graph-map-legend{position:absolute;left:16px;top:14px;display:flex;gap:8px;align-items:center;padding:8px 11px;background:#ffffffdd;border:1px solid #e6ebe1;border-radius:8px;font-size:10px;color:#718369;pointer-events:none;z-index:3}
+.legend-dot{width:9px;height:9px;border-radius:3px;display:inline-block;background:#c6ddbb;border:1px solid #8da981}
+.legend-dot.amber{background:#f5e2a8;border-color:#c9aa6a;margin-left:8px}
+.legend-line{width:18px;border-top:2px solid #a5baa0;display:inline-block;margin-left:8px}
+.graph-side{min-width:0;background:#fff;border-left:1px solid var(--line);display:flex;flex-direction:column;max-height:clamp(600px,69vh,790px)}
+.graph-side-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line);flex:none}
+.graph-side-tabs button{border:0;background:#fafcf8;color:#7d8977;padding:14px 5px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:550;border-bottom:2px solid transparent}
+.graph-side-tabs button.active{background:#fff;color:var(--brand);border-bottom-color:var(--brand)}
+.graph-side-scroll{padding:21px;overflow-y:auto;flex:1;scrollbar-color:#cbd9c4 #fff}
+.graph-inspector-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.graph-inspector-top .btn{padding:5px 7px;font-size:10px}
+.graph-panel-title{font-size:21px;margin:16px 0 10px;letter-spacing:-.6px;line-height:1.3}
+.graph-panel-section{padding:18px 0;border-top:1px solid #edf2e8;margin-top:17px}
+.graph-panel-section h4{font-size:12px;display:flex;align-items:center;gap:8px}
+.graph-panel-section>.row .btn{font-size:10px;padding:6px 8px}
+.graph-panel-preview{font-size:12px;line-height:1.75;white-space:pre-wrap;max-height:170px;overflow-y:auto;color:#536b50;margin-top:10px}
+.graph-ref-list{display:flex;flex-direction:column;gap:10px;margin-top:11px}
+.graph-ref-item{display:flex;align-items:flex-start;gap:6px;border:1px solid #e7ede3;background:#fcfdfb;border-radius:9px;padding:10px}
+.graph-ref-item strong{font-size:11px;display:block;font-weight:600;line-height:1.35}
+.graph-ref-item .tiny{display:block;margin-top:4px}
+.graph-ref-item .icon-btn{width:24px;height:24px}
+.graph-ref-url{font-size:10px;color:var(--brand);display:inline-flex;align-items:center;gap:3px;margin-top:5px;text-decoration:underline}
+.graph-ref-url .icon{width:11px;height:11px}
+.graph-list-question,.graph-relation-item{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #f0f3eb;padding:11px 0;color:#53654d;font-size:11px}
+.graph-list-question:hover,.graph-relation-item:hover{color:var(--brand);background:#f7faf4}
+.graph-list-question span{flex:1}
+.graph-relation-item{justify-content:space-between}
+.graph-inspector-empty{text-align:center;padding:70px 12px;color:#8b9982}
+.graph-inspector-empty .icon{color:#9db58f;width:31px;height:31px}
+.graph-inspector-empty h3{margin-top:17px;color:#455e43}
+.graph-inspector-empty p{font-size:12px;line-height:1.6;margin-top:10px}
+.graph-ai-intro{display:flex;align-items:flex-start;gap:12px;margin:2px 0 19px}
+.graph-ai-intro h3{font-size:15px;letter-spacing:-.2px}
+.graph-ai-intro p{font-size:11px;line-height:1.55;color:#84937d;margin-top:4px}
+.graph-ai-icon{background:#eaf3dd;color:#427244;border-radius:12px;width:37px;height:37px;display:flex;align-items:center;justify-content:center;flex:none}
+.graph-suggestion{margin-top:12px;background:#f8fbf5;border:1px solid #dce9d4;border-radius:10px;padding:13px;display:flex;flex-direction:column;gap:9px}
+.graph-suggestion strong{font-size:12px}
+.graph-suggestion p{font-size:11px;line-height:1.5;color:#6d8067}
+.graph-scope-switch{display:flex;gap:3px;background:#f1f5ec;border:1px solid #e6eddf;border-radius:9px;padding:3px;margin-top:14px}
+.graph-scope-switch button{flex:1;border:0;background:none;padding:9px 6px;font-size:10px;color:#728267;border-radius:6px}
+.graph-scope-switch button.active{background:#fff;color:var(--brand);font-weight:620;box-shadow:0 2px 7px #22432410}
+.graph-context-stat{padding:12px 0 15px;margin-top:9px;font-size:12px;color:#76866f}
+.graph-context-stat strong{font-size:16px;color:var(--brand)}
+.graph-context-stat span{margin:0 7px}
+.graph-context-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.graph-json-preview{max-height:430px;overflow:auto;max-width:100%;padding:19px;border:1px solid #e4eadc;background:#f7faf5;border-radius:11px;font-size:10px;line-height:1.6;color:#35523c;white-space:pre-wrap;overflow-wrap:anywhere}
+.graph-bottom-note{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:10px;color:#8c9a84;flex-wrap:wrap}
+.graph-bottom-note span{margin-left:auto}
+@media(max-width:1360px){.graph-page{padding:24px}.graph-layout{grid-template-columns:minmax(0,1fr) 296px}.graph-side-scroll{padding:15px}.graph-toolbar .btn.compact{padding:7px 9px}}
+
+/* --- Notee / Acessibilidade do espaco de trabalho v1.2 ------------------- */
+/* Estado global do menu; o conteudo dos documentos nao e alterado por estas regras. */
+.sidebar-brand{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:24px;min-height:36px}
+.sidebar-brand .logo{margin:0;padding:0 6px;white-space:nowrap}
+.sidebar-collapse-button{flex:none;width:31px;height:31px;border:1px solid #e0e8d9;background:#fff;color:var(--brand)}
+.sidebar-collapse-button:hover{background:#eef5e8}
+.sidebar .nav-item{min-height:40px}
+.sidebar-collapsed .sidebar{width:72px;padding:21px 10px 13px}
+.sidebar-collapsed .main-wrap{margin-left:72px;width:calc(100% - 72px)}
+.sidebar-collapsed .sidebar-brand{flex-direction:column;gap:14px;margin-bottom:25px}
+.sidebar-collapsed .sidebar-brand .logo{font-size:0;letter-spacing:0;padding:0}
+.sidebar-collapsed .sidebar-brand .logo-mark{font-size:24px;margin:0;letter-spacing:-2px}
+.sidebar-collapsed .sidebar-brand .logo>span:not(.logo-mark){display:none}
+.sidebar-collapsed .sidebar .workspace,
+.sidebar-collapsed .sidebar .nav-label,
+.sidebar-collapsed .sidebar .local-note,
+.sidebar-collapsed .sidebar .nav-item span,
+.sidebar-collapsed .sidebar .user-switch .grow{display:none}
+.sidebar-collapsed .sidebar .nav-item{width:100%;min-height:43px;justify-content:center;padding:10px 0;margin:5px 0}
+.sidebar-collapsed .sidebar .nav-item .icon{width:19px;height:19px}
+.sidebar-collapsed .sidebar .user-switch{flex-direction:column;gap:9px;align-items:center;padding-top:13px;margin-top:10px}
+.sidebar-collapsed .sidebar .user-switch .avatar{width:32px;height:32px}
+.sidebar-collapsed .sidebar .user-switch .icon-btn{width:31px;height:31px}
+.sidebar-collapsed .sidebar nav{min-height:0;overflow-y:auto;scrollbar-width:none}
+.sidebar-collapsed .sidebar nav::-webkit-scrollbar{display:none}
+
+/* Divisorias utilizaveis por ponteiro ou teclado. */
+.pane-resizer{position:relative;width:10px;min-width:10px;cursor:col-resize;touch-action:none;outline:none;align-self:stretch;z-index:2}
+.pane-resizer::before{content:"";position:absolute;left:4px;top:0;bottom:0;width:2px;background:#dfe8d9;transition:background .16s}
+.pane-resizer::after{content:"";position:absolute;left:1px;top:calc(50% - 25px);width:8px;height:50px;border:1px solid #ceddc9;background:#f9fcf6;border-radius:8px;box-shadow:0 2px 9px #24492c12}
+.pane-resizer:hover::before,.pane-resizer:focus-visible::before,.pane-resizer.is-resizing::before{background:#3e7951}
+.pane-resizer:hover::after,.pane-resizer:focus-visible::after,.pane-resizer.is-resizing::after{background:#dbeccf;border-color:#659a67}
+.pane-resizer:focus-visible{outline:3px solid #8fb68b;outline-offset:3px;border-radius:5px}
+body.pane-is-resizing,body.pane-is-resizing *{cursor:col-resize!important;user-select:none!important}
+.editor-page{max-width:1840px;padding:32px 32px 52px}
+.editor-page .page-heading{margin-bottom:22px}
+.editor-layout{display:grid;grid-template-columns:minmax(380px,1fr) 10px minmax(270px,var(--editor-aside-width,316px));gap:0;align-items:start}
+.editor-layout>.editor-main-card{min-width:0;overflow:hidden}
+.editor-layout>.editor-side{min-width:0;gap:16px}
+.editor-resizer{min-height:580px;margin:0}
+.editor-layout .editor-body{padding:27px 30px 36px}
+.editor-layout .editor-title{font-size:28px!important}
+.editor-side .card.pad{padding:20px}
+.editor-side .result-panel{padding:19px}
+
+/* Faixa de perguntas da nota: horizontal, pequena e rolavel; expansao no fluxo. */
+.editor-doubt-area{margin-bottom:22px}
+.editor-doubt-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;margin:0 0 9px}
+.editor-doubt-heading strong{font-size:12px;font-weight:630;color:#3e5644}
+.editor-doubt-heading .tiny{margin-left:4px}
+.doubt-heading-icon{width:27px;height:27px;border:1px solid #d9e8d0;border-radius:8px;background:#edf5e7;color:#4b7951;display:flex;align-items:center;justify-content:center}
+.doubt-scroll-control{height:29px;width:29px;font-size:20px;line-height:1;background:#fff;border:1px solid var(--line);font-family:Arial,sans-serif}
+.editor-doubt-track{display:flex;gap:10px;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#c1d4b7 transparent;padding:0 1px 9px}
+.editor-doubt-card{display:flex;flex:none;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;gap:5px;width:238px;min-height:76px;max-height:82px;padding:12px 14px;border-radius:11px;border:1px solid #dae5d5;background:#fff;scroll-snap-align:start;color:var(--ink);box-shadow:0 3px 14px #20432b09}
+.editor-doubt-card:hover{border-color:#98b99b;background:#fbfdf8}
+.editor-doubt-card.is-open{border-color:#7ba782;background:#f3f9f0;box-shadow:inset 0 0 0 1px #9dc1a3}
+.editor-doubt-question{font-size:12px;font-weight:610;line-height:1.35;display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.editor-doubt-answer{font-size:11px;line-height:1.45;color:#7d8c79;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-width:100%}
+.editor-doubt-empty{border:1px dashed #dce6d3;background:#fcfdf9;border-radius:11px;padding:13px 16px;font-size:11px;color:#84917b}
+.editor-doubt-expanded{margin-top:10px;padding:18px 21px 20px;box-shadow:none;animation:slide .15s ease-out}
+.editor-doubt-expanded .editor-doubt-detail{max-width:950px;font-size:12px;line-height:1.8}
+.editor-doubt-expanded .editor-doubt-detail>p{margin:10px 0}
+.editor-doubt-expanded blockquote{margin-left:0}
+
+/* Colecao de mapas: lista antes de abrir o canvas. */
+.graph-catalog-intro{display:flex;gap:9px;align-items:center;border:1px solid #dfe9da;background:#f5f9f1;color:#6c8069;font-size:12px;padding:13px 16px;border-radius:11px;margin-bottom:22px}
+.graph-catalog-intro .icon{color:#6e9972}
+.graph-catalog-intro strong{font-weight:600;color:#376346}
+.graph-catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:19px}
+.graph-catalog-card{display:flex;flex-direction:column;overflow:hidden;min-width:0;box-shadow:0 6px 22px #153a2010;transition:border-color .15s,box-shadow .15s}
+.graph-catalog-card:hover{border-color:#a9c6a2;box-shadow:0 12px 30px #1d432519}
+.graph-catalog-main{display:flex;flex-direction:column;gap:11px;padding:20px 20px 17px;flex:1;min-width:0}
+.graph-catalog-illustration{height:113px;position:relative;overflow:hidden;background:radial-gradient(#d2e0ca 1px,transparent 1px),linear-gradient(135deg,#f1f8ec,#f9fcf6);background-size:18px 18px,auto;border:1px solid #e7ede3;border-radius:10px;margin-bottom:3px}
+.graph-catalog-illustration svg{width:100%;height:100%;position:absolute;inset:0;opacity:.85}
+.graph-catalog-node{width:39px;height:27px;border-radius:8px;background:#fff;border:1px solid #b6cfb1;box-shadow:0 3px 12px #1f42210e;position:absolute;z-index:1}
+.graph-catalog-node.node-one{top:30px;left:17%}
+.graph-catalog-node.node-two{top:13px;left:40%;background:#dff0d4}
+.graph-catalog-node.node-three{top:48px;left:65%}
+.graph-catalog-node.node-four{top:12px;left:82%;background:#eaf4df}
+.graph-catalog-meta{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.graph-catalog-main h2{font-size:19px;line-height:1.3;letter-spacing:-.5px}
+.graph-catalog-main>p{font-size:12px;color:#809078;line-height:1.55;min-height:38px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.graph-catalog-footer{display:flex;gap:18px;align-items:center;font-size:11px;color:#74886d;padding-top:13px;margin-top:auto;border-top:1px solid #edf2e9}
+.graph-catalog-footer span{display:inline-flex;gap:6px;align-items:center}
+.graph-catalog-footer .icon{width:14px;height:14px}
+.graph-catalog-actions{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:13px 20px 17px;border-top:1px solid #f0f4ec}
+
+/* Canvas com painel lateral redimensionavel e ocultavel. */
+.graph-layout{grid-template-columns:minmax(380px,1fr) 10px minmax(270px,var(--graph-aside-width,330px))}
+.graph-layout .graph-side{border-left:0}
+.graph-layout .graph-resizer{height:100%;min-height:600px;background:#fbfcf9}
+.graph-layout.is-side-hidden{grid-template-columns:minmax(0,1fr)}
+.graph-layout.is-side-hidden .graph-resizer,.graph-layout.is-side-hidden .graph-side{display:none}
+.graph-toggle-side{font-size:11px;white-space:nowrap}
+
+@media(max-width:1380px){
+ .graph-catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .editor-page{padding-left:24px;padding-right:24px}
+ .graph-page{padding:24px}
+ .graph-toolbar{gap:8px}
+ .graph-toolbar>.row{gap:6px;flex-wrap:wrap}
+ .graph-toggle-side{padding:8px 9px!important}
+}
+@media(prefers-reduced-motion:reduce){.graph-catalog-card,.editor-doubt-expanded,.pane-resizer::before{transition:none;animation:none}}
+@media print{.pane-resizer,.doubt-scroll-control,.sidebar-collapse-button,.graph-toggle-side{display:none!important}.editor-layout{display:block}.editor-layout>.editor-side{margin-top:18px}.editor-doubt-track{flex-wrap:wrap;overflow:visible}.editor-doubt-card{width:47%}}
+
+.editor-resizer::after{top:112px}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div class="toast-container" id="toasts" role="status" aria-live="polite"></div>
+<noscript>Ative o JavaScript para navegar neste prot&#243;tipo local.</noscript>
+<script>
+/* Notee - prototipo de interacao, nao uma implementacao de producao.
+ * Sem APIs, credenciais, login real ou pesquisa na internet.
+ * Estado e dados de exemplo ficam somente no localStorage deste navegador.
+ * Rotas hash permitem abrir o arquivo diretamente, sem servidor ou dependencias.
+ */
+'use strict';
+const $ = (q,root=document)=>root.querySelector(q);
+const $$ = (q,root=document)=>Array.from(root.querySelectorAll(q));
+const esc = value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const uid = prefix=>prefix+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+const now = ()=>new Date().toISOString();
+const fmt = value=>new Date(value).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+const storageKey='notee-prototype-v1'; // mantido para preservar dados locais do prototipo v1
+const paths={home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',note:'<path d="M14 3H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',spark:'<path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4zM20 2v4M18 4h4"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',folder:'<path d="M3 7V5a1 1 0 0 1 1-1h6l2 3h8a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18"/>',archive:'<rect x="3" y="3" width="18" height="4" rx="1"/><path d="M5 7v13h14V7M9 11h6"/>',trash:'<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',settings:'<path d="m9 3-1 3-3 1-2 4 2 2 1 4 3 1 2 3 4-1 1-3 3-1 2-4-2-2-1-4-3-1-2-3z"/><circle cx="12" cy="12" r="3"/>',plus:'<path d="M12 4v16M4 12h16"/>',arrow:'<path d="M4 12h16m-6-6 6 6-6 6"/>',back:'<path d="M20 12H4m6-6-6 6 6 6"/>',check:'<path d="m5 12 4 4L19 6"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',down:'<path d="m6 9 6 6 6-6"/>',more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',link:'<path d="m10 13 4-4M7 16l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0M14 7l1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 0)"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',refresh:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 13 2M5 15a7 7 0 0 0 13 2"/>',external:'<path d="M14 3h7v7M21 3 10 14M11 3H4a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/>',code:'<path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-12-2 14"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',tag:'<path d="m3 3 9 1 9 9-8 8-9-9z"/><circle cx="8" cy="8" r="1"/>',shield:'<path d="M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6z"/><path d="m8 12 3 3 5-6"/>',chart:'<path d="M4 3v18h17M8 16v-4M13 16V7M18 16v-6"/>',book:'<path d="M12 5C8 2 5 2 2 3v16c4-1 7-1 10 2 3-3 6-3 10-2V3c-3-1-6-1-10 2v16"/>',save:'<path d="M4 3h14l3 3v15H3V3zM7 3v6h10V3M7 21v-8h10v8"/>',question:'<circle cx="12" cy="12" r="9"/><path d="M9 8a3 3 0 0 1 6 1c0 2-3 2-3 4M12 17h.01"/>',logout:'<path d="M9 3H3v18h6M14 8l5 4-5 4M7 12h12"/>',copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',filter:'<path d="M3 5h18M6 12h12M9 19h6"/>',pause:'<path d="M8 5v14M16 5v14"/>',eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'};
+const icon=(name,extra='')=>`<svg class="icon ${extra}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.note}</svg>`;
+paths['panel-left-close']='<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 9l-3 3 3 3"/>';
+paths['panel-left-open']='<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M13 9l3 3-3 3"/>';
+const logo=(light=false)=>`<a class="logo ${light?'light':''}" href="#/welcome" aria-label="Notee, in\u00edcio"><span class="logo-mark">n</span>notee<span style="color:#a7c17e">.</span></a>`;
+const seed=()=>{
+ const notes=[
+ {id:'n1',title:'O que torna um sistema confi\u00e1vel?',category:'c1',tags:['arquitetura','aprendizado'],status:'active',version:3,auto:'inherit',updated:'2026-09-30T08:40:00Z',blocks:[{id:'b11',type:'paragraph',text:'Hoje estudei como uma aplica\u00e7\u00e3o pode continuar o trabalho mesmo depois de uma falha. Minha ideia \u00e9 ligar as decis\u00f5es t\u00e9cnicas aos problemas que elas resolvem.'},{id:'b12',type:'heading',text:'Uma opera\u00e7\u00e3o, dois destinos'},{id:'b13',type:'paragraph',text:'Por que salvar no banco e enviar \u00e0 fila pode perder uma tarefa? Quero entender onde entra o padr\u00e3o Outbox e por que o consumidor precisa lidar com mensagens repetidas.'},{id:'b14',type:'quote',text:'N\u00e3o basta o sistema funcionar quando tudo d\u00e1 certo. Preciso saber o que acontece quando uma etapa falha.'},{id:'b15',type:'paragraph',text:'Pr\u00f3ximo experimento: interromper o Worker ap\u00f3s o processamento e antes de confirmar a mensagem.'}]},
+ {id:'n2',title:'Perguntas para a pr\u00f3xima leitura',category:'c2',tags:['leitura','curiosidades'],status:'active',version:1,auto:'off',updated:'2026-09-29T14:20:00Z',blocks:[{id:'b21',type:'paragraph',text:'Quero registrar palavras e ideias que ainda n\u00e3o conhe\u00e7o, sem interromper a leitura a cada par\u00e1grafo.'},{id:'b22',type:'paragraph',text:'O que significa a palavra serendipidade? Vale procurar uma defini\u00e7\u00e3o e alguns exemplos de uso.'}]},
+ {id:'n3',title:'Ideias para um projeto pessoal',category:'c3',tags:['produto','notee'],status:'active',version:2,auto:'inherit',updated:'2026-09-28T17:10:00Z',blocks:[{id:'b31',type:'heading',text:'Menos abas abertas, mais ideias conectadas'},{id:'b32',type:'paragraph',text:'Construir um espa\u00e7o para escrever, organizar e voltar \u00e0s perguntas que surgem no caminho. A IA sugere, mas a decis\u00e3o continua sendo minha.'}]},
+ {id:'n4',title:'Uma informa\u00e7\u00e3o que preciso confirmar',category:'c2',tags:['verificar'],status:'active',version:1,auto:'inherit',updated:'2026-09-27T09:00:00Z',blocks:[{id:'b41',type:'paragraph',text:'Ouvi uma afirma\u00e7\u00e3o sem anotar o autor, o lugar ou a data. Esta regra vale em qualquer situa\u00e7\u00e3o? Preciso recuperar o contexto antes de tirar uma conclus\u00e3o.'}]},
+ {id:'n5',title:'Meu roteiro de estudo',category:'c1',tags:['dotnet','estudos'],status:'active',version:1,auto:'off',updated:'2026-09-26T19:30:00Z',blocks:[{id:'b51',type:'heading',text:'Implementar para aprender'},{id:'b52',type:'list',text:'Modelar uma nota e escrever testes para suas regras.'},{id:'b53',type:'list',text:'Criar uma API e entender a persist\u00eancia.'},{id:'b54',type:'list',text:'Explicar as escolhas antes de adicionar complexidade.'}]},
+ {id:'n6',title:'Refer\u00eancias que quero revisitar',category:'c2',tags:['referencias'],status:'active',version:1,auto:'inherit',updated:'2026-09-25T11:00:00Z',blocks:[{id:'b61',type:'paragraph',text:'Este \u00e9 meu ponto de partida para organizar refer\u00eancias. Vou separar aquilo que escrevi das respostas de pesquisa e manter as fontes acess\u00edveis.'}]},
+ {id:'n7',title:'Rascunho do primeiro conceito',category:'c3',tags:['rascunho'],status:'archived',version:1,auto:'off',updated:'2026-09-20T11:00:00Z',blocks:[{id:'b71',type:'paragraph',text:'Primeira vers\u00e3o da ideia. Arquivada, mas ainda dispon\u00edvel para consulta.'}]},
+ {id:'n8',title:'Uma nota de teste',category:'c3',tags:['teste'],status:'trashed',version:1,auto:'off',updated:'2026-09-19T11:00:00Z',blocks:[{id:'b81',type:'paragraph',text:'Este conte\u00fado est\u00e1 na lixeira. Voc\u00ea pode restaur\u00e1-lo ou exclu\u00ed-lo definitivamente.'}]}];
+ // As notas de exemplo do mapa sao notas reais da biblioteca, nunca cartoes descartaveis.
+  notes.push(
+    {id:'n9',title:'Política',category:'c2',tags:['estudo','sociedade'],status:'active',version:1,auto:'off',updated:'2026-11-05T10:00:00Z',blocks:[{id:'b91',type:'paragraph',text:'Ponto de partida para explorar conceitos, perguntas e referências sem pressupor conclusões.'}]},
+    {id:'n10',title:'Capitalismo',category:'c2',tags:['conceitos','economia'],status:'active',version:1,auto:'off',updated:'2026-11-05T10:00:00Z',blocks:[{id:'b101',type:'paragraph',text:'Anotar definições, interpretações, fontes e perguntas para comparar diferentes abordagens.'}],references:{books:[{id:'book-example-1',title:'A Riqueza das Nações',author:'Adam Smith',year:'1776',url:''}],sources:[]}},
+    {id:'n11',title:'Comunismo',category:'c2',tags:['conceitos','sociedade'],status:'active',version:1,auto:'off',updated:'2026-11-05T10:00:00Z',blocks:[{id:'b111',type:'paragraph',text:'Reunir leituras, questões e pontos que merecem investigação e comparação com outros conceitos.'}],references:{books:[{id:'book-example-2',title:'Manifesto do Partido Comunista',author:'Karl Marx e Friedrich Engels',year:'1848',url:''}],sources:[]}},
+    {id:'n12',title:'Economia',category:'c2',tags:['pesquisa','conceitos'],status:'active',version:1,auto:'off',updated:'2026-11-05T10:00:00Z',blocks:[{id:'b121',type:'paragraph',text:'Conceitos de economia para estudar, incluindo diferenças de contexto e fontes consultadas.'}],references:{books:[],sources:[{id:'src-example-1',title:'Referência de estudo (exemplo)',publisher:'A preencher',url:''}]}}
+  );
+  const jobs=[{id:'r1',noteId:'n1',blockId:'b13',quote:'Por que salvar no banco e enviar \u00e0 fila pode perder uma tarefa?',question:'Como o padr\u00e3o Outbox reduz o risco de perder uma tarefa entre o banco de dados e a fila?',revision:3,status:'completed',evidence:'sourced',reviewed:false,step:4,created:'2026-09-30T08:45:00Z',answer:'Salvar os dados e enviar uma mensagem s\u00e3o duas opera\u00e7\u00f5es distintas. Se a primeira for confirmada e a segunda falhar, a tarefa pode n\u00e3o chegar ao consumidor. A proposta do Outbox \u00e9 gravar o evento e a mudan\u00e7a de neg\u00f3cio na mesma transa\u00e7\u00e3o; outro processo publica o evento depois. [1]\n\nO publicador ainda pode reenviar a mesma mensagem. Por isso, o consumidor deve reconhecer duplicatas e tornar o efeito local idempotente. Isso n\u00e3o garante que uma chamada externa jamais se repita. [2]',sources:[{title:'Transactional outbox pattern',publisher:'AWS Prescriptive Guidance',url:'https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html'},{title:'Amazon SQS at-least-once delivery',publisher:'AWS Documentation',url:'https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues-at-least-once-delivery.html'}]},
+ {id:'r2',noteId:'n4',blockId:'b41',quote:'Esta regra vale em qualquer situa\u00e7\u00e3o?',question:'Qual regra e em qual contexto ela se aplica?',revision:1,status:'completed',evidence:'none',reviewed:false,step:4,created:'2026-09-27T09:05:00Z',answer:'Sem fonte. N\u00e3o h\u00e1 informa\u00e7\u00e3o suficiente neste exemplo para identificar a afirma\u00e7\u00e3o. Acrescente a regra, quem a mencionou e o contexto. A falta de evid\u00eancia n\u00e3o demonstra que algo seja verdadeiro ou falso.',sources:[]},
+ {id:'r3',noteId:'n2',blockId:'b22',quote:'serendipidade',question:'O que significa serendipidade neste contexto?',revision:1,status:'pending',evidence:null,reviewed:false,step:0,created:'2026-09-29T14:22:00Z',sources:[]}];
+ const publications=[{id:'p1',noteId:'n5',slug:'meu-roteiro-de-estudo',visibility:'public',title:notes[4].title,blocks:structuredClone(notes[4].blocks),tags:notes[4].tags,revision:1,author:'Alex Costa',handle:'alex',published:'2026-09-28T10:00:00Z',includeResearch:false,answers:[]}];
+ const revisions={}; notes.forEach(n=>revisions[n.id]=[{version:n.version,title:n.title,blocks:structuredClone(n.blocks),category:n.category,tags:[...n.tags],at:n.updated}]);
+ revisions.n1.unshift({version:2,title:notes[0].title,blocks:[{id:'b11',type:'paragraph',text:'Estudando o padr\u00e3o Outbox e a entrega de mensagens. Quero descobrir como retomar o trabalho quando um processo falha.'}],category:'c1',tags:['arquitetura'],at:'2026-09-29T12:00:00Z'});
+ return{schema:2,graphSampleSeed:true,user:{name:'Alex Costa',email:'alex@example.test'},categories:[{id:'c1',name:'Desenvolvimento',icon:'code'},{id:'c2',name:'Leituras e perguntas',icon:'book'},{id:'c3',name:'Ideias',icon:'spark'}],notes,jobs,publications,revisions,settings:{auto:false,analysis:true,researchEnabled:true,budget:20,provider:'FakeResearchProvider'},notifications:[],dismissed:[]};
+};
+const layoutPrefsKey='notee-ui-layout-v1';
+const defaultUiPrefs={sidebarCollapsed:false,editorAsideWidth:316,graphAsideWidth:330,graphAsideHidden:false};
+let uiPrefs={...defaultUiPrefs};
+try{
+  const stored=JSON.parse(localStorage.getItem(layoutPrefsKey)||'null');
+  if(stored&&typeof stored==='object'){
+    uiPrefs.sidebarCollapsed=stored.sidebarCollapsed===true;
+    uiPrefs.graphAsideHidden=stored.graphAsideHidden===true;
+    for(const name of ['editorAsideWidth','graphAsideWidth']){
+      if(Number.isFinite(stored[name]))uiPrefs[name]=Math.max(270,Math.min(950,Math.round(stored[name])));
+    }
+  }
+}catch{/* preferencias em memoria quando o armazenamento estiver bloqueado */}
+const saveUiPrefs=()=>{try{localStorage.setItem(layoutPrefsKey,JSON.stringify(uiPrefs))}catch{}};
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+let editorExpandedDoubt=null;
+let state;
+try{state=JSON.parse(localStorage.getItem(storageKey)||'null');if(!state||![1,2].includes(state.schema))state=seed()}catch{state=seed()}
+state.jobs.forEach(j=>{if(['queued','running'].includes(j.status)){j.status='failed';j.failure='A simula\u00e7\u00e3o foi interrompida ao fechar a p\u00e1gina. Execute novamente.'}});
+let storageWarningShown=false;
+let graphUI={boardId:null,selectedNoteId:null,selectedDoubtId:null,scope:'all',selection:new Set(),mode:'inspect',linkFrom:null,scale:1,tx:0,ty:0,drag:null,suppressClick:false,centerNext:true,showPreview:false};
+let route='',selected=null,currentResearch=null,analysisVisible=false,settingTab='research',filterNote='',filterCategory='',researchFilter='all',searchTerm='',lastFocus=null,sessionDirty=false;
+const nBy=id=>state.notes.find(n=>n.id===id);
+const rBy=id=>state.jobs.find(r=>r.id===id);
+const catName=id=>state.categories.find(c=>c.id===id)?.name||'Sem categoria';
+const activeNotes=()=>state.notes.filter(n=>n.status==='active');
+const activeJobs=()=>state.jobs.filter(j=>nBy(j.noteId)&&nBy(j.noteId).status==='active');
+const save=()=>{try{localStorage.setItem(storageKey,JSON.stringify(state))}catch{if(!storageWarningShown){storageWarningShown=true;toast('N\u00e3o foi poss\u00edvel persistir os dados. O navegador pode estar sem espa\u00e7o.','info')}}};
+const toast=(text,type='check')=>{const node=document.createElement('div');node.className='toast';node.innerHTML=icon(type)+`<span>${esc(text)}</span>`;$('#toasts').appendChild(node);setTimeout(()=>node.remove(),4500)};
+const goto=path=>{if(location.hash==='#'+path){render()}else location.hash=path};
+const statusBadge=j=>j.status==='completed'?(j.evidence==='none'?'<span class="pill amber">Sem fonte</span>':'<span class="pill green">'+icon('check','sm')+'Com fontes</span>'):j.status==='failed'?'<span class="pill red">Falha na simula\u00e7\u00e3o</span>':j.status==='cancelled'?'<span class="pill">Cancelada</span>':['queued','running'].includes(j.status)?'<span class="pill blue">'+icon('clock','sm')+'Pesquisando</span>':'<span class="pill amber">Aguardando pesquisa</span>';
+const noteIcon=n=>state.categories.find(c=>c.id===n.category)?.icon||'note';
+const button=(text,action,extra='')=>`<button class="btn ${extra}" data-action="${action}">${text}</button>`;
+const pageHead=(title,subtitle,actions='',overline='SEU ESPA\u00c7O')=>`<div class="page-heading"><div><div class="overline">${overline}</div><h1>${title}</h1><p>${subtitle}</p></div><div class="row gap8">${actions}</div></div>`;
+function shell(content,active='home',title='Vis\u00e3o geral'){
+ const nav=(id,label,ic,count='')=>`<a class="nav-item ${active===id?'active':''}" href="#/${id}" aria-label="${esc(label)}" title="${esc(label)}">${icon(ic)}<span>${label}</span>${count!==''?`<span class="badge-count">${count}</span>`:''}</a>`;
+ return `<div class="app-shell ${uiPrefs.sidebarCollapsed?'sidebar-collapsed':''}"><aside class="sidebar"><div class="sidebar-brand">${logo()}<button class="icon-btn sidebar-collapse-button" data-action="toggle-sidebar" aria-label="${uiPrefs.sidebarCollapsed?'Expandir menu principal':'Recolher menu principal'}" aria-expanded="${!uiPrefs.sidebarCollapsed}" title="${uiPrefs.sidebarCollapsed?'Expandir menu':'Recolher menu'}">${icon(uiPrefs.sidebarCollapsed?'panel-left-open':'panel-left-close')}</button></div><div class="workspace row gap8"><span class="avatar">AC</span><span class="grow"><strong class="small">Meu espa\u00e7o</strong><span class="tiny muted" style="display:block">Pessoal</span></span>${icon('down','sm')}</div><nav>${nav('home','Vis\u00e3o geral','home')}${nav('notes','Minhas notas','note',activeNotes().length)}${nav('boards','Mapas de ideias','link',state.boards.length)}${nav('categories','Categorias','folder')}${nav('research','D\u00favidas e pesquisas','spark',activeJobs().filter(j=>j.status==='pending').length)}${nav('search','Buscar nas notas','search')}<div class="nav-label">Compartilhar</div>${nav('publications','Publica\u00e7\u00f5es','globe')}${nav('explore','Biblioteca p\u00fablica','book')}<div class="nav-label">Organizar</div>${nav('archive','Arquivo','archive')}${nav('trash','Lixeira','trash')}</nav><div class="sidebar-bottom"><div class="local-note"><strong>${icon('shield','sm')} Ambiente de demonstra\u00e7\u00e3o</strong>Dados locais. Nenhuma chamada de IA.</div>${nav('settings','Configura\u00e7\u00f5es','settings')}<a class="nav-item" href="#/design-system" aria-label="Design system" title="Design system">${icon('grid')}<span>Design system</span></a><div class="user-switch row gap8"><span class="avatar">${esc(state.user.name.split(' ').map(x=>x[0]).slice(0,2).join(''))}</span><div class="grow"><strong class="small">${esc(state.user.name)}</strong><div class="tiny muted">Conta demonstrativa</div></div><button class="icon-btn" data-action="logout" aria-label="Sair da demonstra\u00e7\u00e3o">${icon('logout')}</button></div></div></aside><div class="main-wrap"><header class="topbar"><div class="crumb">Meu espa\u00e7o <span>/</span> <strong>${title}</strong></div><div class="row"><a class="topbar-search" href="#/search">${icon('search','sm')}<span class="grow">Encontrar uma ideia...</span><span class="kbd">Ctrl K</span></a><button class="btn ghost compact" data-action="screen-map">${icon('grid','sm')}Telas</button><button class="icon-btn" data-action="notifications" aria-label="Notifica\u00e7\u00f5es">${icon('bell')}</button></div></header><main class="page" id="main-content">${content}</main></div></div>`;
+}
+function noteCard(n){const jobs=state.jobs.filter(j=>j.noteId===n.id);return`<a class="card note-card" href="#/note/${n.id}"><div class="row between"><div class="note-icon">${icon(noteIcon(n))}</div><span class="tiny muted">${esc(catName(n.category))}</span></div><div><h3>${esc(n.title)}</h3><p class="note-preview mt16" style="margin-top:8px">${esc(n.blocks.map(b=>b.text).join(' '))}</p></div><div class="row gap8 wrap">${n.tags.slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="note-card-footer"><span>${fmt(n.updated)}</span><span class="row gap8">${jobs.length?icon('question','sm')+jobs.length+' d\u00favida'+(jobs.length>1?'s':''):icon('lock','sm')+'Privada'}</span></div></a>`}
+function renderHome(){
+ const pending=activeJobs().filter(j=>j.status==='pending');const done=activeJobs().filter(j=>j.status==='completed');
+ return shell(`${pageHead('Um lugar para continuar pensando.',`Ol\u00e1, ${esc(state.user.name.split(' ')[0])}. Suas notas e perguntas est\u00e3o por aqui.`,button(icon('plus')+'Nova nota','new-note','primary'),'BEM-VINDO AO NOTEE')}<div class="hero-card"><div><span class="pill green mb8">${icon('spark','sm')} Curiosidade, organizada</span><h2>Anote agora. Entenda depois.</h2><p>Marque uma palavra ou frase como d\u00favida. A resposta ganha seu pr\u00f3prio espa\u00e7o, sem reescrever o que voc\u00ea pensou.</p><a href="#/note/n1" class="btn compact mt16">Explorar uma nota ${icon('arrow','sm')}</a></div><div class="hero-ornament"><div class="mini-paper back"></div><div class="mini-paper"></div><span class="sparkle-round">${icon('spark')}</span></div></div><div class="grid four">${[[activeNotes().length,'Notas ativas','Ideias que voc\u00ea est\u00e1 desenvolvendo','note'],[pending.length,'Para pesquisar','Perguntas esperando seu pr\u00f3ximo passo','question'],[done.length,'Respostas dispon\u00edveis','Exemplos demonstrativos para revisar','check'],[state.publications.length,'Publica\u00e7\u00f5es','Somente o que voc\u00ea decidiu compartilhar','globe']].map(x=>`<div class="card stat"><div class="stat-top">${x[1]}${icon(x[3])}</div><div class="stat-number">${x[0]}</div><div class="stat-foot">${x[2]}</div></div>`).join('')}</div><div class="split mt32"><section><div class="section-heading" style="margin-top:0"><h2>Suas notas recentes</h2><a class="btn ghost compact" href="#/notes">Ver todas ${icon('arrow','sm')}</a></div><div class="grid two">${activeNotes().slice(0,4).map(noteCard).join('')}</div></section><aside><div class="section-heading" style="margin-top:0"><h2>Vale voltar aqui</h2>${icon('spark')}</div>${done.slice(0,2).map(j=>`<div class="card research-card">${statusBadge(j)}<blockquote>${esc(j.quote)}</blockquote><p>${esc(nBy(j.noteId)?.title)}</p><a class="btn ghost compact mt16" href="#/research/${j.id}">Revisar resposta ${icon('arrow','sm')}</a></div>`).join('')}<div class="callout neutral mt16">${icon('info')}<span>Os exemplos n\u00e3o s\u00e3o resultados ao vivo. Experimente a pesquisa simulada para conhecer o fluxo.</span></div></aside></div>`,'home','Vis\u00e3o geral');
+}
+function renderNotes(){let notes=activeNotes().filter(n=>(!filterCategory||n.category===filterCategory)&&norm(n.title+' '+n.blocks.map(b=>b.text).join(' ')).includes(norm(filterNote)));return shell(`${pageHead('Minhas notas','Pequenas anota\u00e7\u00f5es, perguntas importantes e ideias em constru\u00e7\u00e3o.',button(icon('plus')+'Nova nota','new-note','primary'))}<div class="filters"><input type="text" id="note-filter" placeholder="Filtrar notas..." value="${esc(filterNote)}" aria-label="Filtrar notas"><select id="category-filter" aria-label="Filtrar categoria"><option value="">Todas as categorias</option>${state.categories.map(c=>`<option value="${c.id}" ${filterCategory===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select><span class="grow"></span><span class="small muted">${notes.length} notas</span></div><div id="notes-grid" class="grid three">${notes.length?notes.map(noteCard).join(''):`<div class="empty" style="grid-column:1/-1">${icon('search')}<h3>Nenhuma nota encontrada</h3><p>Tente outro termo ou remova o filtro de categoria.</p></div>`}</div>`,'notes','Minhas notas')}
+function renderBlock(n,b){let text=esc(b.text);const j=state.jobs.find(j=>j.noteId===n.id&&j.blockId===b.id&&j.revision===n.version&&b.text.includes(j.quote));if(j){const i=b.text.indexOf(j.quote);text=esc(b.text.slice(0,i))+`<mark class="doubt-mark" title="Trecho marcado como d\u00favida">${esc(j.quote)}</mark>`+esc(b.text.slice(i+j.quote.length))}return`<div class="editor-block ${b.type}" contenteditable="true" role="textbox" aria-label="Bloco ${b.type}" data-block="${b.id}" data-type="${b.type}" spellcheck="true">${text}</div>`}
+function renderResearchDetail(j,compact=false){
+ if(!j)return'';const note=nBy(j.noteId);const stale=note&&j.revision!==note.version;
+ let answer='';
+ if(['running','queued'].includes(j.status))answer=`<div class="steps">${['Contexto','Fontes','S\u00edntese','Pronta'].map((t,i)=>`<div class="step ${i<j.step?'done':''}">${t}</div>`).join('')}</div><div class="progress-bar"><div style="width:${j.step*25}%"></div></div><p class="muted small mt16">Simula\u00e7\u00e3o em andamento. Na aplica\u00e7\u00e3o real, o Worker continua fora da requisi\u00e7\u00e3o HTTP.</p><div class="skeleton"></div><div class="skeleton" style="width:75%"></div><button class="btn ghost compact mt16" data-action="cancel-job" data-id="${j.id}">${icon('pause','sm')}Cancelar simula\u00e7\u00e3o</button>`;
+ else if(j.status==='completed')answer=`<div class="callout neutral mb16">${icon('info','sm')}<span>Resposta demonstrativa. N\u00e3o houve consulta \u00e0 web neste prot\u00f3tipo.</span></div>${j.answer.split('\n\n').map(p=>`<p>${esc(p)}</p>`).join('')}<div class="divider"></div><div class="row between"><h4>Fontes da resposta</h4><span class="tiny muted">${j.sources.length||'Sem fonte'}</span></div>${j.sources.length?j.sources.map((s,i)=>`<div class="source"><span class="source-num">${i+1}</span><div class="grow"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)} ${icon('external','sm')}</a><span class="tiny muted">${esc(s.publisher)} \u00b7 refer\u00eancia do exemplo</span></div></div>`).join(''):'<div class="callout warning mt16">'+icon('info')+'<span><strong>Sem fonte</strong><br>N\u00e3o trate esta resposta como uma verifica\u00e7\u00e3o factual.</span></div>'}<div class="divider"></div><p class="tiny muted">Gerada por FakeResearchProvider \u00b7 ${fmt(j.created)}<br>Revis\u00e3o de origem: v${j.revision}. Fontes n\u00e3o significam certeza absoluta.</p><div class="row wrap mt16"><button class="btn ${j.reviewed?'':'primary'} compact" data-action="review-job" data-id="${j.id}">${icon('check','sm')}${j.reviewed?'Revisada por voc\u00ea':'Marcar como revisada'}</button><button class="btn compact" data-action="edit-question" data-id="${j.id}">${icon('refresh','sm')}Refinar</button></div>`;
+ else if(j.status==='failed')answer=`<div class="callout warning">${icon('info')}<span>${esc(j.failure||'O provider simulado ficou indispon\u00edvel. Sua nota est\u00e1 preservada.')}</span></div><button class="btn primary compact mt16" data-action="run-job" data-id="${j.id}">Tentar novamente ${icon('refresh','sm')}</button>`;
+ else answer=`<p class="muted">Esta d\u00favida est\u00e1 salva. A pesquisa s\u00f3 ser\u00e1 iniciada com sua a\u00e7\u00e3o ou com a automa\u00e7\u00e3o habilitada.</p><button class="btn primary compact mt16" data-action="run-job" data-id="${j.id}">${icon('spark','sm')}Pesquisar agora</button><button class="btn ghost compact mt16" data-action="edit-question" data-id="${j.id}">Editar pergunta</button>`;
+ return`${statusBadge(j)}${stale?'<div class="callout warning mt16">'+icon('info','sm')+'<span>O texto foi alterado. Esta pesquisa pertence a uma revis\u00e3o anterior; ela n\u00e3o ser\u00e1 aplicada automaticamente.</span></div>':''}<h3 class="mt16">${esc(j.question)}</h3><blockquote class="quote-selection" style="font-size:12px;margin-top:13px">${esc(j.quote)}</blockquote>${answer}`;
+}
+function noteDoubtPreview(job){
+  if(job.status==='completed'){
+    const answer=(job.answer||'Sem resposta.').replace(/\[[0-9]+\]/g,'').replace(/\s+/g,' ').trim();
+    return (answer||'Sem resposta registrada.').slice(0,160);
+  }
+  if(job.status==='failed')return 'Pesquisa não concluída. Abra para tentar novamente.';
+  if(job.status==='cancelled')return 'Pesquisa cancelada.';
+  if(['queued','running'].includes(job.status))return 'Pesquisa simulada em andamento.';
+  return 'Aguardando pesquisa ou resposta.';
+}
+function renderDoubtStrip(note){
+  const jobs=state.jobs.filter(job=>job.noteId===note.id);
+  if(!jobs.some(job=>job.id===editorExpandedDoubt))editorExpandedDoubt=null;
+  const expanded=jobs.find(job=>job.id===editorExpandedDoubt);
+  return `<section class="editor-doubt-area" aria-label="Dúvidas e respostas desta nota">
+    <div class="editor-doubt-heading"><div class="row gap8"><span class="doubt-heading-icon">${icon('question','sm')}</span>
+      <div><strong>Dúvidas e respostas</strong><span class="tiny muted"> ${jobs.length} nesta nota · deslize para navegar</span></div></div>
+      <div class="row gap8"><button class="icon-btn doubt-scroll-control" data-action="scroll-doubts" data-direction="-1" aria-label="Ver dúvidas anteriores" title="Voltar dúvidas">‹</button>
+      <button class="icon-btn doubt-scroll-control" data-action="scroll-doubts" data-direction="1" aria-label="Ver próximas dúvidas" title="Avançar dúvidas">›</button></div></div>
+    ${jobs.length?`<div class="editor-doubt-track" id="editor-doubt-track" role="group" aria-label="Perguntas da nota">
+      ${jobs.map(job=>`<button type="button" class="editor-doubt-card ${expanded?.id===job.id?'is-open':''}" data-action="toggle-doubt-strip" data-id="${esc(job.id)}" aria-expanded="${expanded?.id===job.id}" aria-controls="editor-doubt-expanded">
+        <strong class="editor-doubt-question" title="${esc(job.question)}">${esc(job.question)}</strong>
+        <span class="editor-doubt-answer" title="${esc(noteDoubtPreview(job))}">${esc(noteDoubtPreview(job))}</span></button>`).join('')}
+    </div>`:`<div class="editor-doubt-empty">Nenhuma dúvida nesta nota. Selecione um trecho no editor para marcar sua primeira pergunta.</div>`}
+    ${expanded?`<section class="editor-doubt-expanded card" id="editor-doubt-expanded" aria-label="Resposta expandida">
+      <div class="row between mb16"><strong>Detalhes da dúvida selecionada</strong><button class="btn compact ghost" data-action="toggle-doubt-strip" data-id="${esc(expanded.id)}" aria-label="Recolher resposta">${icon('close','sm')} Fechar</button></div>
+      <div class="editor-doubt-detail">${renderResearchDetail(expanded,true)}</div></section>`:'<section id="editor-doubt-expanded" hidden></section>'}
+  </section>`;
+}
+
+function renderEditor(id){const n=nBy(id);if(!n)return shell(emptyMissing());const jobs=state.jobs.filter(j=>j.noteId===id);let selectedJob=rBy(currentResearch)||jobs[0];if(selectedJob?.noteId!==id)selectedJob=jobs[0];const archive=n.status!=='active';return shell(`${pageHead(esc(n.title),`Nota ${archive?'fora da lista ativa':'privada'} \u00b7 revis\u00e3o v${n.version} \u00b7 atualizada em ${fmt(n.updated)}`,`<a href="#/history/${id}" class="btn">${icon('clock')}Hist\u00f3rico</a><a href="#/publish/${id}" class="btn">${icon('globe')}Publicar</a>`,'NOTAS / '+esc(catName(n.category)))}<div id="editor-doubt-zone">${renderDoubtStrip(n)}</div>${archive?'<div class="callout warning mb24">'+icon('archive')+'<span>Nota '+(n.status==='trashed'?'na lixeira':'arquivada')+'. Restaure-a antes de editar ou pesquisar.</span></div>':''}<div class="editor-layout" style="--editor-aside-width:${uiPrefs.editorAsideWidth}px"><section class="card editor-main-card"><div class="toolbar"><div class="row gap8"><select id="new-block-type" aria-label="Tipo de bloco"><option value="paragraph">Par\u00e1grafo</option><option value="heading">T\u00edtulo</option><option value="list">Lista</option><option value="quote">Cita\u00e7\u00e3o</option><option value="code">C\u00f3digo</option></select><button class="icon-btn" data-action="add-block" data-id="${id}" aria-label="Adicionar bloco">${icon('plus')}</button></div><button class="btn compact" data-action="mark-selection" data-id="${id}">${icon('question','sm')}Marcar como d\u00favida</button></div><div class="editor-body" data-note="${id}"><div class="row between"><span class="pill">${icon('lock','sm')}Rascunho privado</span><span class="tiny muted">Blocos edit\u00e1veis</span></div><input class="editor-title" id="editor-title" value="${esc(n.title)}" aria-label="T\u00edtulo da nota" ${archive?'readonly':''}><div class="editor-meta"><select id="editor-category" aria-label="Categoria da nota"><option value="">Sem categoria</option>${state.categories.map(c=>`<option value="${c.id}" ${c.id===n.category?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${n.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<button class="btn ghost compact" data-action="edit-tags" data-id="${id}">${icon('tag','sm')}Tags</button></div><div id="editor-blocks">${n.blocks.map(b=>renderBlock(n,b)).join('')}</div><p class="editor-hint">${icon('info','sm')}Selecione uma palavra ou frase. O texto original continua sendo seu.</p></div><div class="editor-status"><span id="save-state">${icon('check','sm')} Salvo localmente</span><span>${n.blocks.map(b=>b.text).join(' ').split(/\s+/).length} palavras \u00b7 v${n.version}</span></div><div class="row between" style="padding:15px 18px;border-top:1px solid var(--line)"><div class="row gap8"><button class="btn ghost compact" data-action="archive-note" data-id="${id}">${icon('archive','sm')}Arquivar</button><button class="btn ghost compact" data-action="trash-note" data-id="${id}" aria-label="Mover para lixeira">${icon('trash','sm')}</button></div><button class="btn primary compact" data-action="save-note" data-id="${id}">${icon('save','sm')}Salvar altera\u00e7\u00f5es</button></div></section><div class="pane-resizer editor-resizer" tabindex="0" role="separator" aria-orientation="vertical" aria-label="Redimensionar espaço de escrita e painel de curiosidade" aria-valuemin="270" aria-valuemax="900" aria-valuenow="${uiPrefs.editorAsideWidth}" title="Arraste para ajustar ou use as teclas de seta" data-resize-pane="editor"></div><aside class="stack editor-side"><div class="card pad"><div class="aside-title">${icon('spark')}<strong>Assistente de curiosidade</strong></div><p class="small muted mb16">Sugest\u00f5es para conectar o que voc\u00ea escreveu ao que ainda quer descobrir.</p><div class="field" style="margin-bottom:12px"><label for="note-auto">Pesquisa autom\u00e1tica nesta nota</label><select id="note-auto" data-id="${id}"><option value="inherit" ${n.auto==='inherit'?'selected':''}>Herdar da conta (${state.settings.auto?'ativada':'desativada'})</option><option value="on" ${n.auto==='on'?'selected':''}>Ativar nesta nota</option><option value="off" ${n.auto==='off'?'selected':''}>Desativar nesta nota</option></select></div><button class="btn compact" style="width:100%" data-action="analyze-note" data-id="${id}">${icon('spark','sm')}Analisar texto (simula\u00e7\u00e3o)</button>${analysisVisible?renderAnalysis(n):''}</div>${jobs.length?`<div class="result-panel"><div class="row between mb16"><h4>D\u00favidas desta nota</h4><span class="badge-count">${jobs.length}</span></div>${jobs.length>1?`<select id="choose-job" class="mb16" aria-label="Selecionar d\u00favida">${jobs.map(j=>`<option value="${j.id}" ${j.id===selectedJob?.id?'selected':''}>${esc(j.quote.slice(0,60))}</option>`).join('')}</select>`:''}<div id="editor-research">${renderResearchDetail(selectedJob,true)}</div></div>`:`<div class="empty">${icon('question')}<h3>O que despertou curiosidade?</h3><p>Selecione um trecho da nota e marque como d\u00favida, ou analise o texto para receber sugest\u00f5es.</p></div>`}</aside></div>`,'notes','Editor de nota')}
+function detectSuggestions(n){const result=[];for(const b of n.blocks){const sentences=b.text.match(/[^.!?\n]+[?]/g)||[];for(const text of sentences){const q=text.trim();if(!state.jobs.some(j=>j.noteId===n.id&&j.quote===q)&&!state.dismissed.includes(n.id+q))result.push({blockId:b.id,quote:q})}}if(!result.length){const b=n.blocks.find(x=>x.type==='paragraph');if(b){const match=b.text.match(/\b(Outbox|Worker|idempot\u00eancia|serendipidade|transa\u00e7\u00e3o|persist\u00eancia)\b/i);if(match&&!state.jobs.some(j=>j.noteId===n.id&&j.quote===match[0])&&!state.dismissed.includes(n.id+match[0]))result.push({blockId:b.id,quote:match[0]})}}return result.slice(0,2)}
+function renderAnalysis(n){const sug=detectSuggestions(n);return`<div class="divider"></div><div class="small muted mb16">An\u00e1lise local por palavras-chave, n\u00e3o por IA.</div>${sug.length?sug.map((s,i)=>`<div class="analysis-suggestion"><span class="pill green">Poss\u00edvel d\u00favida</span><p>${esc(s.quote)}</p><div class="row gap8"><button class="btn compact" data-action="accept-suggestion" data-id="${n.id}" data-index="${i}">Marcar</button><button class="btn ghost compact" data-action="dismiss-suggestion" data-id="${n.id}" data-index="${i}">Ignorar</button></div></div>`).join(''):'<p class="small muted mb16">Nenhuma nova pergunta reconhecida neste exemplo. A marca\u00e7\u00e3o manual continua dispon\u00edvel.</p>'}<div class="analysis-suggestion"><span class="pill">Organiza\u00e7\u00e3o sugerida</span><p>${suggestOrganization(n).categoryLabel}<br><span class="tag">${suggestOrganization(n).tag}</span></p><button class="btn compact" data-action="apply-organization" data-id="${n.id}">${icon('check','sm')}Aplicar sugest\u00e3o</button></div>`}
+function suggestOrganization(n){const text=norm(n.title+' '+n.blocks.map(b=>b.text).join(' '));return /banco|sistema|api|worker|codigo|dotnet/.test(text)?{category:'c1',categoryLabel:'Desenvolvimento',tag:'sistemas-distribuidos'}:/leitura|palavra|livro/.test(text)?{category:'c2',categoryLabel:'Leituras e perguntas',tag:'aprendizado'}:{category:'c3',categoryLabel:'Ideias',tag:'para-explorar'}}
+function renderResearch(id){const j=id?rBy(id):null;if(j)return shell(`${pageHead('Da pergunta \u00e0 informa\u00e7\u00e3o','O que foi pesquisado, em qual contexto e com quais fontes.',`<a href="#/note/${j.noteId}" class="btn">${icon('back')}Voltar \u00e0 nota</a>`,'D\u00daVIDAS / DETALHE')}<div class="split"><section class="card pad" id="full-research">${renderResearchDetail(j)}</section><aside class="stack"><div class="card pad"><h3>Contexto preservado</h3><p class="small muted mt16">${esc(nBy(j.noteId)?.title)}</p><div class="divider"></div><div class="small">Revis\u00e3o ${j.revision}</div><p class="small muted mt16">A resposta \u00e9 um registro separado. Editar a nota n\u00e3o reescreve a pesquisa j\u00e1 conclu\u00edda.</p><a href="#/history/${j.noteId}" class="btn compact mt16">${icon('clock','sm')}Ver hist\u00f3rico</a></div><div class="card pad"><h3>Cen\u00e1rios de interface</h3><p class="small muted mt16">Exercite os estados sem usar um servi\u00e7o externo.</p><div class="stack mt16" style="gap:9px"><button class="btn compact" data-action="simulate-nosource" data-id="${j.id}">Simular \u201cSem fonte\u201d</button><button class="btn compact" data-action="simulate-failure" data-id="${j.id}">Simular falha do provider</button></div></div></aside></div>`,'research','Pesquisa');
+ const list=activeJobs().filter(j=>researchFilter==='all'||(researchFilter==='pending'&&j.status==='pending')||(researchFilter==='completed'&&j.status==='completed')||(researchFilter==='none'&&j.evidence==='none'));
+ return shell(`${pageHead('Toda pergunta merece um lugar.','Encontre suas d\u00favidas, acompanhe pesquisas e revise as respostas.',`<a href="#/settings" class="btn">${icon('settings')}Automa\u00e7\u00e3o</a>`,'D\u00daVIDAS E PESQUISAS')}<div class="callout neutral mb24">${icon('shield')}<span>Aqui, todas as pesquisas s\u00e3o simuladas. Na aplica\u00e7\u00e3o final, o Worker busca na web e registra fontes, contexto e limites.</span></div><div class="tabbar">${[['all','Todas'],['pending','Para pesquisar'],['completed','Conclu\u00eddas'],['none','Sem fonte']].map(([v,l])=>`<button class="tab ${researchFilter===v?'active':''}" data-action="research-filter" data-value="${v}">${l}</button>`).join('')}</div>${list.length?`<div class="table-wrap"><table><thead><tr><th>D\u00daVIDA</th><th>NOTA DE ORIGEM</th><th>ESTADO</th><th>A\u00c7\u00c3O</th></tr></thead><tbody>${list.map(j=>`<tr><td style="max-width:330px"><strong>${esc(j.quote)}</strong><div class="tiny muted mt16" style="margin-top:5px">${fmt(j.created)} \u00b7 v${j.revision}</div></td><td style="max-width:210px"><a href="#/note/${j.noteId}">${esc(nBy(j.noteId)?.title)}</a></td><td>${statusBadge(j)}${j.reviewed?'<div class="tiny muted" style="margin-top:5px">Revisada</div>':''}</td><td><a class="btn compact" href="#/research/${j.id}">Abrir ${icon('arrow','sm')}</a></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${icon('question')}<h3>Nenhuma d\u00favida neste filtro</h3><p>Marque um trecho no editor para come\u00e7ar.</p><a href="#/notes" class="btn mt16">Abrir minhas notas</a></div>`}`,'research','D\u00favidas e pesquisas');
+}
+function renderCategories(){return shell(`${pageHead('Uma organiza\u00e7\u00e3o que faz sentido.','Uma categoria principal por nota. Quantas tags forem \u00fateis para conectar assuntos.',button(icon('plus')+'Nova categoria','new-category','primary'),'CATEGORIAS')}<div class="grid three">${state.categories.map(c=>{const qty=activeNotes().filter(n=>n.category===c.id).length;return`<div class="card category-card"><div class="row between"><div class="category-mark">${icon(c.icon,'lg')}</div><button class="icon-btn" data-action="edit-category" data-id="${c.id}" aria-label="Editar categoria">${icon('more')}</button></div><h2>${esc(c.name)}</h2><p>${qty} notas ativas</p><div class="mini-line"><span style="width:${qty/Math.max(activeNotes().length,1)*100}%"></span></div><button class="btn ghost compact mt16" data-action="view-category" data-id="${c.id}">Ver notas ${icon('arrow','sm')}</button></div>`}).join('')}</div><div class="card pad mt32"><div class="row between"><h3>Tags em uso</h3><span class="small muted">Classifica\u00e7\u00e3o livre</span></div><div class="row wrap mt16">${[...new Set(activeNotes().flatMap(n=>n.tags))].map(t=>`<button class="btn compact" data-action="search-tag" data-value="${esc(t)}">${icon('tag','sm')}${esc(t)}</button>`).join('')}</div></div><div class="callout neutral mt24">${icon('spark')}<span>O assistente pode sugerir categoria e tags a partir do texto. Nada ser\u00e1 aplicado sem voc\u00ea aceitar.</span></div>`,'categories','Categorias')}
+function renderSearch(){const term=norm(searchTerm);const matches=activeNotes().filter(n=>term&&norm(n.title+' '+catName(n.category)+' '+n.tags.join(' ')+' '+n.blocks.map(b=>b.text).join(' ')).includes(term));return shell(`${pageHead('Encontre o fio da ideia.','Busque por t\u00edtulo, texto, categoria ou tag. Somente suas notas ativas aparecem aqui.','','BUSCA')}<form id="global-search-form" class="row mb24"><input id="global-search" type="text" value="${esc(searchTerm)}" placeholder="O que voc\u00ea est\u00e1 procurando?" aria-label="Pesquisar nas notas" style="padding:15px;font-size:15px"><button class="btn primary" type="submit">${icon('search')}Buscar</button></form><p class="tiny muted mb24">Prot\u00f3tipo: busca textual local. PostgreSQL Full Text Search e busca sem\u00e2ntica est\u00e3o no planejamento.</p>${!term?'<div class="empty">'+icon('search')+'<h3>Uma palavra pode ser o come\u00e7o.</h3><p>Experimente \u201cOutbox\u201d, \u201caprendizado\u201d ou \u201cleitura\u201d.</p></div>':matches.length?`<div class="small muted mb16">${matches.length} resultado(s) para \u201c${esc(searchTerm)}\u201d</div><div class="grid two">${matches.map(noteCard).join('')}</div>`:'<div class="empty">'+icon('search')+'<h3>Nenhum resultado</h3><p>Tente uma palavra menos espec\u00edfica. Notas na lixeira e no arquivo n\u00e3o entram nesta busca.</p></div>'}`,'search','Buscar nas notas')}
+function renderArchive(kind){const status=kind==='archive'?'archived':'trashed';const notes=state.notes.filter(n=>n.status===status);return shell(`${pageHead(kind==='archive'?'Fora do caminho. Ainda por perto.':'Lixeira',kind==='archive'?'Notas arquivadas n\u00e3o iniciam pesquisas autom\u00e1ticas.':'Restaure o que ainda importa. A exclus\u00e3o definitiva pede confirma\u00e7\u00e3o.','',kind==='archive'?'ARQUIVO':'ORGANIZAR')}${notes.length?`<div class="table-wrap"><table><thead><tr><th>NOTA</th><th>CATEGORIA</th><th>ATUALIZADA</th><th>A\u00c7\u00d5ES</th></tr></thead><tbody>${notes.map(n=>`<tr><td><a href="#/note/${n.id}"><strong>${esc(n.title)}</strong></a></td><td>${esc(catName(n.category))}</td><td>${fmt(n.updated)}</td><td><div class="row gap8"><button class="btn compact" data-action="restore-note" data-id="${n.id}">${icon('refresh','sm')}Restaurar</button>${kind==='trash'?`<button class="btn danger compact" data-action="delete-note" data-id="${n.id}">Excluir</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${icon(kind==='archive'?'archive':'trash')}<h3>${kind==='archive'?'Nenhuma nota arquivada':'A lixeira est\u00e1 vazia'}</h3><p>Seu espa\u00e7o est\u00e1 organizado.</p></div>`}` ,kind,kind==='archive'?'Arquivo':'Lixeira')}
+function renderHistory(id){const n=nBy(id);if(!n)return shell(emptyMissing());const list=[...(state.revisions[id]||[])].reverse();return shell(`${pageHead('Sua ideia tamb\u00e9m tem hist\u00f3ria.',esc(n.title),`<a href="#/note/${id}" class="btn">${icon('back')}Voltar ao editor</a>`,'HIST\u00d3RICO DE VERS\u00d5ES')}<div class="split"><section class="card pad"><div class="timeline">${list.map(v=>`<div class="timeline-item"><div class="row between"><div><strong>Vers\u00e3o ${v.version}</strong> ${v.version===n.version?'<span class="pill green">Atual</span>':''}<p>${fmt(v.at)} \u00b7 salvamento local</p></div>${v.version!==n.version?`<button class="btn compact" data-action="restore-version" data-id="${id}" data-version="${v.version}">Restaurar como nova vers\u00e3o</button>`:''}</div><div class="callout neutral mt16" style="display:block"><strong>${esc(v.title)}</strong><p>${esc(v.blocks.map(b=>b.text).join(' ').slice(0,240))}</p></div></div>`).join('')}</div></section><aside><div class="callout">${icon('clock')}<span>Restaurar cria uma nova revis\u00e3o. N\u00e3o apaga a linha do tempo e n\u00e3o republica a nota automaticamente.</span></div><div class="card pad mt16"><h3>Conflito de edi\u00e7\u00e3o</h3><p class="small muted mt16">Um estado importante para implementar no backend e tratar no frontend.</p><button class="btn compact mt16" data-action="conflict-demo" data-id="${id}">Visualizar conflito</button></div></aside></div>`,'notes','Hist\u00f3rico')}
+function renderPublish(id){const n=nBy(id);if(!n)return shell(emptyMissing());const pub=state.publications.find(p=>p.noteId===id);return shell(`${pageHead('Compartilhe s\u00f3 o que faz sentido.',esc(n.title),`<a href="#/note/${id}" class="btn">${icon('back')}Voltar ao editor</a>`,'PUBLICAR NOTA')}<form id="publish-form" data-id="${id}" class="split"><section class="card pad"><h2>Uma c\u00f3pia p\u00fablica, sob seu controle.</h2><p class="small muted mt16">A publica\u00e7\u00e3o registra uma fotografia da revis\u00e3o v${n.version}. Novas edi\u00e7\u00f5es permanecem privadas at\u00e9 voc\u00ea atualizar a publica\u00e7\u00e3o.</p><div class="divider"></div><div class="field"><label for="publish-title">T\u00edtulo p\u00fablico</label><input id="publish-title" type="text" value="${esc(n.title)}" maxlength="160" required></div><div class="field"><label for="publish-visibility">Visibilidade</label><select id="publish-visibility"><option value="public" ${pub?.visibility==='public'?'selected':''}>P\u00fablica: aparece na biblioteca e no perfil</option><option value="unlisted" ${pub?.visibility==='unlisted'?'selected':''}>N\u00e3o listada: acess\u00edvel por quem tiver o link</option></select></div><div class="field"><label for="publish-slug">Identificador da publica\u00e7\u00e3o</label><input id="publish-slug" type="text" value="${esc(pub?.slug||norm(n.title).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))}" required pattern="[a-z0-9-]+"><span class="tiny muted">No prot\u00f3tipo, os links usam rotas locais. N\u00e3o h\u00e1 hospedagem p\u00fablica.</span></div><label class="check"><input type="checkbox" id="include-research"><span>Incluir respostas que marquei como revisadas<br><span class="tiny muted">Apenas respostas revisadas, com suas fontes ou o aviso \u201cSem fonte\u201d. D\u00favidas privadas n\u00e3o revisadas ficam de fora.</span></span></label><div class="callout warning mt24">${icon('eye')}<span>N\u00e3o listado n\u00e3o significa privado: o link pode ser repassado. Revisar a publica\u00e7\u00e3o \u00e9 sua decis\u00e3o.</span></div><div class="row mt24"><button class="btn primary" type="submit" ${n.status!=='active'?'disabled':''}>${icon('globe')}${pub?'Atualizar fotografia publicada':'Criar publica\u00e7\u00e3o'}</button>${pub?`<button class="btn danger" type="button" data-action="unpublish" data-id="${pub.id}">Retirar do ar</button>`:''}</div></section><aside class="stack"><div class="card pad"><span class="pill ${pub?'green':''}">${pub?'Publicada em v'+pub.revision:'Ainda privada'}</span><h3 class="mt16">Antes de publicar</h3><p class="small muted mt16">Confira o texto, remova informa\u00e7\u00f5es pessoais e escolha quais respostas fazem parte da vers\u00e3o p\u00fablica.</p>${pub?`<a class="btn compact mt16" href="#/public/${pub.id}">Abrir vers\u00e3o publicada ${icon('external','sm')}</a>`:''}</div><div class="callout neutral">${icon('shield')}<span>Sem curtidas, coment\u00e1rios, seguidores ou recomenda\u00e7\u00f5es sociais nesta etapa.</span></div></aside></form>`,'publications','Publicar nota')}
+function publicationCard(p){return`<a class="card" href="#/public/${p.id}" style="overflow:hidden"><div class="publication-cover">${icon('book','lg')}</div><div style="padding:22px"><div class="row gap8 mb16"><span class="pill green">${p.visibility==='public'?'P\u00fablica':'N\u00e3o listada'}</span><span class="tiny muted">v${p.revision}</span></div><h3>${esc(p.title)}</h3><p class="note-preview mt16">${esc(p.blocks.map(b=>b.text).join(' '))}</p><div class="row between mt24"><span class="small muted">${esc(p.author)}</span><span class="tiny muted">${fmt(p.published)}</span></div></div></a>`}
+function renderPublications(){return shell(`${pageHead('O que voc\u00ea escolheu compartilhar.','Publique uma vers\u00e3o revisada da nota. Seu rascunho continua independente.',`<a href="#/profile/alex" class="btn">${icon('user')}Meu perfil p\u00fablico</a>`,'PUBLICA\u00c7\u00d5ES')}<div class="grid three">${state.publications.map(p=>`<div>${publicationCard(p)}<div class="row mt16"><a class="btn compact" href="#/publish/${p.noteId}">Gerenciar</a><button class="btn ghost compact" data-action="copy-public" data-id="${p.id}">${icon('copy','sm')}Copiar link local</button></div></div>`).join('')||'<div class="empty" style="grid-column:1/-1"><h3>Nenhuma publica\u00e7\u00e3o</h3><p>Abra uma nota e escolha Publicar.</p></div>'}</div>`,'publications','Publica\u00e7\u00f5es')}
+const publicHeader=()=>`<header class="public-header">${logo()}<div class="row"><a class="btn ghost" href="#/explore">Biblioteca p\u00fablica</a><button class="btn ghost compact" data-action="screen-map">${icon('grid')}Telas</button><a href="#/home" class="btn primary">Meu espa\u00e7o ${icon('arrow','sm')}</a></div></header>`;
+function renderPublic(id){const p=state.publications.find(p=>p.id===id);if(!p)return publicHeader()+`<main class="public-main">${emptyMissing('Esta publica\u00e7\u00e3o n\u00e3o est\u00e1 dispon\u00edvel.')}</main>`;return`${publicHeader()}<main class="public-main"><div class="row between"><a href="#/explore" class="btn ghost compact">${icon('back','sm')}Biblioteca</a><span class="screenshot-tag">Visualiza\u00e7\u00e3o local de uma publica\u00e7\u00e3o</span></div><article class="public-article"><span class="pill green">${p.visibility==='public'?'Nota p\u00fablica':'Nota n\u00e3o listada'}</span><h1>${esc(p.title)}</h1><div class="row"><a href="#/profile/alex" class="avatar">AC</a><div><a href="#/profile/alex" class="small"><strong>${esc(p.author)}</strong></a><div class="tiny muted">${fmt(p.published)} \u00b7 vers\u00e3o publicada ${p.revision}</div></div><span class="grow"></span><button class="btn ghost compact" data-action="copy-public" data-id="${p.id}">${icon('copy','sm')}Link local</button></div><div class="article-body">${p.blocks.map(b=>b.type==='heading'?`<h2>${esc(b.text)}</h2>`:b.type==='quote'?`<blockquote class="quote-selection">${esc(b.text)}</blockquote>`:b.type==='code'?`<pre class="editor-block code">${esc(b.text)}</pre>`:`<p>${b.type==='list'?'\u2022 ':''}${esc(b.text)}</p>`).join('')}</div>${p.answers?.length?`<div class="divider"></div><h2>Pesquisas revisadas pelo autor</h2>${p.answers.map(j=>`<div class="callout neutral mt16" style="display:block"><h3>${esc(j.question)}</h3><p>${esc(j.answer)}</p>${j.sources.length?j.sources.map(s=>`<p class="small"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)} ${icon('external','sm')}</a></p>`).join(''):'<span class="pill amber mt16">Sem fonte</span>'}<p class="tiny muted">Conte\u00fado de demonstra\u00e7\u00e3o.</p></div>`).join('')}`:''}<div class="divider"></div><div class="row wrap">${p.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><p class="tiny muted mt24">Este \u00e9 um snapshot independente do rascunho privado. Nenhuma intera\u00e7\u00e3o social \u00e9 coletada.</p></article></main><footer class="public-footer">Notee \u00b7 Anote agora. Entenda depois. \u00b7 Prot\u00f3tipo local</footer>`}
+function renderExplore(profile=false){const list=state.publications.filter(p=>p.visibility==='public');return `${publicHeader()}<main class="public-main">${profile?`<div class="row mb24"><span class="avatar big">AC</span><div><div class="overline">PERFIL P\u00daBLICO DEMONSTRATIVO</div><h1 class="mt16" style="margin-top:7px">Alex Costa</h1><p class="small muted mt16" style="margin-top:7px">Aprendendo em p\u00fablico, uma nota de cada vez.</p></div></div>`:`<div class="overline">BIBLIOTECA P\u00daBLICA</div><h1 class="mt16" style="font-size:40px">Ideias que ganharam o mundo.</h1><p class="public-intro">Um cat\u00e1logo simples de notas publicadas. Sem feed algor\u00edtmico, curtidas ou seguidores.</p>`}<div class="row between mt32 mb24"><h2>${profile?'Notas publicadas':'Para ler com calma'}</h2><span class="small muted">${list.length} publica\u00e7\u00e3o(\u00f5es)</span></div><div class="grid three">${list.map(publicationCard).join('')||'<div class="empty" style="grid-column:1/-1"><h3>A biblioteca ainda est\u00e1 vazia.</h3><p>Publique uma nota para v\u00ea-la aqui.</p></div>'}</div><div class="callout neutral mt32">${icon('info')}<span>Somente snapshots com visibilidade p\u00fablica aparecem nesta tela. Notas n\u00e3o listadas e rascunhos privados ficam de fora.</span></div></main><footer class="public-footer">Conhecimento compartilhado com inten\u00e7\u00e3o. Notee.</footer>`}
+function renderSettings(){const s=state.settings;const sw=(key,label)=>`<button class="switch ${s[key]?'on':''}" role="switch" aria-checked="${s[key]}" aria-label="${label}" data-action="toggle-setting" data-key="${key}"></button>`;let body=settingTab==='account'?`<form class="card settings-section" id="account-form"><h2 class="mb24">Seu perfil local</h2><div class="field"><label for="account-name">Nome</label><input id="account-name" value="${esc(state.user.name)}" type="text" required></div><div class="field"><label for="account-email">E-mail de demonstra\u00e7\u00e3o</label><input id="account-email" value="${esc(state.user.email)}" type="email" required></div><div class="row"><button class="btn primary" type="submit">Salvar perfil local</button><a class="btn" href="#/forgot">Recupera\u00e7\u00e3o de senha</a></div></form>`:settingTab==='privacy'?`<div class="card settings-section"><h2 class="mb24">Privado por padr\u00e3o.</h2><div class="callout neutral mb24">${icon('shield')}<span>Este HTML n\u00e3o transmite notas nem senhas. Todo o armazenamento de demonstra\u00e7\u00e3o \u00e9 local, sem criptografia de aplicativo.</span></div><div class="settings-row"><div><h4>Retirar pesquisas externas</h4><p>O controle geral de pesquisas tem preced\u00eancia sobre qualquer prefer\u00eancia de nota. Aqui ele apenas desliga a simula\u00e7\u00e3o.</p></div>${sw('researchEnabled','Permitir simula\u00e7\u00f5es de pesquisa')}</div><div class="settings-row"><div><h4>Reiniciar demonstra\u00e7\u00e3o</h4><p>Remove suas altera\u00e7\u00f5es locais e recria os dados de exemplo.</p></div><button class="btn danger compact" data-action="reset-demo">Reiniciar dados</button></div></div>`:`<div class="card settings-section"><h2 class="mb24">Seu ritmo. Suas escolhas.</h2><div class="settings-row"><div><h4>Permitir pesquisas</h4><p>Chave geral. Desligada, bloqueia novas pesquisas em qualquer nota, mesmo que a automa\u00e7\u00e3o esteja ativada nela.</p></div>${sw('researchEnabled','Permitir pesquisas')}</div><div class="settings-row"><div><h4>Pesquisar automaticamente</h4><p>Aplica-se a d\u00favidas que voc\u00ea marcou ou aceitou. Sugest\u00f5es ainda n\u00e3o aceitas n\u00e3o geram pesquisas.</p></div>${sw('auto','Pesquisa autom\u00e1tica padr\u00e3o')}</div><div class="settings-row"><div><h4>Sugerir d\u00favidas, categoria e tags</h4><p>Use Analisar texto no editor. Aceite ou ignore cada sugest\u00e3o. O texto original n\u00e3o \u00e9 reescrito.</p></div>${sw('analysis','An\u00e1lise de texto')}</div><div class="settings-row"><div><h4>Provider</h4><p>Adaptador demonstrativo. Nenhum modelo comercial \u00e9 chamado neste arquivo.</p></div><span class="pill green">FakeResearchProvider</span></div><div class="settings-row"><div><h4>Limite desta demonstra\u00e7\u00e3o</h4><p>M\u00e1ximo de resultados ou tentativas iniciadas, contando os exemplos. No sistema real, limites ser\u00e3o transacionais e medidos por per\u00edodo.</p></div><input type="number" id="research-budget" min="1" max="100" value="${s.budget}" aria-label="Limite de simula\u00e7\u00f5es" style="width:90px"></div></div><div class="callout mt24">${icon('info')}<span><strong>Conta define o padr\u00e3o. Nota pode sobrescrever.</strong><br>Em cada nota: Herdar, Ativar ou Desativar. A chave geral e o limite sempre prevalecem. Ativar n\u00e3o pesquisa retroativamente suas d\u00favidas antigas.</span></div>`;if(settingTab==='layout')body=`<section class="card settings-section"><h2>Seu espaço, no seu tamanho.</h2><p class="small muted mt16">Arraste as divisórias no editor e no mapa; use as teclas de seta quando a divisória estiver selecionada. As preferências ficam neste navegador e não alteram suas notas.</p><div class="settings-row"><div><h4>Menu principal</h4><p>${uiPrefs.sidebarCollapsed?'Recolhido, mostrando apenas ícones.':'Expandido, mostrando nomes e ícones.'}</p></div><span class="pill green">${uiPrefs.sidebarCollapsed?'Compacto':'Expandido'}</span></div><div class="settings-row"><div><h4>Painel do editor</h4><p>Largura atual: ${uiPrefs.editorAsideWidth} pixels.</p></div><span class="pill">Ajustável</span></div><div class="settings-row"><div><h4>Painel do mapa</h4><p>Largura atual: ${uiPrefs.graphAsideWidth} pixels. ${uiPrefs.graphAsideHidden?'Oculto':'Visível'}.</p></div><span class="pill">Ajustável</span></div><div class="divider"></div><button class="btn" data-action="reset-layout">${icon('refresh','sm')} Restaurar layout padrão</button><p class="tiny muted mt16">Esta ação não exclui notas, dúvidas ou mapas.</p></section>`;return shell(`${pageHead('Um assistente do seu jeito.','Configure a organiza\u00e7\u00e3o e a pesquisa sem perder o controle sobre suas notas.','','CONFIGURA\u00c7\u00d5ES')}<div class="tabbar">${[['research','Intelig\u00eancia e pesquisas'],['account','Conta'],['privacy','Privacidade e dados'],['layout','Layout e acessibilidade']].map(([v,l])=>`<button class="tab ${settingTab===v?'active':''}" data-action="settings-tab" data-value="${v}">${l}</button>`).join('')}</div><div style="max-width:900px">${body}</div>`,'settings','Configura\u00e7\u00f5es')}
+function renderAdmin(){const running=state.jobs.filter(j=>['running','queued'].includes(j.status)).length;return shell(`${pageHead('Entender o sistema tamb\u00e9m faz parte.','Painel ilustrativo de opera\u00e7\u00e3o. N\u00e3o h\u00e1 conex\u00e3o com servi\u00e7os reais.','','LABORAT\u00d3RIO / DIAGN\u00d3STICO')}<div class="callout warning mb24">${icon('shield')}<span>Valores de demonstra\u00e7\u00e3o, n\u00e3o medi\u00e7\u00f5es. Em produ\u00e7\u00e3o esta \u00e1rea exige permiss\u00e3o de operador; o HTML n\u00e3o implementa autoriza\u00e7\u00e3o.</span></div><div class="grid four">${[['API p95','142 ms','Exemplo de lat\u00eancia HTTP'],['Pesquisas em execu\u00e7\u00e3o',running,'Contagem local da simula\u00e7\u00e3o'],['Outbox pendente','0','Valor ilustrativo'],['Custo real de IA','N\u00e3o aplic\u00e1vel','Nenhuma API foi chamada']].map(x=>`<div class="card stat"><div class="stat-top">${x[0]}${icon('chart')}</div><div class="stat-number" style="font-size:${x[1].length>10?'18':'27'}px">${x[1]}</div><span class="stat-foot">${x[2]}</span></div>`).join('')}</div><div class="grid two mt24"><div class="card pad"><h3>Dura\u00e7\u00e3o de pesquisas \u00b7 exemplo</h3><div class="diagnostic-bars">${[35,48,40,65,47,78,62,38,50,71,54,45,65,48].map(v=>`<i style="height:${v}%"></i>`).join('')}</div><p class="tiny muted mt16">O painel real vir\u00e1 de histogramas OpenTelemetry, n\u00e3o de tempos inventados no frontend.</p></div><div class="card pad"><h3>Sinais para investigar</h3><div class="list-item row between"><span class="small">Idade da mensagem mais antiga</span><span class="pill">Exemplo: 0 s</span></div><div class="list-item row between"><span class="small">Falhas do provider</span><span class="pill">${state.jobs.filter(j=>j.status==='failed').length} locais</span></div><div class="list-item row between"><span class="small">Respostas sem fonte</span><span class="pill amber">${state.jobs.filter(j=>j.evidence==='none').length}</span></div></div></div><div class="card pad mt24"><h3>Trace ilustrativo de uma pesquisa</h3><div class="steps">${['HTTP 202','Outbox','SQS','Worker','Busca web','Resposta salva'].map(t=>`<div class="step done">${t}</div>`).join('')}</div><p class="small muted">Use correla\u00e7\u00e3o entre os servi\u00e7os. N\u00e3o inclua texto privado, pergunta, e-mail ou tokens em atributos de telemetria.</p></div>`,'admin','Diagn\u00f3stico')}
+function renderDesign(){return shell(`${pageHead('Calmo para escrever. Claro para agir.','Identidade original Notee. Tons naturais, tipografia limpa e estados que dizem a verdade.','','DESIGN SYSTEM / V1')}<div class="card pad mb24"><div class="row between">${logo()}<div class="muted">Anote agora. Entenda depois.</div><span class="pill">Desktop-first</span></div></div><div class="grid four">${[['#21573d','Marca','A\u00e7\u00f5es principais'],['#d8f4a1','Lima suave','\u00canfase e identidade'],['#f7f8f5','Fundo','Superf\u00edcie de trabalho'],['#1e2d25','Texto','Leitura e contraste']].map(([c,n,d])=>`<div class="card pad"><div class="swatch" style="background:${c}"></div><strong>${n}</strong><span class="mono muted" style="display:block">${c}</span><p class="tiny muted">${d}</p></div>`).join('')}</div><div class="grid two mt24"><div class="card pad"><h2 class="mb16">A\u00e7\u00f5es e feedback</h2><div class="row wrap mb24"><button class="btn primary" data-action="demo-action">${icon('plus')}Principal</button><button class="btn" data-action="demo-action">Secund\u00e1ria</button><button class="btn danger" data-action="demo-action">Destrutiva</button><button class="btn" disabled>Indispon\u00edvel</button></div><div class="row wrap"><span class="pill green">${icon('check','sm')}Com fontes</span><span class="pill amber">Sem fonte</span><span class="pill blue">Pesquisando</span><span class="pill red">Falha</span><span class="pill">Privada</span></div><div class="callout neutral mt24">${icon('info')}<span>Cor sempre acompanhada de texto. Mensagens devem explicar o estado e o pr\u00f3ximo passo.</span></div></div><div class="card pad"><h2 class="mb16">Hierarquia e espa\u00e7amento</h2><div style="font-size:30px;font-weight:600;letter-spacing:-1px">T\u00edtulo da p\u00e1gina</div><h2 class="mt16">T\u00edtulo de se\u00e7\u00e3o</h2><p class="muted small mt16">Texto de apoio para tornar o contexto vis\u00edvel.</p><div class="divider"></div><p class="small">Espa\u00e7amento: 4 / 8 / 12 / 16 / 24 / 32 / 48 px</p><p class="small">Raios: 8 / 10 / 16 px. \u00cdcones: 16 / 18 / 24 px.</p></div></div><div class="callout mt24">${icon('code')}<span>Na migra\u00e7\u00e3o: design tokens em CSS, Tailwind como utilit\u00e1rio e componentes pr\u00f3prios sobre primitivas acess\u00edveis. O prot\u00f3tipo n\u00e3o depende de biblioteca externa.</span></div>`,'design-system','Design system')}
+function renderLanding(){return`<div style="background:radial-gradient(ellipse at 50% 45%,#edf4e2 0,#f8faf4 52%,#f8faf4 100%);min-height:100vh"><nav class="landing-nav">${logo()}<div class="landing-links"><a href="#/notes">Suas notas</a><a href="#/research">Suas perguntas</a><a href="#/explore">Biblioteca p\u00fablica</a></div><div class="row gap8"><a class="btn ghost" href="#/login">Entrar</a><a class="btn primary" href="#/register">Criar meu espa\u00e7o ${icon('arrow','sm')}</a></div></nav><section class="landing-hero"><span class="pill">${icon('spark','sm')} Um espa\u00e7o para a sua curiosidade</span><h1>Suas ideias.<br><span>Um passo adiante.</span></h1><p>Anote o que importa. Guarde as perguntas do caminho.<br>Volte para encontrar informa\u00e7\u00f5es, contexto e fontes.</p><div class="row" style="justify-content:center"><a class="btn primary" href="#/home">Explorar o prot\u00f3tipo ${icon('arrow')}</a><button class="btn" data-action="screen-map">${icon('grid')}Ver todas as telas</button></div><div class="tiny muted mt16">Demonstra\u00e7\u00e3o local \u00b7 sem cadastro real \u00b7 nenhuma chamada de IA</div></section><a class="landing-showcase" href="#/note/n1" style="display:block" aria-label="Abrir demonstra\u00e7\u00e3o do editor"><div class="showcase-header"><span class="circle"></span><span class="circle"></span><span class="circle"></span><span style="margin:auto">notee / meu espa\u00e7o / minhas notas</span>${icon('lock','sm')}</div><div class="showcase-body"><div class="showcase-nav"><strong style="font-size:16px;color:#375a32;padding-left:8px">notee.</strong><div style="margin-top:17px">${icon('home','sm')} Vis\u00e3o geral</div><div class="active">${icon('note','sm')} Minhas notas</div><div>${icon('folder','sm')} Categorias</div><div>${icon('spark','sm')} D\u00favidas</div><div style="margin-top:30px;font-size:9px;letter-spacing:1px">CURIOSIDADE ORGANIZADA</div><div>Desenvolvimento</div><div>Leituras e perguntas</div></div><div class="showcase-note"><span class="pill">${icon('lock','sm')}S\u00f3 seu, at\u00e9 voc\u00ea compartilhar.</span><h2>O que torna um sistema confi\u00e1vel?</h2><p>Hoje estudei como uma aplica\u00e7\u00e3o pode continuar o trabalho mesmo depois de uma falha.</p><p><mark class="doubt-mark">Por que salvar no banco e enviar \u00e0 fila pode perder uma tarefa?</mark></p><p>Quero entender as escolhas, n\u00e3o apenas decorar os nomes.</p><span class="tag">arquitetura</span> <span class="tag">aprendizado</span></div><div class="showcase-research"><div class="row gap8 small mb16">${icon('spark')}<strong>Uma pergunta. Outro olhar.</strong></div><div class="card"><span class="pill green">${icon('check','sm')}Com fontes</span><h4 class="mt16">Sua resposta, sem mexer na nota.</h4><p class="small muted mt16">O padr\u00e3o Outbox conecta a transa\u00e7\u00e3o ao envio posterior de mensagens.</p><div class="divider"></div><div class="tiny muted">01 \u00b7 AWS Documentation</div><div class="tiny muted mt16" style="margin-top:7px">02 \u00b7 AWS Prescriptive Guidance</div></div><p class="tiny muted mt16">Exemplo de resposta. N\u00e3o \u00e9 uma consulta ao vivo.</p></div></div></a><section class="feature-strip"><div><h3>${icon('note')} Escreva no seu ritmo</h3><p>Blocos simples, categorias e tags. Um espa\u00e7o que ajuda sem disputar sua aten\u00e7\u00e3o.</p></div><div><h3>${icon('question')} N\u00e3o perca a pergunta</h3><p>Selecione uma palavra ou frase. Aceite sugest\u00f5es e escolha quando pesquisar.</p></div><div><h3>${icon('shield')} Saiba de onde veio</h3><p>Respostas separadas, fontes vis\u00edveis e \u201cSem fonte\u201d quando a evid\u00eancia faltar.</p></div></section><footer class="public-footer">Notee \u00b7 Identidade original inspirada na simplicidade do AbacatePay \u00b7 Projeto de aprendizado</footer></div>`}
+function renderAuth(type){const info={login:['Que bom ter voc\u00ea por aqui.','Volte para suas notas e perguntas.'],register:['Comece pelo que te interessa.','Crie seu espa\u00e7o de demonstra\u00e7\u00e3o.'],forgot:['Uma nova forma de entrar.','Digite seu e-mail para visualizar o fluxo de recupera\u00e7\u00e3o.'],reset:['Escolha uma nova senha.','O prot\u00f3tipo n\u00e3o armazena nem altera senhas.']}[type];return`<div class="auth-shell"><aside class="auth-art">${logo()}<h1>Anote agora.<br>Entenda depois.</h1><p>Uma boa pergunta n\u00e3o precisa se perder entre as coisas que voc\u00ea ainda vai fazer.</p><div class="auth-paper"><span class="pill green">${icon('spark','sm')}Curiosidade em movimento</span><h3 class="mt16">E se eu pudesse voltar a esta ideia?</h3><p>Uma nota, uma pergunta, uma fonte.<br>O pr\u00f3ximo passo fica mais claro.</p><span class="tag">para-explorar</span></div><div class="grow"></div><p class="tiny" style="margin-top:30px">Privado por padr\u00e3o. Compartilhado por escolha.</p></aside><main class="auth-main"><div class="auth-form"><div class="overline mb16">NOTEE / ${type==='register'?'CADASTRO':type==='login'?'ENTRAR':'RECUPERA\u00c7\u00c3O'}</div><h1>${info[0]}</h1><p class="subtitle">${info[1]}</p><form id="auth-form" data-kind="${type}">${type==='register'?'<div class="field"><label for="auth-name">Seu nome</label><input type="text" id="auth-name" placeholder="Como voc\u00ea quer ser chamado?" required autocomplete="name"></div>':''}${type!=='reset'?'<div class="field"><label for="auth-email">E-mail</label><input type="email" id="auth-email" placeholder="voce@example.test" required autocomplete="email"></div>':''}${type!=='forgot'?`<div class="field"><label for="auth-password">${type==='reset'?'Nova senha':'Senha'}</label><input type="password" id="auth-password" placeholder="Somente para demonstrar o formul\u00e1rio" minlength="8" required autocomplete="${type==='login'?'current-password':'new-password'}"></div>`:''}${type==='reset'?'<div class="field"><label for="auth-confirm">Repita a senha</label><input type="password" id="auth-confirm" required minlength="8" autocomplete="new-password"></div>':''}${type==='login'?'<div style="text-align:right;margin:-5px 0 20px"><a class="small" href="#/forgot" style="color:var(--brand)">Esqueci minha senha</a></div>':''}<button class="btn primary full" type="submit">${type==='login'?'Entrar na demonstra\u00e7\u00e3o':type==='register'?'Criar perfil local':type==='forgot'?'Simular envio do link':'Concluir demonstra\u00e7\u00e3o'} ${icon('arrow','sm')}</button></form>${['login','register'].includes(type)?`<div class="divider-text">ou</div><a class="btn full" href="#/home">Explorar sem preencher dados</a><p class="small muted" style="text-align:center;margin-top:22px">${type==='login'?'Ainda n\u00e3o tem uma conta? <a href="#/register" style="color:var(--brand)">Criar conta</a>':'J\u00e1 conhece o Notee? <a href="#/login" style="color:var(--brand)">Entrar</a>'}</p>`:`<a class="btn ghost full mt16" href="#/login">${icon('back','sm')}Voltar para entrar</a>`}<p class="auth-note">Demonstra\u00e7\u00e3o visual, sem autentica\u00e7\u00e3o real.<br>Use dados fict\u00edcios. Senhas nunca s\u00e3o persistidas.</p></div></main></div>`}
+const emptyMissing=(text='Esta nota n\u00e3o foi encontrada.')=>`<div class="empty">${icon('note')}<h3>${text}</h3><a class="btn mt16" href="#/home">Voltar ao meu espa\u00e7o</a></div>`;
+function render(){route=location.hash.slice(1)||'/welcome';const parts=route.split('/').filter(Boolean);const page=parts[0],id=parts[1];const renderers={welcome:renderLanding,login:()=>renderAuth('login'),register:()=>renderAuth('register'),forgot:()=>renderAuth('forgot'),reset:()=>renderAuth('reset'),home:renderHome,notes:renderNotes,note:()=>renderEditor(id),boards:()=>id?renderGraph(id):renderBoardsList(),categories:renderCategories,research:()=>renderResearch(id),search:renderSearch,archive:()=>renderArchive('archive'),trash:()=>renderArchive('trash'),history:()=>renderHistory(id),publish:()=>renderPublish(id),publications:renderPublications,public:()=>renderPublic(id),explore:()=>renderExplore(false),profile:()=>renderExplore(true),settings:renderSettings,admin:renderAdmin,'design-system':renderDesign};$('#app').innerHTML=(renderers[page]||(()=>shell(emptyMissing('Esta tela n\u00e3o existe.'))))();if(page==='boards'&&id||page==='note')$$('[data-resize-pane]').forEach(divider=>{const cfg=paneConfig(divider);if(cfg)setPaneWidth(divider,uiPrefs[cfg.key]);});if(page==='boards'){ $('#main-content')?.classList.add('graph-page'); if(id&&graphUI.centerNext){requestAnimationFrame(centerGraph);graphUI.centerNext=false;} else if(id)requestAnimationFrame(applyGraphTransform); }if(page==='note')$('#main-content')?.classList.add('editor-page');if(page==='note'&&nBy(id)?.status!=='active')$$('[contenteditable]').forEach(el=>el.contentEditable='false');document.title='Notee - '+({welcome:'Anote agora. Entenda depois.',home:'Vis\u00e3o geral',notes:'Minhas notas',boards:'Mapas de ideias',note:nBy(id)?.title,research:'D\u00favidas e pesquisas',settings:'Configura\u00e7\u00f5es'}[page]||'Seu espa\u00e7o');}
+function modal(title,content,actions='',wide=false){lastFocus=document.activeElement;$('#modal-root').innerHTML=`<div class="modal-overlay"><section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-labelledby="modal-heading"><div class="modal-title"><h2 id="modal-heading">${title}</h2><button class="icon-btn" data-action="close-modal" aria-label="Fechar">${icon('close')}</button></div>${content}${actions?`<div class="modal-actions">${actions}</div>`:''}</section></div>`;document.body.style.overflow='hidden';setTimeout(()=>$('#modal-root input, #modal-root select, #modal-root button')?.focus(),10)}
+function closeModal(){$('#modal-root').innerHTML='';document.body.style.overflow='';lastFocus?.focus?.()}
+function askDoubt(noteId,selection){const n=nBy(noteId);if(!n||n.status!=='active'){toast('Restaure a nota antes de marcar uma d\u00favida.','info');return}selected=selection;modal('O que voc\u00ea quer entender?',`<form id="doubt-form" data-id="${noteId}"><div class="quote-selection">${esc(selection.quote)}</div><div class="field"><label for="doubt-question">Pergunta (voc\u00ea pode refinar)</label><textarea id="doubt-question" required>${esc(selection.quote.includes('?')?selection.quote:'O que significa '+selection.quote+' neste contexto?')}</textarea></div><p class="small muted">O trecho e a revis\u00e3o da nota ficam preservados. A resposta ser\u00e1 armazenada separadamente.</p><div class="callout neutral mt16">${icon('info','sm')}<span>${effectiveAuto(n)?'Pesquisa autom\u00e1tica ativada: uma simula\u00e7\u00e3o come\u00e7a ap\u00f3s salvar.':'Pesquisa autom\u00e1tica desativada: a d\u00favida fica aguardando sua a\u00e7\u00e3o.'}</span></div><div class="modal-actions"><button type="button" class="btn" data-action="close-modal">Cancelar</button><button type="submit" class="btn primary">${icon('question','sm')}Salvar d\u00favida</button></div></form>`)}
+function effectiveAuto(n){return state.settings.researchEnabled&&n.status==='active'&&(n.auto==='on'||(n.auto==='inherit'&&state.settings.auto))}
+function collectEditor(id,quiet=false){const n=nBy(id);if(!n||n.status!=='active'||!$('#editor-title'))return false;const title=$('#editor-title').value.trim()||'Sem t\u00edtulo';const blocks=$$('#editor-blocks [data-block]').map(el=>({id:el.dataset.block,type:el.dataset.type,text:el.innerText.replace(/\u00a0/g,' ').trimEnd()}));const category=$('#editor-category').value;const changed=title!==n.title||JSON.stringify(blocks)!==JSON.stringify(n.blocks)||category!==n.category;if(changed){n.title=title;n.blocks=blocks;n.category=category;n.version++;n.updated=now();state.revisions[id]??=[];state.revisions[id].push({version:n.version,title,blocks:structuredClone(blocks),category,tags:[...n.tags],at:n.updated});save();sessionDirty=false}if(!quiet)toast(changed?'Nova revis\u00e3o salva neste navegador.':'Nenhuma altera\u00e7\u00e3o pendente.');return changed}
+function refreshJobViews(){const zone=$('#editor-doubt-zone');if(zone&&route.startsWith('/note/')){
+  const note=nBy(route.split('/')[2]),oldScroll=$('#editor-doubt-track')?.scrollLeft||0;
+  if(note){zone.innerHTML=renderDoubtStrip(note);if($('#editor-doubt-track'))$('#editor-doubt-track').scrollLeft=oldScroll;}
+}const editor=$('#editor-research');if(editor){const nid=route.split('/')[2];let j=rBy(currentResearch);if(j?.noteId!==nid)j=state.jobs.find(j=>j.noteId===nid);if(j)editor.innerHTML=renderResearchDetail(j,true)}const full=$('#full-research');if(full){const j=rBy(route.split('/')[2]);if(j)full.innerHTML=renderResearchDetail(j)}if(route==='/research'||route==='/home'||route==='/admin')render()}
+function runJob(id,scenario='normal'){const j=rBy(id);if(!j)return;const n=nBy(j.noteId);if(!n||n.status!=='active'){toast('Pesquisas s\u00f3 s\u00e3o iniciadas em notas ativas.','info');return}if(!state.settings.researchEnabled){toast('Pesquisas bloqueadas pela configura\u00e7\u00e3o geral da conta.','info');return}if(['running','queued'].includes(j.status)){toast('Esta pesquisa j\u00e1 est\u00e1 em andamento.','info');return}if(state.jobs.filter(j=>j.status!=='pending').length>=state.settings.budget&&j.status==='pending'){toast('Limite da demonstra\u00e7\u00e3o atingido. Ajuste em Configura\u00e7\u00f5es.','info');return}j.status='queued';j.step=0;j.reviewed=false;j.created=now();j.scenario=scenario;save();refreshJobViews();toast('Pesquisa simulada adicionada \u00e0 fila.');const generation=uid('run');j.generation=generation;[1,2,3,4].forEach(step=>setTimeout(()=>{const current=rBy(id);if(!current||current.generation!==generation||current.status==='cancelled')return;if(!state.settings.researchEnabled||nBy(current.noteId)?.status!=='active'){current.status='cancelled';save();refreshJobViews();return}current.status='running';current.step=step;if(step===4){if(scenario==='failure'){current.status='failed';current.failure='O provider simulado retornou indisponibilidade. Nenhuma nota foi alterada.'}else{current.status='completed';const tech=/outbox|fila|mensagen|banco|worker/i.test(current.question+' '+current.quote);if(tech&&scenario!=='none'){const base=seed().jobs[0];current.answer=base.answer;current.sources=base.sources;current.evidence='sourced'}else{current.answer='Sem fonte. Este adaptador de demonstra\u00e7\u00e3o n\u00e3o consulta a internet e n\u00e3o possui evid\u00eancias para responder a esta pergunta. No sistema real, uma busca seria executada e as fontes seriam avaliadas antes da s\u00edntese. Acrescente contexto ou refine a pergunta.';current.sources=[];current.evidence='none'}state.notifications.unshift({title:'Pesquisa conclu\u00edda',text:current.question,jobId:current.id,at:now()});toast('Sua pesquisa simulada est\u00e1 pronta para revis\u00e3o.')}}save();refreshJobViews()},step*650))}
+function screenMap(){const list=[['welcome','Apresenta\u00e7\u00e3o','Proposta do produto'],['login','Login','E-mail e senha'],['register','Cadastro','Conta demonstrativa'],['forgot','Recuperar senha','Envio de link simulado'],['reset','Nova senha','Conclus\u00e3o do fluxo'],['home','Vis\u00e3o geral','Resumo e acessos'],['notes','Minhas notas','Listagem e filtros'],['boards','Mapas de ideias','Lista de mapas com acesso ao canvas'],['note/n1','Editor','Blocos, sele\u00e7\u00e3o e IA'],['categories','Categorias','Organiza\u00e7\u00e3o e tags'],['search','Busca global','Pesquisa local de texto'],['research','D\u00favidas e pesquisas','Fila e resultados'],['research/r1','Resposta com fontes','Rastreabilidade'],['research/r2','Resposta sem fonte','Limites expl\u00edcitos'],['publish/n1','Publicar','Fotografia revisada'],['publications','Publica\u00e7\u00f5es','Gerenciar snapshots'],['explore','Biblioteca p\u00fablica','Cat\u00e1logo sem rede social'],['public/p1','Nota p\u00fablica','Leitura do snapshot'],['profile/alex','Perfil p\u00fablico','Notas publicadas'],['history/n1','Hist\u00f3rico','Restaurar revis\u00f5es'],['archive','Arquivo','Notas arquivadas'],['trash','Lixeira','Restaurar ou excluir'],['settings','Configura\u00e7\u00f5es','Conta e automa\u00e7\u00e3o'],['admin','Diagn\u00f3stico','Telemetria ilustrativa'],['design-system','Design system','Tokens e componentes']];modal('Explore as telas do Notee',`<p class="small muted mb24">Prot\u00f3tipo desktop naveg\u00e1vel. A mesma estrutura poder\u00e1 ser traduzida em rotas e componentes React.</p><div class="screen-map">${list.map(([url,title,sub])=>`<a href="#/${url}" data-close-modal="true">${title}<small>${sub}</small></a>`).join('')}</div>`, '',true)}
+function confirmAction(title,text,action,id){modal(title,`<p class="muted">${text}</p>`,`<button class="btn" data-action="close-modal">Cancelar</button><button class="btn danger" data-action="${action}" data-id="${id||''}">Confirmar</button>`)}
+/* --------------------------------------------------------------------------
+ * Mapas de ideias - extensao demonstrativa v1.1.
+ * Mesmo Note em varios Boards; arestas pertencem ao Board; Doubt pertence a Note.
+ * Nenhuma consulta de IA ocorre no prototipo. Aceite explicito e verificavel.
+ * -------------------------------------------------------------------------- */
+const graphRelationTypes = {
+  none:'Sem rótulo', related:'Relacionado a', causes:'Causa', example:'Exemplo de',
+  contradicts:'Contradiz', depends:'Depende de', influences:'Influencia', custom:'Personalizado'
+};
+const graphCardSize={width:206,height:124};
+const graphActiveNotes=()=>state.notes.filter(note=>note.status==='active');
+const graphBoardById=id=>state.boards.find(board=>board.id===id);
+const graphBoard=()=>graphBoardById(graphUI.boardId)||state.boards[0];
+const graphNoteText=note=>(note?.blocks||[]).map(block=>block.text).join('\n');
+const graphValidUrl=url=>/^(https?:\/\/)/i.test(String(url||'').trim());
+const graphReference=note=>{
+  note.references??={books:[],sources:[]};
+  note.references.books??=[];note.references.sources??=[];
+  return note.references;
+};
+
+function defaultGraphBoard(notes, example=false, second=false){
+  const active=notes.filter(n=>n.status==='active');
+  const showExample=example&&active.some(n=>n.id==='n9');
+  const preferred={n9:[140,195],n10:[460,68],n11:[460,330],n12:[790,205]};
+  const known=showExample?active.filter(n=>preferred[n.id]):[];
+  const others=active.filter(n=>!known.includes(n));
+  const placements=[...known.map(n=>({noteId:n.id,x:preferred[n.id][0],y:preferred[n.id][1]})),
+    ...others.map((n,i)=>({noteId:n.id,x:125+(i%3)*405,y:(showExample?475:115)+Math.floor(i/3)*210}))];
+  const edges=showExample&&!second?[
+    {id:'e-sample-a',from:'n9',to:'n10',type:'related',label:''},
+    {id:'e-sample-b',from:'n9',to:'n11',type:'related',label:''},
+    {id:'e-sample-c',from:'n11',to:'n12',type:'related',label:''}
+  ]:[];
+  return {id:second?'board-studies':showExample?'board-politics':uid('board'),
+    title:second?'Meu aprendizado':showExample?'Política e sociedade':'Meu mapa de ideias',
+    description:second?'Um segundo olhar sobre as mesmas notas.':'Conecte conceitos, pesquisas e dúvidas em um espaço seu.',
+    placements,edges,suggestions:[],updated:now()};
+}
+
+function migrateGraphState(){
+  const prior=state.schema===1;
+  const showcase=state.graphSampleSeed===true;
+  state.notes.forEach(graphReference);
+  if(!Array.isArray(state.boards)||!state.boards.length){
+    state.boards=[defaultGraphBoard(state.notes,showcase)];
+    if(showcase)state.boards.push(defaultGraphBoard(state.notes,false,true));
+  }
+  state.boards.forEach(board=>{
+    board.placements??=[];board.edges??=[];board.suggestions??=[];
+    ensureGraphPlacements(board,false);
+  });
+  delete state.graphSampleSeed;
+  state.schema=2;
+  if(prior){try{localStorage.setItem(storageKey,JSON.stringify(state))}catch{/* armazenamento opcional */}}
+}
+
+function ensureGraphPlacements(board,persist=true){
+  let added=0;
+  for(const note of graphActiveNotes()){
+    if(board.placements.some(p=>p.noteId===note.id))continue;
+    const i=board.placements.length;
+    board.placements.push({noteId:note.id,x:120+(i%4)*295,y:150+Math.floor(i/4)*250});
+    added++;
+  }
+  if(added&&persist)save();
+  return added;
+}
+
+function graphTouchBoard(board){board.updated=now();save()}
+function graphTouchNote(note){
+  note.version++;note.updated=now();
+  state.revisions[note.id]??=[];
+  state.revisions[note.id].push({version:note.version,title:note.title,
+    blocks:structuredClone(note.blocks),category:note.category,tags:[...note.tags],
+    references:structuredClone(graphReference(note)),at:note.updated});
+  save();
+}
+function graphPlacement(board,id){return board.placements.find(p=>p.noteId===id)}
+function graphLinkName(edge){return (edge.label||'').trim()||graphRelationTypes[edge.type]||graphRelationTypes.none}
+function graphEdgeMarkup(board,visible){
+  return board.edges.filter(edge=>visible.has(edge.from)&&visible.has(edge.to)).map(edge=>{
+    const from=graphPlacement(board,edge.from),to=graphPlacement(board,edge.to);
+    if(!from||!to)return '';
+    const forward=to.x>=from.x;
+    const x1=from.x+(forward?graphCardSize.width:0),y1=from.y+graphCardSize.height*.5;
+    const x2=to.x+(forward?0:graphCardSize.width),y2=to.y+graphCardSize.height*.5;
+    const spread=Math.max(55,Math.abs(x2-x1)*.45);
+    const path=`M ${x1} ${y1} C ${x1+(forward?spread:-spread)} ${y1}, ${x2-(forward?spread:-spread)} ${y2}, ${x2} ${y2}`;
+    const label=edge.type==='none'&&!edge.label?'':graphLinkName(edge);
+    const mx=(x1+x2)/2,my=(y1+y2)/2-13;
+    const w=Math.min(164,Math.max(57,label.length*6+18));
+    const selected=graphUI.selectedNoteId===edge.from||graphUI.selectedNoteId===edge.to;
+    return `<g class="graph-edge ${selected?'edge-related':''}" data-graph-edge="${esc(edge.id)}">
+      <path d="${path}" class="graph-edge-line" marker-end="url(#graph-arrow)"/>
+      <path d="${path}" class="graph-edge-hit"/>
+      ${label?`<rect x="${mx-w/2}" y="${my-13}" width="${w}" height="24" rx="10" class="graph-edge-label-bg"/>
+      <text x="${mx}" y="${my+2}" text-anchor="middle" class="graph-edge-text">${esc(label.slice(0,24))}</text>`:''}
+      <title>${esc(nBy(edge.from)?.title)} → ${esc(nBy(edge.to)?.title)}: ${esc(label||'ligação sem rótulo')}</title>
+    </g>`;
+  }).join('');
+}
+function graphDoubtLines(board,visible){
+  return state.jobs.filter(job=>visible.has(job.noteId)).map(job=>{
+    const p=graphPlacement(board,job.noteId);if(!p)return'';
+    const i=state.jobs.filter(j=>j.noteId===job.noteId).findIndex(j=>j.id===job.id);
+    const x=p.x+graphCardSize.width+14,y=p.y+75+i*61;
+    return `<path class="graph-doubt-wire" d="M${p.x+graphCardSize.width} ${p.y+88} Q${x-4} ${p.y+88} ${x} ${y+25}"/>`;
+  }).join('');
+}
+
+function graphNodeMarkup(board,note){
+  const p=graphPlacement(board,note.id);
+  if(!p)return '';
+  const doubts=state.jobs.filter(j=>j.noteId===note.id);
+  const refs=graphReference(note);
+  const selection=graphUI.selection.has(note.id);
+  const selected=graphUI.selectedNoteId===note.id;
+  return `<button type="button" class="graph-note ${selected?'selected':''} ${selection&&graphUI.scope==='manual'?'context-selected':''}"
+    style="left:${p.x}px;top:${p.y}px" data-graph-note="${esc(note.id)}" aria-label="Selecionar ${esc(note.title)}">
+    <span class="graph-note-top"><span class="graph-note-symbol">${icon(noteIcon(note),'sm')}</span><span class="graph-note-category">${esc(catName(note.category))}</span>
+    ${selection&&graphUI.scope==='manual'?`<span class="graph-context-check">${icon('check','sm')}</span>`:''}</span>
+    <strong class="graph-note-title">${esc(note.title)}</strong>
+    <span class="graph-note-summary">${esc(graphNoteText(note).slice(0,84)||'Clique para escrever nesta nota.')}</span>
+    <span class="graph-note-foot"><span>${icon('book','sm')} ${refs.books.length+refs.sources.length} refs</span>
+    <span>${icon('question','sm')} ${doubts.length} dúvidas</span></span>
+    <span class="graph-connector" title="Conectar esta nota"></span>
+  </button>`;
+}
+function graphReferencesMarkup(note,kind){
+  const refs=graphReference(note)[kind];
+  const what=kind==='books'?'Livro':'Fonte';
+  return `<div class="graph-ref-list">${refs.map(ref=>`<div class="graph-ref-item">
+    <div class="grow"><strong>${esc(ref.title)}</strong>
+    <span class="tiny muted">${esc(kind==='books'?[ref.author,ref.year].filter(Boolean).join(' · '):ref.publisher||'Sem instituição informada')}</span>
+    ${graphValidUrl(ref.url)?`<a href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer" class="graph-ref-url">Abrir ${what.toLowerCase()} ${icon('external','sm')}</a>`:''}</div>
+    <button type="button" class="icon-btn" data-graph-action="remove-ref" data-note="${esc(note.id)}" data-kind="${kind}" data-ref="${esc(ref.id)}" aria-label="Remover ${what.toLowerCase()}">${icon('trash','sm')}</button>
+    </div>`).join('')||`<p class="tiny muted">Nenhum ${what.toLowerCase()} cadastrado.</p>`}</div>`;
+}
+function graphSelectedPanel(board){
+  const note=nBy(graphUI.selectedNoteId);
+  const doubt=rBy(graphUI.selectedDoubtId);
+  if(doubt&&doubt.noteId&&graphActiveNotes().some(n=>n.id===doubt.noteId)){
+    return `<div class="graph-inspector-top"><span class="pill amber">${icon('question','sm')} Dúvida vinculada</span>
+      <a href="#/research/${esc(doubt.id)}" class="btn compact">Abrir pesquisa ${icon('arrow','sm')}</a></div>
+      <h3 class="graph-panel-title">${esc(doubt.question)}</h3><p class="small muted">Nota: ${esc(nBy(doubt.noteId)?.title||'Nota indisponível')}</p>
+      <div class="graph-panel-section">${statusBadge(doubt)}<p class="small muted mt16">A dúvida pertence à nota e pode aparecer em mais de um mapa, sem duplicação.</p></div>`;
+  }
+  if(!note||note.status!=='active')return `<div class="graph-inspector-empty">${icon('note','lg')}<h3>Uma ideia de cada vez.</h3><p>Selecione uma nota no mapa para ver o resumo, referências e dúvidas.</p></div>`;
+  const refs=graphReference(note);
+  const jobs=state.jobs.filter(j=>j.noteId===note.id);
+  const neighbors=board.edges.filter(edge=>edge.from===note.id||edge.to===note.id);
+  return `<div class="graph-inspector-top"><span class="pill green">${icon('note','sm')} Nota compartilhada</span>
+    <a href="#/note/${esc(note.id)}" class="btn compact">Editor completo ${icon('arrow','sm')}</a></div>
+    <h3 class="graph-panel-title">${esc(note.title)}</h3><div class="row wrap gap8">
+      ${note.tags.slice(0,3).map(tag=>`<span class="tag">${esc(tag)}</span>`).join('')}</div>
+    <div class="graph-panel-section"><div class="overline">O QUE ESTÁ ESCRITO</div><p class="graph-panel-preview">${esc(graphNoteText(note).slice(0,560)||'Sem texto por enquanto.')}</p></div>
+    <div class="graph-panel-section"><div class="row between"><h4>Livros <span class="pill">${refs.books.length}</span></h4>
+    <button class="btn compact" data-graph-action="add-ref" data-note="${esc(note.id)}" data-kind="books">${icon('plus','sm')} Adicionar</button></div>
+      ${graphReferencesMarkup(note,'books')}</div>
+    <div class="graph-panel-section"><div class="row between"><h4>Fontes <span class="pill">${refs.sources.length}</span></h4>
+    <button class="btn compact" data-graph-action="add-ref" data-note="${esc(note.id)}" data-kind="sources">${icon('plus','sm')} Adicionar</button></div>
+      ${graphReferencesMarkup(note,'sources')}</div>
+    <div class="graph-panel-section"><div class="row between"><h4>Dúvidas <span class="pill">${jobs.length}</span></h4>
+    <button class="btn compact" data-graph-action="new-doubt" data-note="${esc(note.id)}">${icon('plus','sm')} Nova</button></div>
+      ${jobs.map(j=>`<button class="graph-list-question" data-graph-action="select-doubt" data-id="${esc(j.id)}">${icon('question','sm')}<span>${esc(j.question)}</span></button>`).join('')||'<p class="tiny muted">Nenhuma dúvida nesta nota.</p>'}</div>
+    <div class="graph-panel-section"><h4>${neighbors.length} ligações neste mapa</h4>
+    ${neighbors.slice(0,5).map(edge=>`<button class="graph-relation-item" data-graph-action="edit-edge" data-id="${esc(edge.id)}">
+      ${esc(nBy(edge.from===note.id?edge.to:edge.from)?.title||'Nota removida')}<span class="tiny muted">${esc(graphLinkName(edge))}</span></button>`).join('')||'<p class="tiny muted">Conecte esta nota a outra para formar uma relação.</p>'}
+    <button class="btn compact" style="margin-top:12px" data-graph-action="connect-from" data-note="${esc(note.id)}">${icon('link','sm')} Conectar a outra nota</button></div>`;
+}
+function graphContextForBoard(board){
+  const active=new Set(graphActiveNotes().map(n=>n.id));
+  const allowed=board.placements.map(p=>p.noteId).filter(id=>active.has(id));
+  const ids=graphUI.scope==='manual'?allowed.filter(id=>graphUI.selection.has(id)):allowed;
+  const selected=new Set(ids);
+  const nodes=ids.map(id=>{
+    const note=nBy(id),refs=graphReference(note);
+    const jobs=state.jobs.filter(j=>j.noteId===id);
+    return {id:note.id,revision:note.version,title:note.title,category:catName(note.category),tags:[...note.tags],
+      content:graphNoteText(note),references:{books:refs.books.map(r=>({title:r.title,author:r.author||'',year:r.year||'',url:r.url||''})),
+        sources:refs.sources.map(r=>({title:r.title,publisher:r.publisher||'',url:r.url||''}))},
+      doubts:jobs.map(j=>({id:j.id,question:j.question,status:j.status,evidence:j.evidence||'pending',
+        reviewed:!!j.reviewed,...(j.reviewed&&j.status==='completed'?{reviewedAnswer:j.answer,sources:j.sources}: {})}))};
+  });
+  const edges=board.edges.filter(e=>selected.has(e.from)&&selected.has(e.to)).map(e=>({
+    id:e.id,from:e.from,to:e.to,type:e.type,label:e.label||null,displayLabel:e.type==='none'&&!e.label?null:graphLinkName(e)
+  }));
+  return {schema:'notee-graph-context/1',board:{id:board.id,title:board.title},scope:graphUI.scope,
+    noteCount:nodes.length,edgeCount:edges.length,nodes,edges};
+}
+function graphAiPanel(board){
+  const selectedCount=graphContextForBoard(board).noteCount;
+  const pending=board.suggestions||[];
+  return `<div class="graph-ai-intro"><span class="graph-ai-icon">${icon('spark')}</span><div><h3>Assistente do mapa</h3>
+    <p>Ideias propostas, nunca aplicadas sem sua aprovação.</p></div></div>
+    <div class="callout neutral" style="font-size:11px">${icon('info','sm')}<span>Simulação local: nenhum modelo ou serviço externo recebe os seus dados.</span></div>
+    <div class="graph-panel-section"><div class="overline">SUGESTÕES PARA EXPLORAR</div>
+    <button class="btn compact" data-graph-action="generate-suggestions" style="margin-top:12px;width:100%">${icon('spark','sm')} Gerar sugestões simuladas</button>
+    ${pending.map(item=>`<div class="graph-suggestion"><span class="pill ${item.kind==='note'?'green':'blue'}">${item.kind==='note'?'Nova nota':'Conexão sugerida'}</span>
+      <strong>${esc(item.title)}</strong><p>${esc(item.detail)}</p>
+      <div class="row gap8"><button class="btn primary compact" data-graph-action="accept-suggestion" data-id="${esc(item.id)}">${icon('check','sm')} Aceitar</button>
+      <button class="btn compact" data-graph-action="reject-suggestion" data-id="${esc(item.id)}">Descartar</button></div></div>`).join('')||'<p class="small muted mt16">Peça sugestões para experimentar a revisão antes do aceite.</p>'}</div>
+    <div class="graph-panel-section"><div class="overline">CONTEXTO PARA PERGUNTAR À IA</div><p class="small muted mt16">Defina exatamente quais notas e conexões podem ser usadas.</p>
+    <div class="graph-scope-switch"><button class="${graphUI.scope==='all'?'active':''}" data-graph-action="scope-all">Mapa inteiro</button>
+    <button class="${graphUI.scope==='manual'?'active':''}" data-graph-action="scope-manual">Selecionar subgrafo</button></div>
+    ${graphUI.scope==='manual'?`<p class="small muted mt16">Clique nas notas para marcar ou desmarcar. A seleção só inclui ligações entre as notas escolhidas.</p>
+      <button class="btn ghost compact" data-graph-action="clear-selection">Limpar seleção</button>`:''}
+    <div class="graph-context-stat"><strong>${selectedCount}</strong> notas <span>·</span>
+      <strong>${graphContextForBoard(board).edgeCount}</strong> relações</div>
+    <button class="btn compact" data-graph-action="preview-context" style="width:100%">${icon('eye','sm')} Pré-visualizar contexto JSON</button>
+    <button class="btn primary" data-graph-action="ask-graph" style="margin-top:9px;width:100%">${icon('spark','sm')} Perguntar com este contexto</button>
+    </div>`;
+}
+function renderBoardsList(){
+  const notes=graphActiveNotes();
+  return shell(`${pageHead('Seus mapas de ideias','Escolha um espaço visual para desenvolver, conectar e revisitar seus raciocínios.',
+    `<button class="btn primary" data-graph-action="create-board">${icon('plus','sm')} Novo mapa</button>`,'SEU CONHECIMENTO / MAPAS')}
+    <div class="graph-catalog-intro">${icon('link','sm')} Cada mapa usa as notas de <strong>Minhas notas</strong>. O conteúdo é compartilhado; as posições e conexões são próprias de cada mapa.</div>
+    <div class="graph-catalog-grid">${state.boards.map((board,i)=>`
+      <article class="card graph-catalog-card">
+        <a class="graph-catalog-main" href="#/boards/${esc(board.id)}" aria-label="Abrir mapa ${esc(board.title)}">
+          <div class="graph-catalog-illustration" aria-hidden="true">
+             <span class="graph-catalog-node node-one"></span><span class="graph-catalog-node node-two"></span>
+             <span class="graph-catalog-node node-three"></span><span class="graph-catalog-node node-four"></span>
+             <svg viewBox="0 0 300 88" preserveAspectRatio="none"><path d="M73 41L140 23L213 46M140 23L259 20" fill="none" stroke="#93b08c" stroke-width="1.7" stroke-dasharray="4 4"/></svg>
+          </div>
+          <div class="graph-catalog-meta"><span class="pill green">${icon('link','sm')} Mapa de ideias</span><span class="small muted">${esc(fmt(board.updated||now()))}</span></div>
+          <h2>${esc(board.title)}</h2><p>${esc(board.description||'Um espaço para conectar ideias e explorar assuntos.')}</p>
+          <div class="graph-catalog-footer"><span>${icon('note','sm')} ${notes.length} notas</span><span>${icon('link','sm')} ${board.edges.length} conexões</span></div>
+        </a>
+        <div class="graph-catalog-actions"><a class="btn primary compact" href="#/boards/${esc(board.id)}">Abrir mapa ${icon('arrow','sm')}</a>
+          <button class="btn ghost compact" data-graph-action="edit-board" data-board="${esc(board.id)}" aria-label="Editar mapa ${esc(board.title)}">${icon('settings','sm')} Editar</button></div>
+      </article>`).join('')}</div>
+    `,'boards','Mapas de ideias');
+}
+
+function renderGraph(id){
+  const board=graphBoardById(id)||graphBoard();
+  if(!board)return shell(emptyMissing('Ainda não existe um mapa.'));
+  if(graphUI.boardId!==board.id){graphUI.boardId=board.id;graphUI.centerNext=true;graphUI.selectedNoteId=null;graphUI.selectedDoubtId=null;graphUI.selection.clear();}
+  ensureGraphPlacements(board);
+  const active=graphActiveNotes(),visible=new Set(active.map(n=>n.id));
+  const doubts=state.jobs.filter(j=>visible.has(j.noteId));
+  const source=graphUI.linkFrom&&nBy(graphUI.linkFrom);
+  return shell(`${pageHead('Ideias que se conectam.','Pense visualmente, explore relações e preserve cada nota em sua biblioteca.',
+    `<a class="btn compact" href="#/boards">${icon('back','sm')} Todos os mapas</a><button class="btn compact" data-graph-action="create-board">${icon('plus','sm')} Novo mapa</button>`,'SEU CONHECIMENTO / MAPAS')}
+    <div class="graph-board-head"><div><div class="row gap8">
+      <select class="graph-board-select" id="graph-board-select" aria-label="Escolher mapa">
+        ${state.boards.map(b=>`<option value="${esc(b.id)}" ${board.id===b.id?'selected':''}>${esc(b.title)}</option>`).join('')}</select>
+      <button class="icon-btn" data-graph-action="edit-board" aria-label="Editar mapa" title="Editar mapa">${icon('settings','sm')}</button></div>
+      <p class="small muted">${esc(board.description)}</p></div>
+      <div class="row gap8 wrap"><span class="pill">${active.length} notas</span><span class="pill">${board.edges.length} relações</span>
+      <span class="pill amber">${doubts.length} dúvidas</span></div></div>
+    <div class="graph-toolbar"><div class="row gap8 wrap">
+      <button class="btn primary compact" data-graph-action="new-note">${icon('plus','sm')} Nova nota</button>
+      <button class="btn compact ${graphUI.mode==='link'?'graph-tool-active':''}" data-graph-action="connect-mode">${icon('link','sm')} Conectar</button>
+      <button class="btn compact" data-graph-action="auto-layout">${icon('grid','sm')} Reorganizar</button>
+      <button class="btn compact" data-graph-action="center">${icon('refresh','sm')} Enquadrar tudo</button>
+      ${source?`<span class="graph-connection-hint">Conectando de <strong>${esc(source.title)}</strong> · clique no destino</span>`:''}</div>
+      <div class="row gap8"><button class="btn compact graph-toggle-side" data-graph-action="toggle-side" aria-expanded="${!uiPrefs.graphAsideHidden}" aria-controls="graph-side-panel" title="Mostrar ou ocultar painel de Nota e IA">${icon(uiPrefs.graphAsideHidden?'panel-left-open':'panel-left-close','sm')} ${uiPrefs.graphAsideHidden?'Mostrar painel':'Ocultar painel'}</button><span class="tiny muted" id="graph-zoom-label">100%</span>
+      <button class="icon-btn graph-zoom-btn" data-graph-action="zoom-out" title="Reduzir zoom" aria-label="Reduzir zoom">−</button>
+      <button class="icon-btn graph-zoom-btn" data-graph-action="zoom-in" title="Ampliar zoom" aria-label="Ampliar zoom">+</button></div></div>
+    <div class="graph-layout ${uiPrefs.graphAsideHidden?'is-side-hidden':''}" style="--graph-aside-width:${uiPrefs.graphAsideWidth}px"><section class="graph-surface" id="graph-surface" aria-label="Quadro visual de notas. Arraste para mover, use rolagem para zoom.">
+      <div class="graph-stage" id="graph-stage">
+        <svg class="graph-links" width="6400" height="6400" viewBox="0 0 6400 6400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs><marker id="graph-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0 0 L7 3.5 L0 7Z" fill="#97ae8f"/></marker></defs>
+          ${graphEdgeMarkup(board,visible)}
+          ${graphDoubtLines(board,visible)}
+        </svg>
+        ${active.map(note=>graphNodeMarkup(board,note)).join('')}
+        ${doubts.map(job=>{
+          const p=graphPlacement(board,job.noteId);if(!p)return'';
+          const i=state.jobs.filter(j=>j.noteId===job.noteId).findIndex(j=>j.id===job.id);
+          const x=p.x+graphCardSize.width+14,y=p.y+75+i*61;
+          return `<button class="graph-doubt ${graphUI.selectedDoubtId===job.id?'selected':''}" style="left:${x}px;top:${y}px"
+            data-graph-doubt="${esc(job.id)}" title="${esc(job.question)}">
+            <span class="graph-doubt-symbol">${icon('question','sm')}</span>
+            <span class="graph-doubt-content"><strong>Dúvida</strong><small>${esc(job.question)}</small></span></button>`;
+        }).join('')}
+      </div>
+      <div class="graph-viewport-help">${icon('info','sm')} Arraste os cartões para organizar · arraste o fundo para navegar · scroll para zoom</div>
+      <div class="graph-map-legend"><span class="legend-dot"></span> Nota <span class="legend-dot amber"></span> Dúvida <span class="legend-line"></span> Relação</div>
+    </section>
+    <div class="pane-resizer graph-resizer" tabindex="0" role="separator" aria-orientation="vertical" aria-label="Redimensionar painel de Nota e IA" aria-valuemin="270" aria-valuemax="950" aria-valuenow="${uiPrefs.graphAsideWidth}" title="Arraste para ajustar ou use as teclas de seta" data-resize-pane="graph"></div>
+    <aside class="graph-side" id="graph-side-panel"><div class="graph-side-tabs">
+       <button class="${graphUI.showPreview?'':'active'}" data-graph-action="panel-note">${icon('note','sm')} Nota</button>
+       <button class="${graphUI.showPreview?'active':''}" data-graph-action="panel-ai">${icon('spark','sm')} IA e contexto</button></div>
+       <div class="graph-side-scroll">${graphUI.showPreview?graphAiPanel(board):graphSelectedPanel(board)}</div></aside></div>
+    <div class="graph-bottom-note">${icon('shield','sm')} Mapa privado, demonstrativo e salvo somente neste navegador. A IA não é consultada neste protótipo.
+      <span>As notas de “Minhas notas” são as mesmas notas deste mapa.</span></div>
+    `,'boards','Mapas de ideias');
+}
+function applyGraphTransform(){
+  const stage=$('#graph-stage'),surface=$('#graph-surface');
+  if(!stage||!surface)return;
+  stage.style.transform=`translate(${graphUI.tx}px,${graphUI.ty}px) scale(${graphUI.scale})`;
+  surface.style.backgroundPosition=`${graphUI.tx}px ${graphUI.ty}px`;
+  surface.style.backgroundSize=`${23*graphUI.scale}px ${23*graphUI.scale}px`;
+  const label=$('#graph-zoom-label');if(label)label.textContent=Math.round(graphUI.scale*100)+'%';
+}
+function centerGraph(){
+  const board=graphBoard(),surface=$('#graph-surface');if(!surface||!board)return;
+  const nodes=board.placements.filter(p=>nBy(p.noteId)?.status==='active');
+  if(!nodes.length){graphUI.tx=100;graphUI.ty=100;graphUI.scale=1;applyGraphTransform();return}
+  const minX=Math.min(...nodes.map(p=>p.x))-35;
+  const minY=Math.min(...nodes.map(p=>p.y))-55;
+  const maxX=Math.max(...nodes.map(p=>p.x+graphCardSize.width+(state.jobs.some(j=>j.noteId===p.noteId)?195:0)))+35;
+  const maxY=Math.max(...nodes.map(p=>Math.max(p.y+graphCardSize.height,p.y+75+Math.max(0,state.jobs.filter(j=>j.noteId===p.noteId).length-1)*61+(state.jobs.some(j=>j.noteId===p.noteId)?52:0))))+35;
+  const bounds=surface.getBoundingClientRect();
+  graphUI.scale=Math.min(1.05,Math.max(.35,Math.min((bounds.width-45)/(maxX-minX),(bounds.height-72)/(maxY-minY))));
+  graphUI.tx=(bounds.width-(maxX-minX)*graphUI.scale)/2-minX*graphUI.scale;
+  graphUI.ty=(bounds.height-(maxY-minY)*graphUI.scale)/2-minY*graphUI.scale;
+  applyGraphTransform();
+}
+function graphSetZoom(next,clientX,clientY){
+  const surface=$('#graph-surface');if(!surface)return;
+  const rect=surface.getBoundingClientRect();
+  const px=(clientX??(rect.left+rect.width/2))-rect.left;
+  const py=(clientY??(rect.top+rect.height/2))-rect.top;
+  const old=graphUI.scale;
+  graphUI.scale=Math.min(2.2,Math.max(.30,next));
+  graphUI.tx=px-(px-graphUI.tx)*(graphUI.scale/old);
+  graphUI.ty=py-(py-graphUI.ty)*(graphUI.scale/old);
+  applyGraphTransform();
+}
+function graphSelectNote(id){
+  if(!nBy(id)||nBy(id).status!=='active')return;
+  if(graphUI.mode==='link'){
+    if(!graphUI.linkFrom){graphUI.linkFrom=id;graphUI.selectedNoteId=id;render();return}
+    if(graphUI.linkFrom===id){toast('Escolha uma segunda nota para conectar.','info');return}
+    graphEdgeModal(graphUI.linkFrom,id);return;
+  }
+  graphUI.selectedNoteId=id;graphUI.selectedDoubtId=null;
+  if(graphUI.scope==='manual'){
+    if(graphUI.selection.has(id))graphUI.selection.delete(id);
+    else graphUI.selection.add(id);
+  }
+  render();
+}
+function graphAutoLayout(board){
+  const active=graphActiveNotes();
+  const byId=new Map(active.map(n=>[n.id,n]));
+  const degree=new Map(active.map(n=>[n.id,0]));
+  const adjacency=new Map(active.map(n=>[n.id,new Set()]));
+  for(const edge of board.edges){
+    if(!byId.has(edge.from)||!byId.has(edge.to))continue;
+    adjacency.get(edge.from).add(edge.to);adjacency.get(edge.to).add(edge.from);
+    degree.set(edge.from,degree.get(edge.from)+1);degree.set(edge.to,degree.get(edge.to)+1);
+  }
+  const seen=new Set(),layers=[];
+  while(seen.size<active.length){
+    const root=active.filter(n=>!seen.has(n.id)).sort((a,b)=>(degree.get(b.id)-degree.get(a.id))||a.title.localeCompare(b.title))[0];
+    if(!root)break;
+    let pending=[root.id];seen.add(root.id);
+    while(pending.length){
+      layers.push(pending);
+      const next=[];
+      for(const id of pending){
+        for(const related of [...adjacency.get(id)].sort()){
+          if(!seen.has(related)){seen.add(related);next.push(related)}
+        }
+      }
+      pending=next;
+    }
+  }
+  // Clusteriza por proximidade e depois distribui em linhas compactas.
+  const ordered=layers.flat();
+  ordered.forEach((id,i)=>{
+    const p=graphPlacement(board,id);
+    if(p){p.x=105+(i%3)*405;p.y=115+Math.floor(i/3)*245}
+  });
+  graphTouchBoard(board);graphUI.centerNext=true;render();
+  toast('Mapa reorganizado. Os vínculos e o conteúdo das notas foram preservados.');
+}
+function graphBoardModal(board){
+  modal(board?'Editar mapa':'Novo mapa de ideias',`<form id="graph-board-form" data-id="${esc(board?.id||'')}">
+    <div class="field"><label for="graph-board-title">Nome do mapa</label><input id="graph-board-title" type="text" required maxlength="80" value="${esc(board?.title||'')}"></div>
+    <div class="field"><label for="graph-board-description">Descrição</label><textarea id="graph-board-description" maxlength="240">${esc(board?.description||'')}</textarea></div>
+    <div class="callout neutral">${icon('info','sm')}<span>Todos os seus rascunhos ativos ficam disponíveis neste mapa. As posições e conexões são independentes dos outros mapas.</span></div>
+    <div class="modal-actions">${board&&state.boards.length>1?`<button type="button" class="btn danger compact" data-graph-action="delete-board">Excluir mapa</button>`:''}<span class="grow"></span>
+    <button type="button" class="btn" data-action="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar mapa</button></div>
+    </form>`);
+}
+function graphNewNoteModal(){
+  modal('Criar nota no mapa',`<form id="graph-note-form"><div class="field"><label for="graph-new-title">Título</label><input id="graph-new-title" maxlength="160" required placeholder="Qual ideia quer explorar?"></div>
+    <div class="field"><label for="graph-new-text">Primeiro pensamento</label><textarea id="graph-new-text" placeholder="Escreva uma ideia, observação ou pergunta..."></textarea></div>
+    <div class="callout neutral">${icon('note','sm')}<span>Esta será uma nota do Notee e também aparecerá em “Minhas notas” e nos outros mapas.</span></div>
+    <div class="modal-actions"><button type="button" class="btn" data-action="close-modal">Cancelar</button><button class="btn primary" type="submit">Criar nota</button></div></form>`);
+}
+function graphEdgeModal(from,to,edge){
+  const board=graphBoard();if(!board)return;
+  modal(edge?'Editar relação':'Conectar duas notas',`<form id="graph-edge-form" data-id="${esc(edge?.id||'')}">
+    <p class="small muted mb16">As ligações representam a forma como <strong>você</strong> relaciona seus conceitos. A IA deverá receber também o tipo e a direção escolhidos.</p>
+    <div class="field"><label for="graph-edge-from">Origem</label><select id="graph-edge-from" required>
+      ${graphActiveNotes().map(n=>`<option value="${esc(n.id)}" ${n.id===(edge?.from||from)?'selected':''}>${esc(n.title)}</option>`).join('')}</select></div>
+    <div class="field"><label for="graph-edge-to">Destino</label><select id="graph-edge-to" required>
+      ${graphActiveNotes().map(n=>`<option value="${esc(n.id)}" ${n.id===(edge?.to||to)?'selected':''}>${esc(n.title)}</option>`).join('')}</select></div>
+    <div class="field"><label for="graph-edge-type">Tipo de relação</label><select id="graph-edge-type">
+      ${Object.entries(graphRelationTypes).map(([v,l])=>`<option value="${v}" ${v===(edge?.type||'related')?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="field"><label for="graph-edge-label">Rótulo personalizado (opcional)</label><input id="graph-edge-label" maxlength="80" placeholder="Ex.: debate conceitual" value="${esc(edge?.label||'')}"></div>
+    <div class="callout neutral">${icon('info','sm')}<span>“Sem rótulo” deixa apenas a linha. Um texto personalizado prevalece sobre o tipo na visualização, mas o tipo permanece estruturado.</span></div>
+    <div class="modal-actions">${edge?`<button type="button" class="btn danger" data-graph-action="delete-edge" data-id="${esc(edge.id)}">Remover relação</button>`:''}
+    <span class="grow"></span><button type="button" class="btn" data-action="close-modal">Cancelar</button><button class="btn primary" type="submit">${edge?'Salvar':'Criar'} conexão</button></div></form>`);
+}
+function graphReferenceModal(noteId,kind){
+  const book=kind==='books';
+  modal(book?'Adicionar livro':'Adicionar fonte',`<form id="graph-reference-form" data-note="${esc(noteId)}" data-kind="${kind}">
+    <div class="field"><label for="graph-ref-title">Título</label><input id="graph-ref-title" maxlength="220" required></div>
+    <div class="field"><label for="graph-ref-person">${book?'Autor':'Editora, instituição ou veículo'}</label><input id="graph-ref-person" maxlength="140"></div>
+    ${book?'<div class="field"><label for="graph-ref-year">Ano (opcional)</label><input id="graph-ref-year" maxlength="15"></div>':''}
+    <div class="field"><label for="graph-ref-url">Link (opcional, https:// ou http://)</label><input id="graph-ref-url" type="url" placeholder="https://"></div>
+    <p class="small muted">Adicionar uma referência não significa que seu conteúdo foi consultado ou validado pela IA.</p>
+    <div class="modal-actions"><button type="button" class="btn" data-action="close-modal">Cancelar</button><button type="submit" class="btn primary">Adicionar referência</button></div></form>`);
+}
+function graphNewDoubtModal(note){
+  modal('Nova dúvida sobre esta nota',`<form id="graph-doubt-form" data-note="${esc(note.id)}">
+    <p class="small muted mb16">A pergunta será um nó menor conectado à nota. Como foi criada no mapa, não haverá trecho marcado no editor.</p>
+    <div class="field"><label for="graph-doubt-question">O que você quer investigar?</label><textarea id="graph-doubt-question" required maxlength="1200"></textarea></div>
+    <div class="modal-actions"><button type="button" class="btn" data-action="close-modal">Cancelar</button><button type="submit" class="btn primary">Guardar dúvida</button></div></form>`);
+}
+function graphGenerateSuggestions(board){
+  const nodes=graphActiveNotes();
+  const focus=nodes.find(n=>n.id===graphUI.selectedNoteId)||nodes[0];
+  if(!focus)return;
+  const others=nodes.find(n=>n.id!==focus.id&&!board.edges.some(e=>(e.from===focus.id&&e.to===n.id)||(e.to===focus.id&&e.from===n.id)));
+  board.suggestions=[{id:uid('gs'),kind:'note',title:`Perguntas sobre ${focus.title}`.slice(0,85),
+    detail:`Criar uma nota de perguntas para aprofundar “${focus.title}” e vinculá-la ao assunto.`,from:focus.id},
+    ...(others?[{id:uid('gs'),kind:'edge',title:`${focus.title} ↔ ${others.title}`,
+      detail:'Possível ligação não verificada: relacione os assuntos somente se fizer sentido para você.',from:focus.id,to:others.id,type:'related'}]:[])];
+  graphTouchBoard(board);graphUI.showPreview=true;render();
+}
+function graphPreviewContext(){
+  const ctx=graphContextForBoard(graphBoard());
+  modal('Contexto estruturado para IA',`<div class="callout neutral mb16">${icon('shield','sm')}<span>Somente uma prévia local. Nenhum texto foi enviado. No produto real, consentimento, limites e permissões serão revalidados antes de qualquer chamada externa.</span></div>
+    <div class="row gap8 mb16"><span class="pill green">${ctx.noteCount} notas</span><span class="pill">${ctx.edgeCount} relações</span></div>
+    <pre class="graph-json-preview">${esc(JSON.stringify(ctx,null,2))}</pre>`,
+    `<button class="btn primary" data-graph-action="copy-context">${icon('copy','sm')} Copiar JSON</button>`,true);
+}
+function graphAskModal(){
+  const ctx=graphContextForBoard(graphBoard());
+  if(ctx.noteCount===0){toast('Selecione pelo menos uma nota para compor o contexto.','info');return}
+  modal('Perguntar com o mapa',`<form id="graph-question-form"><p class="small muted mb16">${ctx.noteCount} notas e ${ctx.edgeCount} relações selecionadas. O exemplo apresenta a estrutura que a IA receberia, mas <strong>não executa pesquisa.</strong></p>
+    <div class="field"><label for="graph-question">Sua pergunta</label><textarea id="graph-question" required placeholder="O que posso concluir a partir das notas selecionadas?"></textarea></div>
+    <div class="callout neutral">${icon('info','sm')}<span>O sistema real deverá diferenciar texto seu, fontes verificadas, respostas de IA e hipóteses sobre relações.</span></div>
+    <div class="modal-actions"><button class="btn" data-action="close-modal" type="button">Cancelar</button><button class="btn primary" type="submit">Simular uso do contexto</button></div></form>`);
+}
+function graphHandleAction(button){
+  const action=button.dataset.graphAction;
+  const board=graphBoard();
+  if(!board)return;
+  if(action==='create-board')graphBoardModal(null);
+  else if(action==='edit-board'){const selected=graphBoardById(button.dataset.board)||board;graphUI.boardId=selected.id;graphBoardModal(selected);}
+  else if(action==='new-note')graphNewNoteModal();
+  else if(action==='connect-mode'){
+    graphUI.mode=graphUI.mode==='link'?'inspect':'link';
+    graphUI.linkFrom=null;render();
+    if(graphUI.mode==='link')toast('Clique na nota de origem e depois na nota de destino.','info');
+  }
+  else if(action==='connect-from'){
+    graphUI.mode='link';graphUI.linkFrom=button.dataset.note;render();
+    toast('Agora clique na segunda nota para criar a ligação.');
+  }
+  else if(action==='auto-layout')graphAutoLayout(board);
+  else if(action==='center'){centerGraph()}
+  else if(action==='zoom-in')graphSetZoom(graphUI.scale*1.2);
+  else if(action==='zoom-out')graphSetZoom(graphUI.scale/1.2);
+  else if(action==='toggle-side'){
+    uiPrefs.graphAsideHidden=!uiPrefs.graphAsideHidden;saveUiPrefs();
+    const layout=$('.graph-layout');layout?.classList.toggle('is-side-hidden',uiPrefs.graphAsideHidden);
+    button.setAttribute('aria-expanded',String(!uiPrefs.graphAsideHidden));
+    button.innerHTML=icon(uiPrefs.graphAsideHidden?'panel-left-open':'panel-left-close','sm')+' '+(uiPrefs.graphAsideHidden?'Mostrar painel':'Ocultar painel');
+    button.title=uiPrefs.graphAsideHidden?'Mostrar painel':'Ocultar painel';
+  }
+  else if(action==='panel-note'){graphUI.showPreview=false;render()}
+  else if(action==='panel-ai'){graphUI.showPreview=true;render()}
+  else if(action==='scope-all'){graphUI.scope='all';graphUI.showPreview=true;render()}
+  else if(action==='scope-manual'){graphUI.scope='manual';graphUI.selection.clear();graphUI.showPreview=true;render();toast('Clique nas notas do mapa para formar o subgrafo.');}
+  else if(action==='clear-selection'){graphUI.selection.clear();render()}
+  else if(action==='generate-suggestions')graphGenerateSuggestions(board);
+  else if(action==='preview-context')graphPreviewContext();
+  else if(action==='ask-graph')graphAskModal();
+  else if(action==='copy-context'){
+    const value=JSON.stringify(graphContextForBoard(board),null,2);
+    if(navigator.clipboard?.writeText)navigator.clipboard.writeText(value).then(()=>toast('JSON de contexto copiado localmente.')).catch(()=>toast('A cópia foi bloqueada pelo navegador.','info'));
+    else toast('Seu navegador não permitiu cópia automática. Selecione o texto na prévia.','info');
+  }
+  else if(action==='new-doubt')graphNewDoubtModal(nBy(button.dataset.note));
+  else if(action==='add-ref')graphReferenceModal(button.dataset.note,button.dataset.kind);
+  else if(action==='remove-ref'){
+    const n=nBy(button.dataset.note);if(!n)return;
+    graphReference(n)[button.dataset.kind]=graphReference(n)[button.dataset.kind].filter(r=>r.id!==button.dataset.ref);
+    graphTouchNote(n);render();toast('Referência removida desta nota.');
+  }
+  else if(action==='select-doubt'){graphUI.selectedDoubtId=button.dataset.id;graphUI.showPreview=false;render()}
+  else if(action==='edit-edge'){
+    const edge=board.edges.find(e=>e.id===button.dataset.id);if(edge)graphEdgeModal(edge.from,edge.to,edge);
+  }
+  else if(action==='delete-edge'){
+    board.edges=board.edges.filter(e=>e.id!==button.dataset.id);graphTouchBoard(board);closeModal();render();toast('Relação removida apenas deste mapa.');
+  }
+  else if(action==='delete-board'){
+    if(state.boards.length<2){toast('Mantenha pelo menos um mapa.','info');return}
+    const index=state.boards.findIndex(b=>b.id===board.id);
+    if(index>=0)state.boards.splice(index,1);
+    graphUI.boardId=state.boards[0].id;graphUI.centerNext=true;save();closeModal();goto('/boards/'+graphUI.boardId);toast('Mapa excluído. As notas originais foram preservadas.');
+  }
+  else if(action==='accept-suggestion'){
+    const i=board.suggestions.findIndex(s=>s.id===button.dataset.id);if(i<0)return;
+    const sug=board.suggestions.splice(i,1)[0];
+    if(sug.kind==='note'){
+      const n={id:uid('n'),title:sug.title,category:'',tags:['a-investigar'],status:'active',version:1,auto:'inherit',updated:now(),
+        blocks:[{id:uid('b'),type:'paragraph',text:'Hipótese de estudo sugerida na simulação do mapa. Edite e valide o conteúdo.'}],references:{books:[],sources:[]}};
+      state.notes.unshift(n);state.revisions[n.id]=[{version:1,title:n.title,blocks:structuredClone(n.blocks),references:structuredClone(n.references),category:'',tags:[...n.tags],at:n.updated}];
+      ensureGraphPlacements(board,false);
+      const a=graphPlacement(board,sug.from),b=graphPlacement(board,n.id);
+      if(a&&b){b.x=a.x+420;b.y=a.y+205}
+      board.edges.push({id:uid('e'),from:sug.from,to:n.id,type:'related',label:''});
+      graphUI.selectedNoteId=n.id;
+    }else if(sug.kind==='edge'){
+      board.edges.push({id:uid('e'),from:sug.from,to:sug.to,type:sug.type||'related',label:''});
+    }
+    graphTouchBoard(board);graphUI.showPreview=true;render();toast('Sugestão aplicada somente após o seu aceite.');
+  }
+  else if(action==='reject-suggestion'){
+    board.suggestions=board.suggestions.filter(s=>s.id!==button.dataset.id);
+    graphTouchBoard(board);render();toast('Sugestão descartada.');
+  }
+}
+function graphHandleSubmit(form){
+  const board=graphBoard();
+  if(form.id==='graph-board-form'){
+    const id=form.dataset.id,title=$('#graph-board-title').value.trim();
+    const description=$('#graph-board-description').value.trim();
+    if(!title)return;
+    if(id){const edited=graphBoardById(id);edited.title=title;edited.description=description;graphTouchBoard(edited)}
+    else{
+      const created=defaultGraphBoard(state.notes,false,false);
+      created.id=uid('board');created.title=title;created.description=description;
+      created.edges=[];state.boards.push(created);graphUI.boardId=created.id;graphUI.centerNext=true;save();
+    }
+    closeModal();goto('/boards/'+graphUI.boardId);
+  }
+  else if(form.id==='graph-note-form'){
+    const title=$('#graph-new-title').value.trim(),body=$('#graph-new-text').value.trim();if(!title)return;
+    const n={id:uid('n'),title,category:'',tags:[],status:'active',version:1,auto:'inherit',updated:now(),
+      blocks:[{id:uid('b'),type:'paragraph',text:body}],references:{books:[],sources:[]}};
+    state.notes.unshift(n);state.revisions[n.id]=[{version:1,title,blocks:structuredClone(n.blocks),references:structuredClone(n.references),category:'',tags:[],at:n.updated}];
+    ensureGraphPlacements(board,false);graphUI.selectedNoteId=n.id;graphUI.showPreview=false;
+    graphTouchBoard(board);closeModal();render();toast('Nota criada na biblioteca e disponível em todos os mapas.');
+  }
+  else if(form.id==='graph-edge-form'){
+    const from=$('#graph-edge-from').value,to=$('#graph-edge-to').value;
+    if(from===to){toast('Escolha notas diferentes para relacionar.','info');return}
+    const type=$('#graph-edge-type').value;
+    const label=$('#graph-edge-label').value.trim();
+    const edge=board.edges.find(e=>e.id===form.dataset.id);
+    if(!edge&&board.edges.some(e=>e.from===from&&e.to===to&&e.type===type&&(e.label||'')===label)){
+      toast('Esta mesma ligação já existe no mapa.','info');return;
+    }
+    if(type==='custom'&&!label){toast('Informe o rótulo da relação personalizada.','info');return}
+    if(edge){Object.assign(edge,{from,to,type,label})}
+    else board.edges.push({id:uid('e'),from,to,type,label});
+    graphUI.mode='inspect';graphUI.linkFrom=null;graphTouchBoard(board);closeModal();render();toast('Relação salva neste mapa.');
+  }
+  else if(form.id==='graph-reference-form'){
+    const n=nBy(form.dataset.note),kind=form.dataset.kind;
+    if(!n||!['books','sources'].includes(kind))return;
+    const title=$('#graph-ref-title').value.trim(),person=$('#graph-ref-person').value.trim();
+    const url=$('#graph-ref-url').value.trim();
+    if(url&&!graphValidUrl(url)){toast('Informe um endereço http:// ou https://.','info');return}
+    const item=kind==='books'?{id:uid('book'),title,author:person,year:$('#graph-ref-year').value.trim(),url}:
+      {id:uid('src'),title,publisher:person,url};
+    graphReference(n)[kind].push(item);graphTouchNote(n);closeModal();render();toast('Referência estruturada salva na nota.');
+  }
+  else if(form.id==='graph-doubt-form'){
+    const n=nBy(form.dataset.note);if(!n||n.status!=='active')return;
+    const question=$('#graph-doubt-question').value.trim();if(!question)return;
+    const j={id:uid('r'),noteId:n.id,blockId:null,quote:'Dúvida criada no mapa, sem trecho ancorado.',question,
+      origin:'map',revision:n.version,status:'pending',evidence:null,reviewed:false,step:0,created:now(),sources:[]};
+    state.jobs.push(j);graphUI.selectedDoubtId=j.id;graphUI.showPreview=false;
+    save();closeModal();render();toast('Dúvida criada como nó menor ligado à nota, sem pesquisa automática.');
+  }
+  else if(form.id==='graph-question-form'){
+    const context=graphContextForBoard(board),question=$('#graph-question').value.trim();if(!question)return;
+    modal('Simulação: como a IA receberia sua pergunta',`<div class="callout neutral mb16">${icon('info','sm')}<span>Esta é uma explicação determinística do contexto, não uma resposta gerada nem uma pesquisa web.</span></div>
+      <h4>Pergunta registrada somente nesta janela</h4><p class="small mt16">${esc(question)}</p>
+      <div class="divider"></div><h4>Material que seria usado</h4>
+      <p class="small muted mt16">${context.noteCount} notas, ${context.edgeCount} ligações, com dúvidas e referências estruturadas.</p>
+      <div class="graph-context-chips">${context.nodes.slice(0,35).map(n=>`<span class="tag">${esc(n.title)}</span>`).join('')}</div>
+      <p class="small muted mt16">No produto real, a pergunta será respondida apenas após consentimento para o provider selecionado e validação do recorte.</p>`,
+      `<button class="btn primary" data-action="close-modal">Concluir</button>`,true);
+  }
+}
+
+// Divisorias ajustaveis por mouse, touch, caneta e teclado; configuracao separada do conteudo.
+let activePaneResize=null;
+function paneConfig(divider){
+  const kind=divider.dataset.resizePane;
+  const layout=divider.closest(kind==='editor'?'.editor-layout':'.graph-layout');
+  if(!layout)return null;
+  const width=layout.getBoundingClientRect().width;
+  const minimum=270,minimumMain=kind==='editor'?380:380;
+  const maximum=Math.max(minimum,width-minimumMain-10);
+  return {kind,layout,minimum,maximum,key:kind==='editor'?'editorAsideWidth':'graphAsideWidth',cssName:kind==='editor'?'--editor-aside-width':'--graph-aside-width'};
+}
+function setPaneWidth(divider,next,finalize=false){
+  const cfg=paneConfig(divider);if(!cfg)return;
+  const actual=Math.round(clamp(next,cfg.minimum,cfg.maximum));
+  cfg.layout.style.setProperty(cfg.cssName,actual+'px');
+  divider.setAttribute('aria-valuemin',String(cfg.minimum));
+  divider.setAttribute('aria-valuemax',String(cfg.maximum));
+  divider.setAttribute('aria-valuenow',String(actual));
+  divider.setAttribute('aria-valuetext',actual+' pixels');
+  uiPrefs[cfg.key]=actual;
+  if(finalize)saveUiPrefs();
+}
+document.addEventListener('pointerdown',event=>{
+  const divider=event.target.closest('[data-resize-pane]');
+  if(!divider||event.button!==0)return;
+  const cfg=paneConfig(divider);if(!cfg)return;
+  event.preventDefault();
+  activePaneResize={divider,startX:event.clientX,startWidth:uiPrefs[cfg.key],pointerId:event.pointerId};
+  divider.classList.add('is-resizing');
+  document.body.classList.add('pane-is-resizing');
+  divider.setPointerCapture?.(event.pointerId);
+});
+document.addEventListener('pointermove',event=>{
+  const drag=activePaneResize;if(!drag||event.pointerId!==drag.pointerId)return;
+  setPaneWidth(drag.divider,drag.startWidth-(event.clientX-drag.startX));
+});
+function finishPaneResize(event){
+  const drag=activePaneResize;if(!drag||(event?.pointerId!==undefined&&event.pointerId!==drag.pointerId))return;
+  setPaneWidth(drag.divider,uiPrefs[paneConfig(drag.divider)?.key],true);
+  drag.divider.classList.remove('is-resizing');
+  document.body.classList.remove('pane-is-resizing');
+  activePaneResize=null;
+}
+document.addEventListener('pointerup',finishPaneResize);
+document.addEventListener('pointercancel',finishPaneResize);
+document.addEventListener('keydown',event=>{
+  const divider=event.target.closest?.('[data-resize-pane]');
+  if(!divider||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+  const cfg=paneConfig(divider);if(!cfg)return;
+  event.preventDefault();
+  const step=event.shiftKey?48:20;
+  const next=event.key==='Home'?cfg.minimum:event.key==='End'?cfg.maximum:
+    uiPrefs[cfg.key]+(event.key==='ArrowLeft'?step:-step);
+  setPaneWidth(divider,next,true);
+});
+
+// Interacoes do canvas nao bloqueiam os comandos antigos de editor, busca e pesquisa.
+document.addEventListener('click',event=>{
+  const action=event.target.closest('[data-graph-action]');
+  if(action){event.preventDefault();graphHandleAction(action);return}
+  const edgeHit=event.target.closest('[data-graph-edge]');
+  if(edgeHit){
+    const edge=graphBoard()?.edges.find(e=>e.id===edgeHit.dataset.graphEdge);
+    if(edge)graphEdgeModal(edge.from,edge.to,edge);
+    return;
+  }
+  if(graphUI.suppressClick){graphUI.suppressClick=false;return}
+  const doubt=event.target.closest('[data-graph-doubt]');
+  if(doubt){graphUI.selectedDoubtId=doubt.dataset.graphDoubt;graphUI.selectedNoteId=rBy(graphUI.selectedDoubtId)?.noteId;
+    graphUI.showPreview=false;render();return}
+  const note=event.target.closest('[data-graph-note]');
+  if(note){graphSelectNote(note.dataset.graphNote);return}
+});
+document.addEventListener('dblclick',event=>{
+  const node=event.target.closest('[data-graph-note]');
+  if(node)goto('/note/'+node.dataset.graphNote);
+});
+document.addEventListener('change',event=>{
+  if(event.target.id==='graph-board-select'){
+    graphUI.boardId=event.target.value;graphUI.centerNext=true;graphUI.selection.clear();
+    graphUI.selectedNoteId=null;graphUI.selectedDoubtId=null;
+    goto('/boards/'+graphUI.boardId);
+  }
+});
+document.addEventListener('submit',event=>{
+  if(['graph-board-form','graph-note-form','graph-edge-form','graph-reference-form','graph-doubt-form','graph-question-form'].includes(event.target.id)){
+    event.preventDefault();graphHandleSubmit(event.target);
+  }
+});
+document.addEventListener('pointerdown',event=>{
+  const surface=event.target.closest('#graph-surface');
+  if(!surface||event.button!==0||event.target.closest('[data-graph-doubt]'))return;
+  const note=event.target.closest('[data-graph-note]');
+  if(note&&graphUI.mode==='link')return;
+  if(note&&event.target.closest('[data-graph-action]'))return;
+  graphUI.drag={kind:note?'node':'pan',noteId:note?.dataset.graphNote||null,
+    x:event.clientX,y:event.clientY,baseX:graphUI.tx,baseY:graphUI.ty,moved:false,
+    board:graphBoard()};
+  if(note){const p=graphPlacement(graphUI.drag.board,graphUI.drag.noteId);graphUI.drag.noteX=p?.x;graphUI.drag.noteY=p?.y}
+  surface.classList.toggle('is-panning',!note);
+});
+document.addEventListener('pointermove',event=>{
+  const drag=graphUI.drag;if(!drag)return;
+  const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)<4&&!drag.moved)return;
+  drag.moved=true;
+  if(drag.kind==='pan'){
+    graphUI.tx=drag.baseX+dx;graphUI.ty=drag.baseY+dy;applyGraphTransform();
+  }else if(drag.noteX!==undefined){
+    const p=graphPlacement(drag.board,drag.noteId);if(!p)return;
+    p.x=Math.max(0,drag.noteX+dx/graphUI.scale);
+    p.y=Math.max(0,drag.noteY+dy/graphUI.scale);
+    const node=document.querySelector(`[data-graph-note="${CSS.escape(drag.noteId)}"]`);
+    if(node){node.style.left=p.x+'px';node.style.top=p.y+'px'}
+    // Atualiza conexoes e duvidas sem perder o evento de arraste.
+    const svg=document.querySelector('.graph-links');
+    if(svg){
+      const visible=new Set(graphActiveNotes().map(n=>n.id));
+      svg.innerHTML=`<defs><marker id="graph-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7Z" fill="#97ae8f"/></marker></defs>${graphEdgeMarkup(drag.board,visible)}${graphDoubtLines(drag.board,visible)}`;
+    }
+    state.jobs.filter(j=>j.noteId===drag.noteId).forEach((j,i)=>{
+      const d=document.querySelector(`[data-graph-doubt="${CSS.escape(j.id)}"]`);
+      if(d){d.style.left=(p.x+graphCardSize.width+14)+'px';d.style.top=(p.y+75+i*61)+'px'}
+    });
+  }
+});
+document.addEventListener('pointerup',()=>{
+  if(!graphUI.drag)return;
+  const drag=graphUI.drag;
+  if(drag.moved&&drag.kind==='node')graphTouchBoard(drag.board);
+  if(drag.moved)graphUI.suppressClick=true;
+  graphUI.drag=null;$('#graph-surface')?.classList.remove('is-panning');
+});
+document.addEventListener('pointercancel',()=>{graphUI.drag=null;$('#graph-surface')?.classList.remove('is-panning')});
+document.addEventListener('wheel',event=>{
+  if(!event.target.closest('#graph-surface'))return;
+  event.preventDefault();graphSetZoom(graphUI.scale*(event.deltaY>0?.9:1.1),event.clientX,event.clientY);
+},{passive:false});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&graphUI.mode==='link'&&route.startsWith('/boards')){
+    graphUI.mode='inspect';graphUI.linkFrom=null;render();
+  }
+});
+
+document.addEventListener('selectionchange',()=>{const s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount||!route.startsWith('/note/'))return;const range=s.getRangeAt(0);const el=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;const block=el.closest('[data-block]');const end=range.endContainer.nodeType===1?range.endContainer:range.endContainer.parentElement;if(!block||end.closest('[data-block]')!==block)return;const before=range.cloneRange();before.selectNodeContents(block);before.setEnd(range.startContainer,range.startOffset);selected={blockId:block.dataset.block,quote:s.toString(),start:before.toString().length,end:before.toString().length+s.toString().length}});
+document.addEventListener('pointerdown',e=>{if(e.target.closest('[data-action="mark-selection"]'))e.preventDefault()});
+document.addEventListener('input',e=>{if(e.target.closest('.editor-body')){sessionDirty=true;const el=$('#save-state');if(el)el.textContent='Altera\u00e7\u00f5es locais pendentes';}if(e.target.id==='note-filter'){const focus=e.target.selectionStart;filterNote=e.target.value;render();$('#note-filter')?.focus();$('#note-filter')?.setSelectionRange(focus,focus)}});
+document.addEventListener('change',e=>{const el=e.target;if(el.id==='category-filter'){filterCategory=el.value;render()}if(el.id==='note-auto'){collectEditor(el.dataset.id,true);nBy(el.dataset.id).auto=el.value;save();render();toast('Prefer\u00eancia desta nota atualizada. N\u00e3o executa pesquisas retroativas.')}if(el.id==='choose-job'){currentResearch=el.value;collectEditor(route.split('/')[2],true);render()}if(el.id==='research-budget'){state.settings.budget=Math.min(100,Math.max(1,Number(el.value)||20));save();toast('Limite local atualizado.')}});
+document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;
+ if(form.id==='auth-form'){const type=form.dataset.kind;if(type==='register'){state.user.name=$('#auth-name').value.trim();state.user.email=$('#auth-email').value.trim();save();goto('/home');toast('Perfil local criado. Nenhuma senha foi armazenada.')}else if(type==='login'){goto('/home');toast('Modo demonstrativo aberto, sem validar credenciais.')}else if(type==='forgot'){modal('Confira seu e-mail (simula\u00e7\u00e3o)',`<div class="success-circle">${icon('mail','lg')}</div><p>Se a conta existir, enviaremos instru\u00e7\u00f5es para recuperar o acesso.</p><div class="callout neutral mt16">${icon('info')}<span>Nenhum e-mail foi enviado neste HTML. Use o bot\u00e3o abaixo para visualizar a pr\u00f3xima tela.</span></div>`,`<a class="btn primary" href="#/reset" data-close-modal="true">Abrir link demonstrativo ${icon('arrow','sm')}</a>`)}else if(type==='reset'){if($('#auth-password').value!==$('#auth-confirm').value){toast('As senhas precisam ser iguais.','info');return}goto('/login');toast('Fluxo conclu\u00eddo. Nenhuma senha real foi alterada.')}form.reset()}
+ if(form.id==='global-search-form'){searchTerm=$('#global-search').value;render()}
+ if(form.id==='doubt-form'){const id=form.dataset.id;const n=nBy(id);const sel=selected;if(!sel?.quote)return;collectEditor(id,true);const j={id:uid('r'),noteId:id,blockId:sel.blockId,quote:sel.quote,start:sel.start,end:sel.end,question:$('#doubt-question').value.trim(),revision:n.version,status:'pending',evidence:null,reviewed:false,step:0,created:now(),sources:[]};state.jobs.push(j);currentResearch=j.id;save();closeModal();render();toast('D\u00favida salva, sem alterar seu texto.');if(effectiveAuto(n))runJob(j.id)}
+ if(form.id==='question-form'){const j=rBy(form.dataset.id);j.question=$('#refined-question').value.trim();j.status='pending';j.reviewed=false;j.answer='';j.sources=[];j.evidence=null;j.revision=nBy(j.noteId)?.version||j.revision;save();closeModal();render();toast('Pergunta refinada. Inicie uma nova simula\u00e7\u00e3o.')} 
+ if(form.id==='category-form'){const name=$('#category-name').value.trim();if(state.categories.some(c=>norm(c.name)===norm(name)&&c.id!==form.dataset.id)){toast('J\u00e1 existe uma categoria com esse nome.','info');return}const c=state.categories.find(c=>c.id===form.dataset.id);if(c)c.name=name;else state.categories.push({id:uid('c'),name,icon:'folder'});save();closeModal();render();toast('Categoria salva.')}
+ if(form.id==='tags-form'){const n=nBy(form.dataset.id);n.tags=[...new Set($('#tags-input').value.split(',').map(t=>t.trim()).filter(Boolean))].slice(0,12);save();closeModal();render();toast('Tags atualizadas neste navegador.')}
+ if(form.id==='account-form'){state.user.name=$('#account-name').value.trim();state.user.email=$('#account-email').value.trim();save();render();toast('Perfil demonstrativo salvo.')}
+ if(form.id==='publish-form'){const n=nBy(form.dataset.id);if(n.status!=='active'){toast('Restaure a nota antes de publicar.','info');return}const existing=state.publications.find(p=>p.noteId===n.id);const pub={id:existing?.id||uid('p'),noteId:n.id,slug:$('#publish-slug').value,visibility:$('#publish-visibility').value,title:$('#publish-title').value.trim(),blocks:structuredClone(n.blocks),tags:[...n.tags],revision:n.version,author:state.user.name,handle:'alex',published:now(),includeResearch:$('#include-research').checked,answers:$('#include-research').checked?structuredClone(state.jobs.filter(j=>j.noteId===n.id&&j.status==='completed'&&j.reviewed)):[]};if(existing)state.publications=state.publications.map(p=>p.id===existing.id?pub:p);else state.publications.push(pub);save();goto('/public/'+pub.id);toast('Fotografia publicada somente nesta demonstra\u00e7\u00e3o local.')}
+});
+document.addEventListener('click',e=>{if(e.target.closest('[data-close-modal]'))closeModal();const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action,id=b.dataset.id;
+ if(a==='close-modal')closeModal();
+ else if(a==='screen-map')screenMap();
+ else if(a==='toggle-sidebar'){
+   uiPrefs.sidebarCollapsed=!uiPrefs.sidebarCollapsed;saveUiPrefs();
+   $('#app .app-shell')?.classList.toggle('sidebar-collapsed',uiPrefs.sidebarCollapsed);
+   b.setAttribute('aria-expanded',String(!uiPrefs.sidebarCollapsed));
+   b.setAttribute('aria-label',uiPrefs.sidebarCollapsed?'Expandir menu principal':'Recolher menu principal');
+   b.title=uiPrefs.sidebarCollapsed?'Expandir menu':'Recolher menu';
+   b.innerHTML=icon(uiPrefs.sidebarCollapsed?'panel-left-open':'panel-left-close');
+ }
+ else if(a==='toggle-doubt-strip'){
+   editorExpandedDoubt=editorExpandedDoubt===id?null:id;
+   const area=$('#editor-doubt-zone'),note=nBy(route.split('/')[2]);
+   if(area&&note){const oldScroll=$('#editor-doubt-track')?.scrollLeft||0;area.innerHTML=renderDoubtStrip(note);
+     $('#editor-doubt-track')?.scrollTo({left:oldScroll});}
+ }
+ else if(a==='scroll-doubts'){
+   const track=$('#editor-doubt-track');if(track)track.scrollBy({left:Number(b.dataset.direction)*310,behavior:'smooth'});
+ }
+ else if(a==='reset-layout'){
+   Object.assign(uiPrefs,defaultUiPrefs);saveUiPrefs();
+   if(route.startsWith('/note/'))collectEditor(route.split('/')[2],true);
+   render();toast('Layout padrão restaurado. Suas notas foram preservadas.');
+ }
+ else if(a==='demo-action')toast('Exemplo de feedback do design system.');
+ else if(a==='logout'){goto('/login');toast('Demonstra\u00e7\u00e3o encerrada. Os dados locais foram preservados.')}
+ else if(a==='new-note'){const n={id:uid('n'),title:'Uma nova ideia',category:'',tags:[],status:'active',version:1,auto:'inherit',updated:now(),blocks:[{id:uid('b'),type:'paragraph',text:'Comece a escrever por aqui. Qual pergunta apareceu no caminho?'}]};state.notes.unshift(n);state.revisions[n.id]=[{version:1,title:n.title,blocks:structuredClone(n.blocks),category:'',tags:[],at:n.updated}];save();currentResearch=null;analysisVisible=false;goto('/note/'+n.id)}
+ else if(a==='save-note'){collectEditor(id);render()}
+ else if(a==='add-block'){if(nBy(id).status!=='active'){toast('Restaure a nota antes de editar.','info');return}const type=$('#new-block-type').value;collectEditor(id,true);const n=nBy(id);n.blocks.push({id:uid('b'),type,text:type==='heading'?'Um novo assunto':type==='code'?'// Seu exemplo aqui':'Escreva aqui...'});n.version++;n.updated=now();state.revisions[id].push({version:n.version,title:n.title,blocks:structuredClone(n.blocks),category:n.category,tags:[...n.tags],at:n.updated});save();render();const last=$$('[data-block]').at(-1);last?.focus()}
+ else if(a==='mark-selection'){if(!selected?.quote?.trim()){toast('Selecione uma palavra ou frase dentro de um bloco da nota.','info');return}askDoubt(id,{...selected})}
+ else if(a==='analyze-note'){if(!state.settings.analysis){toast('Ative a an\u00e1lise de texto em Configura\u00e7\u00f5es.','info');return}collectEditor(id,true);analysisVisible=true;render();toast('Sugest\u00f5es locais geradas. Voc\u00ea decide o que aceitar.')}
+ else if(a==='accept-suggestion'){const s=detectSuggestions(nBy(id))[Number(b.dataset.index)];if(s)askDoubt(id,s)}
+ else if(a==='dismiss-suggestion'){const s=detectSuggestions(nBy(id))[Number(b.dataset.index)];if(s)state.dismissed.push(id+s.quote);save();render()}
+ else if(a==='apply-organization'){const n=nBy(id);const s=suggestOrganization(n);n.category=s.category;if(!n.tags.includes(s.tag))n.tags.push(s.tag);save();render();toast('Categoria e tag aplicadas ap\u00f3s sua confirma\u00e7\u00e3o.')}
+ else if(a==='edit-tags'){collectEditor(id,true);modal('Tags da nota',`<form id="tags-form" data-id="${id}"><div class="field"><label for="tags-input">Separe as tags por v\u00edrgula</label><input type="text" id="tags-input" value="${esc(nBy(id).tags.join(', '))}"></div><p class="small muted">At\u00e9 12 tags nesta demonstra\u00e7\u00e3o.</p><div class="modal-actions"><button class="btn primary" type="submit">Salvar tags</button></div></form>`)}
+ else if(a==='run-job')runJob(id);
+ else if(a==='simulate-nosource')runJob(id,'none');
+ else if(a==='simulate-failure')runJob(id,'failure');
+ else if(a==='cancel-job'){rBy(id).status='cancelled';save();refreshJobViews();toast('Simula\u00e7\u00e3o cancelada. A pergunta continua salva.')}
+ else if(a==='review-job'){rBy(id).reviewed=!rBy(id).reviewed;save();refreshJobViews();toast(rBy(id).reviewed?'Resposta marcada como revisada.':'Marca de revis\u00e3o removida.')}
+ else if(a==='edit-question'){const j=rBy(id);modal('Refine sua pergunta',`<form id="question-form" data-id="${id}"><div class="field"><label for="refined-question">O que voc\u00ea deseja esclarecer?</label><textarea id="refined-question" required>${esc(j.question)}</textarea></div><div class="callout neutral">${icon('info')}<span>Aqui, refinar substitui o resultado de demonstra\u00e7\u00e3o. No sistema real, cada tentativa ter\u00e1 seu hist\u00f3rico.</span></div><div class="modal-actions"><button class="btn primary" type="submit">Salvar pergunta</button></div></form>`)}
+ else if(a==='research-filter'){researchFilter=b.dataset.value;render()}
+ else if(a==='settings-tab'){settingTab=b.dataset.value;render()}
+ else if(a==='toggle-setting'){state.settings[b.dataset.key]=!state.settings[b.dataset.key];save();render();toast('Prefer\u00eancia salva. Sugest\u00f5es antigas n\u00e3o s\u00e3o executadas automaticamente.')}
+ else if(a==='new-category'||a==='edit-category'){const c=state.categories.find(c=>c.id===id);modal(c?'Editar categoria':'Uma nova categoria',`<form id="category-form" data-id="${c?.id||''}"><div class="field"><label for="category-name">Nome</label><input id="category-name" value="${esc(c?.name||'')}" type="text" maxlength="60" required></div><div class="modal-actions"><button class="btn primary" type="submit">Salvar categoria</button></div></form>`)}
+ else if(a==='view-category'){filterCategory=id;filterNote='';goto('/notes')}
+ else if(a==='search-tag'){searchTerm=b.dataset.value;goto('/search')}
+ else if(a==='archive-note'||a==='trash-note'){collectEditor(id,true);confirmAction(a==='archive-note'?'Arquivar esta nota?':'Mover para a lixeira?',`Pesquisas em andamento ser\u00e3o canceladas na simula\u00e7\u00e3o e a publica\u00e7\u00e3o ser\u00e1 retirada do cat\u00e1logo local. Voc\u00ea poder\u00e1 restaurar o rascunho depois.`,a==='archive-note'?'confirm-archive':'confirm-trash',id)}
+ else if(a==='confirm-archive'||a==='confirm-trash'){const n=nBy(id);n.status=a==='confirm-archive'?'archived':'trashed';state.jobs.filter(j=>j.noteId===id&&['running','queued'].includes(j.status)).forEach(j=>j.status='cancelled');state.publications=state.publications.filter(p=>p.noteId!==id);save();closeModal();goto(a==='confirm-archive'?'/archive':'/trash');toast('Nota movida. Nenhuma republica\u00e7\u00e3o ser\u00e1 autom\u00e1tica.')}
+ else if(a==='restore-note'){nBy(id).status='active';save();render();toast('Nota restaurada, sem republicar ou pesquisar novamente.')}
+ else if(a==='delete-note')confirmAction('Excluir definitivamente?',`A nota, suas revis\u00f5es e pesquisas ser\u00e3o removidas deste navegador. Esta a\u00e7\u00e3o n\u00e3o pode ser desfeita no prot\u00f3tipo.`,'confirm-delete',id);
+ else if(a==='confirm-delete'){if(nBy(id)?.status!=='trashed'){toast('Somente notas na lixeira podem ser exclu\u00eddas.','info');return}state.notes=state.notes.filter(n=>n.id!==id);state.jobs=state.jobs.filter(j=>j.noteId!==id);state.publications=state.publications.filter(p=>p.noteId!==id);delete state.revisions[id];state.boards.forEach(board=>{board.placements=board.placements.filter(p=>p.noteId!==id);board.edges=board.edges.filter(e=>e.from!==id&&e.to!==id)});save();closeModal();render();toast('Dados da nota exclu\u00eddos da demonstra\u00e7\u00e3o local.')}
+ else if(a==='restore-version'){const v=state.revisions[id].find(v=>v.version===Number(b.dataset.version));modal('Restaurar sem apagar a hist\u00f3ria',`<p>A vers\u00e3o ${v.version} ser\u00e1 copiada para uma nova revis\u00e3o da nota. A publica\u00e7\u00e3o atual n\u00e3o muda.</p>`,`<button class="btn" data-action="close-modal">Cancelar</button><button class="btn primary" data-action="confirm-version" data-id="${id}" data-version="${v.version}">Restaurar vers\u00e3o</button>`)}
+ else if(a==='confirm-version'){const n=nBy(id);const v=state.revisions[id].find(v=>v.version===Number(b.dataset.version));n.version++;n.title=v.title;n.blocks=structuredClone(v.blocks);n.category=v.category;n.tags=[...v.tags];n.updated=now();state.revisions[id].push({version:n.version,title:n.title,blocks:structuredClone(n.blocks),category:n.category,tags:[...n.tags],at:n.updated});save();closeModal();render();toast('Hist\u00f3rico preservado. Uma nova revis\u00e3o foi criada.')}
+ else if(a==='conflict-demo')modal('Outra vers\u00e3o foi salva',`<div class="callout warning mb24">${icon('info')}<span>Estado demonstrativo: HTTP 409. O backend rejeitou uma altera\u00e7\u00e3o baseada em revis\u00e3o antiga.</span></div><div class="grid two"><div class="card pad no-shadow"><h4>Sua edi\u00e7\u00e3o</h4><p class="small muted mt16">Mantida localmente para compara\u00e7\u00e3o.</p></div><div class="card pad no-shadow"><h4>Vers\u00e3o do servidor</h4><p class="small muted mt16">A nota foi alterada em outra sess\u00e3o.</p></div></div><p class="small muted mt16">Na implementa\u00e7\u00e3o real, carregue as duas revis\u00f5es e ofere\u00e7a compara\u00e7\u00e3o. Nunca sobrescreva silenciosamente.</p>`,`<button class="btn primary" data-action="close-modal">Manter meu rascunho</button>`);
+ else if(a==='unpublish')confirmAction('Retirar a publica\u00e7\u00e3o?',`O rascunho privado ser\u00e1 preservado. Links desta publica\u00e7\u00e3o deixar\u00e3o de funcionar na demonstra\u00e7\u00e3o.`,'confirm-unpublish',id);
+ else if(a==='confirm-unpublish'){state.publications=state.publications.filter(p=>p.id!==id);save();closeModal();goto('/publications');toast('Publica\u00e7\u00e3o retirada do cat\u00e1logo local.')}
+ else if(a==='copy-public'){const url=location.href.split('#')[0]+'#/public/'+id;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast('Link local copiado. Ele n\u00e3o publica na internet.')).catch(()=>modal('Link local',`<input type="text" value="${esc(url)}" readonly aria-label="Link da publica\u00e7\u00e3o local"><p class="small muted mt16">Copie o endere\u00e7o. Funciona apenas onde os dados locais existem.</p>`));else modal('Link local',`<input type="text" value="${esc(url)}" readonly aria-label="Link local"><p class="small muted mt16">Este n\u00e3o \u00e9 um link p\u00fablico de internet.</p>`)}
+ else if(a==='notifications')modal('Novidades do seu espa\u00e7o',state.notifications.length?state.notifications.slice(0,6).map(n=>`<a class="source" href="#/research/${n.jobId}" data-close-modal="true">${icon('spark')}<div><strong>${esc(n.title)}</strong><p class="small muted">${esc(n.text)}</p></div></a>`).join(''):'<div class="empty">'+icon('bell')+'<h3>Tudo em dia.</h3><p>As pesquisas conclu\u00eddas nesta simula\u00e7\u00e3o aparecer\u00e3o aqui.</p></div>');
+ else if(a==='reset-demo')confirmAction('Recome\u00e7ar a demonstra\u00e7\u00e3o?',`Todas as edi\u00e7\u00f5es locais ser\u00e3o apagadas e substitu\u00eddas pelos exemplos iniciais.`,'confirm-reset');
+ else if(a==='confirm-reset'){state=seed();migrateGraphState();save();currentResearch=null;analysisVisible=false;graphUI.boardId=null;graphUI.selection.clear();graphUI.centerNext=true;closeModal();goto('/home');toast('Dados iniciais restaurados.')}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();goto('/search');setTimeout(()=>$('#global-search')?.focus(),10)}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&route.startsWith('/note/')){e.preventDefault();collectEditor(route.split('/')[2]);render()}if(e.key==='Tab'&&$('.modal')){const focusable=$$('a[href],button,input,select,textarea',[...$$('.modal')][0]).filter(el=>!el.disabled);const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}});
+window.addEventListener('hashchange',()=>{if(route.startsWith('/note/'))collectEditor(route.split('/')[2],true);selected=null;analysisVisible=false;render();window.scrollTo(0,0)});
+window.addEventListener('beforeunload',()=>{if(route.startsWith('/note/'))collectEditor(route.split('/')[2],true)});
+migrateGraphState();
+render();
+
+</script>
+</body>
+</html>
