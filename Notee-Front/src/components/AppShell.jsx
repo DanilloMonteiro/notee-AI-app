@@ -46,6 +46,10 @@ export function AppShell() {
             <Icon name="note" />
             <span>Minhas notas</span>
           </NavLink>
+          <NavLink to="/boards" className={navClass} title="Mapas de ideias">
+            <Icon name="map" />
+            <span>Mapas de ideias</span>
+          </NavLink>
           <NavLink to="/research" className={navClass}>
             <Icon name="spark" />
             <span>Dúvidas e pesquisas</span>

@@ -1,5 +1,16 @@
 // src/api.js
-const API_URL = 'http://localhost:5000'; // A porta onde o seu C# está a correr
+// A URL pode ser sobrescrita com VITE_API_URL (ex.: apontar para uma API de teste).
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+/** Erro HTTP com status e Problem Details (title/detail) quando a API os envia. */
+export class ApiError extends Error {
+  constructor(status, problem) {
+    super(problem?.detail || problem?.title || `Erro ${status}: Falha na requisição ao backend.`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.problem = problem;
+  }
+}
 
 export async function apiFetch(endpoint, options = {}) {
   // Vamos buscar o token que guardaremos no navegador após o login
@@ -21,11 +32,18 @@ export async function apiFetch(endpoint, options = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`Erro ${response.status}: Falha na requisição ao backend.`);
+    let problem = null;
+    try {
+      problem = await response.json();
+    } catch {
+      // corpo vazio ou não-JSON
+    }
+    throw new ApiError(response.status, problem);
   }
 
   // O .NET retorna 204 (No Content) para DELETE ou PUTs vazios.
   if (response.status === 204) return null;
 
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }

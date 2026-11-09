@@ -12,6 +12,8 @@ import { Research } from './pages/Research';
 import { Settings } from './pages/Settings';
 import { Search } from './pages/Search';
 import { ToastProvider } from './contexts/ToastContext';
+import { BoardsPage } from './features/boards/BoardsPage';
+import { BoardPage } from './features/boards/BoardPage';
 
 function App() {
   return (
@@ -29,6 +31,8 @@ function App() {
               <Route path="/research" element={<Research />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/boards" element={<BoardsPage />} />
+              <Route path="/boards/:boardId" element={<BoardPage />} />
             </Route>
           </Route>
         </Routes>
