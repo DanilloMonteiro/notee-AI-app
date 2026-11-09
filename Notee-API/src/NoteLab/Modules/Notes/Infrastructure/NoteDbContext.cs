@@ -19,6 +19,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<PublicProfile> PublicProfiles { get; set; }
     public DbSet<NoteSuggestion> NoteSuggestions { get; set; }
     public DbSet<NoteSettings> NoteSettings { get; set; }
+    public DbSet<RefreshSession> RefreshSessions { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -89,6 +90,18 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(j => j.DoubtId).IsUnique().HasFilter("\"Status\" IN ('Queued', 'Running')").HasDatabaseName("IX_ResearchJobs_ActivePerDoubt");
             // Idempotency-Key única por dono.
             e.HasIndex(j => new { j.OwnerId, j.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+        });
+
+        // ---- Sessões de refresh (M04) ----
+        modelBuilder.Entity<RefreshSession>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.UserId).IsRequired();
+            e.Property(s => s.TokenHash).HasMaxLength(64).IsRequired();
+            e.HasIndex(s => s.TokenHash).IsUnique();
+            e.HasIndex(s => s.FamilyId);
+            e.HasIndex(s => s.UserId);
+            e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ---- Análise assistida e configuração por nota (M10) ----

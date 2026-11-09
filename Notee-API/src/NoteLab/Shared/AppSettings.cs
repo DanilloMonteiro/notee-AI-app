@@ -14,7 +14,9 @@ public sealed class JwtSettings
     public string Key { get; init; } = DevelopmentKey;
     public string Issuer { get; init; } = "NoteeApi";
     public string Audience { get; init; } = "NoteeApp";
-    public int ExpirationHours { get; init; } = 12;
+    /// <summary>Validade do access token (curta: o refresh token renova).</summary>
+    public int AccessMinutes { get; init; } = 30;
+    public int RefreshDays { get; init; } = 14;
 
     public bool UsesDevelopmentKey => Key == DevelopmentKey;
 
@@ -28,7 +30,8 @@ public sealed class JwtSettings
             Key = string.IsNullOrWhiteSpace(section["Key"]) ? DevelopmentKey : section["Key"]!,
             Issuer = section["Issuer"] ?? "NoteeApi",
             Audience = section["Audience"] ?? "NoteeApp",
-            ExpirationHours = int.TryParse(section["ExpirationHours"], out int h) && h > 0 ? h : 12,
+            AccessMinutes = int.TryParse(section["AccessMinutes"], out int m) && m > 0 ? m : 30,
+            RefreshDays = int.TryParse(section["RefreshDays"], out int d) && d > 0 ? d : 14,
         };
 
         if (Encoding.UTF8.GetByteCount(settings.Key) < 32)

@@ -12,6 +12,59 @@ export class ApiError extends Error {
   }
 }
 
+// ---- Sessão (M04): access token curto + refresh token rotativo ----
+const TOKEN_KEY = 'notee_token';
+const REFRESH_KEY = 'notee_refresh';
+let refreshing = null;
+
+export function saveSession({ token, refreshToken }) {
+  localStorage.setItem(TOKEN_KEY, token);
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+}
+
+export function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+}
+
+/** Encerra a sessão no servidor (revoga o refresh token) e localmente. */
+export async function logout() {
+  const refreshToken = localStorage.getItem(REFRESH_KEY);
+  clearSession();
+  if (refreshToken) {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {
+      // sem rede: a sessão local já foi apagada
+    }
+  }
+}
+
+/** Uma única renovação por vez, compartilhada pelas requisições que receberam 401. */
+function refreshSession() {
+  const refreshToken = localStorage.getItem(REFRESH_KEY);
+  if (!refreshToken) return Promise.resolve(false);
+  refreshing ??= fetch(`${API_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+    .then(async res => {
+      if (!res.ok) return false;
+      saveSession(await res.json());
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
 export async function apiFetch(endpoint, options = {}) {
   // Vamos buscar o token que guardaremos no navegador após o login
   const token = localStorage.getItem('notee_token');
@@ -30,6 +83,15 @@ export async function apiFetch(endpoint, options = {}) {
     ...options,
     headers,
   });
+
+  // Access token expirado: renova uma vez e repete a requisição.
+  if (response.status === 401 && token && !options._retried && !endpoint.startsWith('/auth/')) {
+    if (await refreshSession()) {
+      return apiFetch(endpoint, { ...options, _retried: true });
+    }
+    clearSession();
+    if (!window.location.pathname.startsWith('/login')) window.location.assign('/login');
+  }
 
   if (!response.ok) {
     let problem = null;

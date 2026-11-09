@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
-import { apiFetch } from '../api';
+import { apiFetch, saveSession } from '../api';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -25,7 +25,7 @@ export function Login() {
       const token = response.accessToken || response.token;
 
       if (token) {
-        localStorage.setItem('notee_token', token);
+        saveSession({ token, refreshToken: response.refreshToken });
         navigate('/'); // Redireciona para a Visão Geral
       } else {
         setError('Token não encontrado na resposta da API.');

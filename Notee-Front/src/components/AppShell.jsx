@@ -2,14 +2,15 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
+import { logout } from '../api';
 
 export function AppShell() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate(); // <-- Inicialize o hook
 
   // Função para limpar o token e sair
-  const handleLogout = () => {
-    localStorage.removeItem('notee_token');
+  const handleLogout = async () => {
+    await logout(); // revoga o refresh token no servidor
     navigate('/login');
   };
 
