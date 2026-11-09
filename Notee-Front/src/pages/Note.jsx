@@ -1,153 +1,239 @@
 // src/pages/Note.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../contexts/ToastContext';
+
+const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
+
+// --- HELPERS DE HIGHLIGHT -------------------------------------------------
+
+const escapeHtml = s =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Encontra a ocorrência de `quote` mais próxima de `hint` (startIndex gravado na dúvida).
+// Assim, se o mesmo trecho aparecer várias vezes, marcamos o que foi selecionado.
+const findQuote = (text, quote, hint = 0) => {
+  if (!quote) return -1;
+  let best = -1;
+  let idx = text.indexOf(quote);
+  while (idx !== -1) {
+    if (best === -1 || Math.abs(idx - hint) < Math.abs(best - hint)) best = idx;
+    idx = text.indexOf(quote, idx + 1);
+  }
+  return best;
+};
+
+// Fonte única da verdade para "a citação ainda existe no bloco?"
+const isQuotePresent = (text, quote) => !!quote && (text || '').includes(quote);
+
+// Constrói o HTML a partir do texto CRU + intervalos (nunca faz replace sobre HTML já gerado,
+// o que evitaria marcar texto dentro de atributos como style="...").
+const buildHighlightedHtml = (text, blockDoubts) => {
+  const ranges = blockDoubts
+    .map(d => {
+      const start = findQuote(text, d.exactQuote, d.startIndex || 0);
+      return start === -1 ? null : { start, end: start + d.exactQuote.length };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.start - b.start);
+
+  // Junta intervalos sobrepostos para não gerar <mark> aninhados
+  const merged = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
+    else merged.push({ ...r });
+  }
+
+  let html = '';
+  let cursor = 0;
+  for (const r of merged) {
+    html += escapeHtml(text.slice(cursor, r.start));
+    html += `<mark class="doubt-mark" style="${MARK_STYLE}">${escapeHtml(text.slice(r.start, r.end))}</mark>`;
+    cursor = r.end;
+  }
+  return html + escapeHtml(text.slice(cursor));
+};
+
+// Sem padding: padding no <mark> faz o texto "saltar" quando o highlight é removido/reposto.
+const MARK_STYLE = 'background-color:#dbeafe;color:#1e40af;border-radius:3px;';
+
+// "plaintext-only" impede HTML colado e <div>/<b> gerados pelo browser.
+// Fallback para browsers antigos que não o suportam.
+const PLAINTEXT_SUPPORTED = (() => {
+  try {
+    const d = document.createElement('div');
+    d.contentEditable = 'plaintext-only';
+    return d.contentEditable === 'plaintext-only';
+  } catch {
+    return false;
+  }
+})();
+
+// --- COMPONENTE DO EDITOR (contentEditable) -------------------------------
+function ContentEditableBlock({ block, doubts, onChange, onSelect }) {
+  const divRef = useRef(null);
+
+  const blockDoubts = useMemo(
+    () => doubts.filter(d => d.blockId === block.id && d.exactQuote),
+    [doubts, block.id],
+  );
+
+  const paint = () => {
+    if (divRef.current) divRef.current.innerHTML = buildHighlightedHtml(block.text || '', blockDoubts);
+  };
+
+  // Só reescreve o DOM quando o bloco NÃO está em foco -> nunca mexe no cursor durante a digitação.
+  useEffect(() => {
+    if (divRef.current && document.activeElement !== divRef.current) paint();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [block.text, blockDoubts]);
+
+  // Durante a digitação: apenas o texto cru (sem <mark>) sobe para o estado React.
+  const handleInput = e => onChange(e.currentTarget.innerText);
+
+  // Ao sair do bloco: redesenha (repõe highlights restaurados / remove os quebrados).
+  const handleBlur = () => paint();
+
+  const handlePaste = e => {
+    if (PLAINTEXT_SUPPORTED) return;
+    e.preventDefault();
+    document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+  };
+
+  const handleSelect = () => {
+    const el = divRef.current;
+    const sel = window.getSelection();
+    if (!el || !sel || sel.rangeCount === 0) return;
+
+    if (sel.isCollapsed) {
+      onSelect(null);
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    // Ignora seleções que atravessam vários blocos
+    if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return;
+
+    const quote = sel.toString();
+    if (!quote.trim()) return;
+
+    const pre = document.createRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.startContainer, range.startOffset);
+    const startIndex = pre.toString().length;
+
+    onSelect({ quote, startIndex, endIndex: startIndex + quote.length });
+  };
+
+  return (
+    <div
+      ref={divRef}
+      contentEditable={PLAINTEXT_SUPPORTED ? 'plaintext-only' : true}
+      suppressContentEditableWarning
+      className={`editor-block ${block.type}`}
+      onInput={handleInput}
+      onBlur={handleBlur}
+      onPaste={handlePaste}
+      onMouseUp={handleSelect}
+      onKeyUp={handleSelect}
+      style={{
+        width: '100%',
+        border: 'none',
+        outline: 'none',
+        minHeight: block.type === 'heading' ? '40px' : '80px',
+        fontFamily: block.type === 'code' ? 'monospace' : 'inherit',
+        padding: block.type === 'code' || block.type === 'quote' ? '12px' : '4px',
+        backgroundColor: block.type === 'code' ? '#f1f4ed' : 'transparent',
+        borderLeft: block.type === 'quote' ? '3px solid #b8d794' : 'none',
+        whiteSpace: 'pre-wrap',
+      }}
+      data-placeholder={`Escreva o seu ${block.type}...`}
+    />
+  );
+}
+// -------------------------------------------------------------
+
+const keptStorageKey = noteId => `notee_kept_doubts_${noteId}`;
+
+const loadKeptDoubts = noteId => {
+  try {
+    const raw = localStorage.getItem(keptStorageKey(noteId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 export function Note() {
   const { id } = useParams();
   const { addToast } = useToast();
+
   const [note, setNote] = useState(null);
   const [doubts, setDoubts] = useState([]);
 
-  // Estados para gerir a edição do texto
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [blocks, setBlocks] = useState([]);
+  const [newBlockType, setNewBlockType] = useState('paragraph');
 
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // 1. Estado para a largura do painel (começa com 316px, como no HTML)
+
   const [asideWidth, setAsideWidth] = useState(316);
   const [isResizing, setIsResizing] = useState(false);
   const dragRef = useRef(null);
 
+  // Estados da seleção
   const [showModal, setShowModal] = useState(false);
-  const [selectedText, setSelectedText] = useState('');
+  const [selection, setSelection] = useState(null); // { blockId, quote, startIndex, endIndex }
   const [questionText, setQuestionText] = useState('');
   const [submittingDoubt, setSubmittingDoubt] = useState(false);
 
-  // 2. Função que dispara quando você clica na barra divisória
-  const handlePointerDown = e => {
-    setIsResizing(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startWidth: asideWidth,
-    };
-    document.body.classList.add('pane-is-resizing'); // Aplica o cursor de setinhas globais
-  };
-
-  // 3. Efeito global para escutar o rato a mover-se mesmo se sair de cima da barra
-  useEffect(() => {
-    const handlePointerMove = e => {
-      if (!isResizing) return;
-      const deltaX = e.clientX - dragRef.current.startX;
-      // Calcula a nova largura e limita entre 270px e 900px
-      const newWidth = Math.max(270, Math.min(dragRef.current.startWidth - deltaX, 900));
-      setAsideWidth(newWidth);
-    };
-
-    const handlePointerUp = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.classList.remove('pane-is-resizing');
-      }
-    };
-
-    if (isResizing) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-    }
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [isResizing]);
-
-  // Lê o texto selecionado no ecrã e abre o modal
-  const handleMarkDoubt = () => {
-    // window.getSelection() pega o que está sublinhado/selecionado no navegador
-    const text = window.getSelection().toString().trim();
-    if (!text) {
-      alert('Por favor, selecione um pedaço de texto na sua nota primeiro.');
-      return;
-    }
-
-    setSelectedText(text);
-    // Sugestão automática de pergunta
-    setQuestionText(`O que significa "${text}" neste contexto?`);
-    setShowModal(true);
-  };
-
-  // Envia a dúvida para o C#
-  const handleSubmitDoubt = async e => {
-    e.preventDefault();
-    setSubmittingDoubt(true);
-
-    try {
-      // O POST que construímos no ResearchEndpoints.cs
-      await apiFetch('/doubts', {
-        method: 'POST',
-        body: JSON.stringify({
-          noteId: id,
-          blockId: 'main-content', // No MVP usamos um bloco único
-          exactQuote: selectedText,
-          startIndex: 0,
-          endIndex: 0,
-          question: questionText,
-        }),
-      });
-
-      setShowModal(false);
-      // Recarrega as dúvidas para mostrar a nova com status "Pending"
-      await loadNoteAndDoubts();
-    } catch (err) {
-      alert('Erro ao criar a dúvida. Verifique a consola.');
-    } finally {
-      setSubmittingDoubt(false);
-    }
-  };
+  // Dúvidas em que o utilizador escolheu "Manter mesmo assim" (persistidas por nota no browser)
+  const [keptDoubts, setKeptDoubts] = useState(() => loadKeptDoubts(id));
 
   useEffect(() => {
-    loadNoteAndDoubts();
+    setKeptDoubts(loadKeptDoubts(id));
   }, [id]);
 
-  // Atualiza as dúvidas automaticamente se houver alguma a ser processada
-  useEffect(() => {
-    // Verifica se alguma dúvida ainda está pendente ou a rodar
-    const hasPendingDoubts = doubts.some(d => d.status === 'Pending' || d.status === 'Running');
+  const updateKeptDoubts = updater => {
+    setKeptDoubts(prev => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem(keptStorageKey(id), JSON.stringify(next));
+      } catch {
+        /* storage indisponível: fica só em memória */
+      }
+      return next;
+    });
+  };
 
-    let intervalId;
-    if (hasPendingDoubts) {
-      // Configura um "relógio" para ir buscar as dúvidas a cada 3 segundos
-      intervalId = setInterval(async () => {
-        try {
-          const doubtsData = await apiFetch(`/doubts/note/${id}`);
-          setDoubts(doubtsData || []);
-        } catch (err) {
-          console.error('Erro ao verificar atualização das dúvidas:', err);
-        }
-      }, 3000);
-    }
-
-    // Limpa o relógio para não consumir memória quando a IA responder ou você sair da página
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [id, doubts]); // O efeito reavalia sempre que a lista de dúvidas muda
+  const loadDoubts = async () => {
+    const doubtsData = await apiFetch(`/doubts/note/${id}`);
+    setDoubts(doubtsData || []);
+  };
 
   const loadNoteAndDoubts = async () => {
     try {
-      // CORRIGIDO: mudámos de /notas para /notes
       const noteData = await apiFetch(`/notes/${id}`);
       setNote(noteData);
       setTitle(noteData.title || '');
-      setContent(noteData.content || '');
+      try {
+        const parsedBlocks = JSON.parse(noteData.content || '[]');
+        setBlocks(
+          Array.isArray(parsedBlocks) && parsedBlocks.length > 0
+            ? parsedBlocks
+            : [{ id: generateId(), type: 'paragraph', text: noteData.content || '' }],
+        );
+      } catch (e) {
+        setBlocks([{ id: generateId(), type: 'paragraph', text: noteData.content || '' }]);
+      }
 
-      const doubtsData = await apiFetch(`/doubts/note/${id}`);
-      setDoubts(doubtsData || []);
+      await loadDoubts();
     } catch (err) {
       setError('Não foi possível carregar os dados da nota.');
     } finally {
@@ -155,33 +241,126 @@ export function Note() {
     }
   };
 
+  useEffect(() => {
+    loadNoteAndDoubts();
+  }, [id]);
+
+  useEffect(() => {
+    const hasPendingDoubts = doubts.some(d => d.status === 'Pending' || d.status === 'Running');
+    let intervalId;
+    if (hasPendingDoubts) {
+      intervalId = setInterval(async () => {
+        try {
+          await loadDoubts();
+        } catch (err) {
+          console.error(err);
+        }
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [id, doubts]);
+
+  const handlePointerDown = e => {
+    setIsResizing(true);
+    dragRef.current = { startX: e.clientX, startWidth: asideWidth };
+    document.body.classList.add('pane-is-resizing');
+  };
+
+  useEffect(() => {
+    const handlePointerMove = e => {
+      if (!isResizing) return;
+      setAsideWidth(Math.max(270, Math.min(dragRef.current.startWidth - (e.clientX - dragRef.current.startX), 900)));
+    };
+    const handlePointerUp = () => {
+      if (isResizing) {
+        setIsResizing(false);
+        document.body.classList.remove('pane-is-resizing');
+      }
+    };
+    if (isResizing) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    }
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isResizing]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Chama o método PUT que você construiu no NoteEndpoints.cs
-      await apiFetch(`/notes/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          expectedVersion: note.version || 0, // Proteção de concorrência que você configurou!
-          title: title,
-          content: content,
-          categoryId: note.categoryId || null,
-          tagIds: note.tags?.map(t => t.id) || [],
-        }),
-      });
-
-      // Atualizamos a referência local para o botão de salvar voltar a ficar inativo
-      setNote({ ...note, title, content });
-      // 👇 MAGIA ACONTECENDO AQUI: Substituímos o alert!
-      addToast('Alterações salvas com sucesso!', 'check');
+      const payload = {
+        expectedVersion: note.version || 0,
+        title: title,
+        content: JSON.stringify(blocks),
+        categoryId: note.categoryId || null,
+        tagIds: note.tags?.map(t => t.id) || [],
+      };
+      await apiFetch(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      setNote({ ...note, title, content: JSON.stringify(blocks), version: (note.version || 0) + 1 });
+      addToast('Alterações salvas.', 'check');
     } catch (err) {
-      console.error('Erro ao salvar a nota:', err);
-      // Podemos usar o toast para erros também!
-      addToast('Falha ao salvar. Verifique se a nota foi alterada noutro local.', 'info');
+      addToast('Falha ao salvar.', 'info');
     } finally {
       setSaving(false);
     }
   };
+
+  const handleAddBlock = () => setBlocks(prev => [...prev, { id: generateId(), type: newBlockType, text: '' }]);
+  const handleUpdateBlock = (blockId, newText) =>
+    setBlocks(prev => prev.map(b => (b.id === blockId ? { ...b, text: newText } : b)));
+
+  const handleTextSelect = (blockId, sel) => setSelection(sel ? { blockId, ...sel } : null);
+
+  const handleMarkDoubt = () => {
+    if (!selection) return addToast('Selecione um pedaço de texto dentro do editor.', 'info');
+    setQuestionText(`O que significa "${selection.quote}" neste contexto?`);
+    setShowModal(true);
+  };
+
+  const handleSubmitDoubt = async e => {
+    e.preventDefault();
+    if (!selection) return;
+    setSubmittingDoubt(true);
+    try {
+      await apiFetch('/doubts', {
+        method: 'POST',
+        body: JSON.stringify({
+          noteId: id,
+          question: questionText,
+          blockId: selection.blockId,
+          exactQuote: selection.quote,
+          startIndex: selection.startIndex,
+          endIndex: selection.endIndex,
+        }),
+      });
+      setShowModal(false);
+      setSelection(null);
+      // Recarrega SÓ as dúvidas: recarregar a nota apagaria as edições ainda não salvas.
+      await loadDoubts();
+      addToast('Dúvida enviada.', 'spark');
+    } catch (err) {
+      addToast('Falha ao enviar.', 'info');
+    } finally {
+      setSubmittingDoubt(false);
+    }
+  };
+
+  const handleDeleteDoubt = async doubtId => {
+    try {
+      await apiFetch(`/doubts/${doubtId}`, { method: 'DELETE' });
+      setDoubts(prev => prev.filter(d => d.id !== doubtId));
+      updateKeptDoubts(prev => prev.filter(k => k !== doubtId));
+      addToast('Dúvida apagada.', 'check');
+    } catch (err) {
+      addToast('Erro ao apagar.', 'info');
+    }
+  };
+
+  const handleKeepDoubt = doubtId => updateKeptDoubts(prev => (prev.includes(doubtId) ? prev : [...prev, doubtId]));
 
   if (loading)
     return (
@@ -199,8 +378,7 @@ export function Note() {
       </div>
     );
 
-  // Só ativamos o botão de guardar se houver alterações
-  const isDirty = title !== note.title || content !== (note.content || '');
+  const isDirty = title !== note.title || JSON.stringify(blocks) !== (note.content || '[]');
 
   return (
     <div>
@@ -224,25 +402,35 @@ export function Note() {
         <section className="card editor-main-card">
           <div className="toolbar">
             <div className="row gap8">
-              <span className="pill green">Modo de Edição</span>
+              <select
+                value={newBlockType}
+                onChange={e => setNewBlockType(e.target.value)}
+                style={{ padding: '6px', borderRadius: '4px' }}
+              >
+                <option value="paragraph">Parágrafo</option>
+                <option value="heading">Título</option>
+                <option value="list">Lista</option>
+                <option value="quote">Citação</option>
+                <option value="code">Código</option>
+              </select>
+              <button className="icon-btn" onClick={handleAddBlock}>
+                <Icon name="plus" />
+              </button>
             </div>
-            {/* LIGAMOS O ONCLICK AQUI: */}
-            <button className="btn compact" onClick={handleMarkDoubt}>
-              <Icon name="question" className="sm" /> Marcar como dúvida
+            {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
+            <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={handleMarkDoubt}>
+              <Icon name="question" className="sm" /> Marcar dúvida no texto
             </button>
           </div>
 
           <div className="editor-body">
-            {/* O Input agora é editável! */}
             <input
               className="editor-title"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="Dê um título à sua ideia..."
-              aria-label="Título da nota"
+              placeholder="Sem título"
             />
-
-            <div className="editor-meta">
+            <div className="editor-meta mb24">
               {note.tags &&
                 note.tags.map(tag => (
                   <span key={tag.id} className="tag">
@@ -251,21 +439,25 @@ export function Note() {
                 ))}
             </div>
 
-            {/* Trocamos a div estática por uma textarea para você poder escrever livremente */}
-            <textarea
-              className="editor-block paragraph"
-              style={{ width: '100%', minHeight: '350px', border: 'none', resize: 'vertical', outline: 'none' }}
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              placeholder="Escreva as suas ideias aqui..."
-            />
+            <div id="editor-blocks" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {blocks.map(block => (
+                <ContentEditableBlock
+                  key={block.id}
+                  block={block}
+                  doubts={doubts}
+                  onChange={newText => handleUpdateBlock(block.id, newText)}
+                  onSelect={sel => handleTextSelect(block.id, sel)}
+                />
+              ))}
+            </div>
           </div>
         </section>
+
         <div
           className={`pane-resizer editor-resizer ${isResizing ? 'is-resizing' : ''}`}
           onPointerDown={handlePointerDown}
         ></div>
-        {/* O painel de IA ganha vida com os dados reais do Gemini! */}
+
         <aside className="stack editor-side">
           {doubts.length > 0 ? (
             <div className="result-panel">
@@ -274,58 +466,101 @@ export function Note() {
                 <span className="badge-count">{doubts.length}</span>
               </div>
 
-              {doubts.map(doubt => (
-                <div key={doubt.id} className="card research-card" style={{ marginBottom: '12px' }}>
-                  <span className={`pill ${doubt.status === 'Completed' ? 'green' : 'blue'}`}>
-                    {doubt.status === 'Completed' ? 'Respondida' : 'A processar...'}
-                  </span>
+              {doubts.map(d => {
+                // Monitorização em tempo real: recalculada a cada tecla, porque `blocks` muda no onInput.
+                const block = blocks.find(b => b.id === d.blockId);
+                const isReferenceMissing = !!d.exactQuote && !isQuotePresent(block?.text, d.exactQuote);
+                const showWarning = isReferenceMissing && !keptDoubts.includes(d.id);
 
-                  <blockquote className="quote-selection" style={{ fontSize: '12px', marginTop: '13px' }}>
-                    {doubt.exactQuote || 'Trecho não selecionado'}
-                  </blockquote>
+                return (
+                  <div
+                    key={d.id}
+                    className="card research-card"
+                    style={{
+                      marginBottom: '12px',
+                      border: showWarning ? '2px solid #f59e0b' : '1px solid var(--border)',
+                    }}
+                  >
+                    {showWarning ? (
+                      <div>
+                        <div className="row gap8 mb16">
+                          <Icon name="warning" style={{ color: '#f59e0b' }} />
+                          <h4 style={{ color: '#f59e0b', margin: 0 }}>Dúvida sem referência no texto</h4>
+                        </div>
+                        <p className="small muted">
+                          O trecho <strong>"{d.exactQuote}"</strong> foi alterado ou apagado do texto original.
+                        </p>
+                        <div className="row gap8 mt16">
+                          <button className="btn compact primary" onClick={() => handleDeleteDoubt(d.id)}>
+                            <Icon name="trash" className="sm" /> Apagar
+                          </button>
+                          <button className="btn compact ghost" onClick={() => handleKeepDoubt(d.id)}>
+                            Manter mesmo assim
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="row between mb16">
+                          <span className={`pill ${d.status === 'Completed' ? 'green' : 'blue'}`}>
+                            {d.status === 'Completed' ? 'Respondida' : 'A processar...'}
+                          </span>
+                          <button className="icon-btn" onClick={() => handleDeleteDoubt(d.id)} title="Apagar dúvida">
+                            <Icon name="trash" className="sm" />
+                          </button>
+                        </div>
 
-                  <h3 className="mt16">{doubt.question}</h3>
-                  {doubt.status === 'Completed' ? (
-                    <>
-                      {/* Cortamos o texto para caber bem na barra lateral */}
-                      <p
-                        style={{
-                          marginTop: '10px',
-                          fontSize: '12px',
-                          lineHeight: '1.6',
-                          display: '-webkit-box',
-                          WebkitLineClamp: '3',
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {doubt.answer}
-                      </p>
-                      {/* 👇 O NOVO BOTÃO DE LIGAÇÃO */}
-                      <Link to={`/research/${doubt.id}`} className="btn compact ghost mt16" style={{ width: '100%' }}>
-                        Ler detalhe completo <Icon name="arrow" className="sm" />
-                      </Link>
-                    </>
-                  ) : (
-                    <p className="muted small mt16">A aguardar o Worker de segundo plano...</p>
-                  )}
-                </div>
-              ))}
+                        {d.exactQuote && (
+                          <blockquote
+                            className="quote-selection"
+                            style={{ fontSize: '12px', opacity: isReferenceMissing ? 0.6 : 1 }}
+                            title={isReferenceMissing ? 'Trecho já não existe no texto' : undefined}
+                          >
+                            {d.exactQuote}
+                          </blockquote>
+                        )}
+                        <h3 className="mt16">{d.question}</h3>
+
+                        {d.status === 'Completed' ? (
+                          <>
+                            <p
+                              style={{
+                                marginTop: '10px',
+                                fontSize: '12px',
+                                lineHeight: '1.6',
+                                display: '-webkit-box',
+                                WebkitLineClamp: '3',
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {d.answer}
+                            </p>
+                            <Link to={`/research/${d.id}`} className="btn compact ghost mt16" style={{ width: '100%' }}>
+                              Ler detalhe <Icon name="arrow" className="sm" />
+                            </Link>
+                          </>
+                        ) : (
+                          <p className="muted small mt16">A aguardar resposta...</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="empty" style={{ padding: '24px' }}>
               <Icon name="spark" />
-              <h3 style={{ fontSize: '14px', marginTop: '10px' }}>Assistente de curiosidade</h3>
-              <p style={{ fontSize: '12px', marginTop: '5px' }}>
-                Nenhuma dúvida registada ainda. Escreva algo, selecione o texto e marque como dúvida (implementaremos a
-                seleção no próximo passo).
+              <p style={{ fontSize: '12px', marginTop: '10px' }}>
+                Nenhuma dúvida. Selecione texto e marque uma dúvida.
               </p>
             </div>
           )}
         </aside>
       </div>
-      {/* MODAL DE CRIAÇÃO DE DÚVIDA */}
-      {showModal && (
+
+      {showModal && selection && (
         <div className="modal-overlay">
           <section className="modal" role="dialog">
             <div className="modal-title">
@@ -334,32 +569,23 @@ export function Note() {
                 <Icon name="close" />
               </button>
             </div>
-
             <form onSubmit={handleSubmitDoubt}>
-              <div className="quote-selection">{selectedText}</div>
-
+              <div className="quote-selection">{selection.quote}</div>
               <div className="field">
-                <label htmlFor="doubt-question">Pergunta (você pode refinar)</label>
+                <label>Pergunta (você pode refinar)</label>
                 <textarea
-                  id="doubt-question"
                   required
                   value={questionText}
                   onChange={e => setQuestionText(e.target.value)}
                   style={{ minHeight: '80px' }}
                 />
               </div>
-
-              <p className="small muted">
-                O trecho fica preservado. A resposta será processada pela IA em segundo plano.
-              </p>
-
               <div className="modal-actions mt24">
                 <button type="button" className="btn" onClick={() => setShowModal(false)}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn primary" disabled={submittingDoubt}>
-                  <Icon name="question" className="sm" />
-                  {submittingDoubt ? 'A enviar...' : 'Salvar dúvida'}
+                  <Icon name="question" className="sm" /> {submittingDoubt ? 'A enviar...' : 'Salvar dúvida'}
                 </button>
               </div>
             </form>

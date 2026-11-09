@@ -11,7 +11,7 @@ import { ResearchDetail } from './pages/ResearchDetails';
 import { Research } from './pages/Research';
 import { Settings } from './pages/Settings';
 import { Search } from './pages/Search';
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 function App() {
   return (
