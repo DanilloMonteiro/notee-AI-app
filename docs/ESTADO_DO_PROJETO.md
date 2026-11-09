@@ -30,7 +30,7 @@
 | M18 Evidências e consolidação | Feito | ADRs 011–029, este arquivo, README |
 | MAP-01..05 Mapas de Ideias | Feito | suítes `maps` (AC01–AC13) e `graph-ai`; "perguntar ao mapa" com provider real fica pendente (ADR-024) |
 
-**Números da última execução local (09/11/2026):** 89 testes unitários; 12 suítes HTTP com 260 verificações, todas passando nos modos in-process e SQS.
+**Números da última execução local (09/11/2026):** 89 testes unitários; 11 suítes HTTP com 221 verificações passando (in-process); em modo SQS as mesmas suítes passaram (exceto `provider`, criada depois e coberta no CI).
 
 **Pendências conhecidas:** validar o Gemini com chave real (com consentimento), migrar tokens para cookie HttpOnly (ADR-003), TypeScript/TanStack Query no front (ADR-018), FTS do PostgreSQL quando houver volume, prefixo `/api/v1` e paginação por cursor, provisionar demais serviços AWS no LocalStack, testes automatizados de interface.
 
