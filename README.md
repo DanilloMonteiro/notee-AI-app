@@ -1,5 +1,7 @@
 # Notee
 
+[![CI](https://github.com/DanilloMonteiro/notee-AI-app/actions/workflows/ci.yml/badge.svg)](https://github.com/DanilloMonteiro/notee-AI-app/actions/workflows/ci.yml)
+
 Aplicação de anotações com módulo de pesquisa assistida por IA: você marca um trecho de uma nota, registra uma dúvida e um worker em segundo plano consulta a IA (Gemini ou OpenAI) para respondê-la.
 
 | Pasta | Stack | Descrição |
@@ -23,7 +25,9 @@ As chaves ficam em `Notee-API/src/NoteLab/appsettings.json`. Esse arquivo **não
 cp Notee-API/src/NoteLab/appsettings.Example.json Notee-API/src/NoteLab/appsettings.json
 ```
 
-Depois preencha `Gemini:ApiKey` (serviço usado por padrão) e/ou `OpenAI:ApiKey`.
+Depois preencha `Gemini:ApiKey` e, fora do ambiente local, `Jwt:Key` e `ConnectionStrings:Default` (sem eles a API usa valores de desenvolvimento e avisa no log).
+
+> **Privacidade:** a IA externa só é usada para contas que autorizarem em **Configurações → Usar IA externa**. Sem autorização, as dúvidas recebem uma resposta simulada local (provider Fake), sem enviar dados para fora.
 
 > Faça isso **antes** de rodar o Docker Compose: se o arquivo não existir, o Docker cria uma pasta vazia no lugar dele.
 
@@ -58,7 +62,7 @@ docker compose up -d --build api front   # rebuild após alterar código
 
 ### Detalhes do Compose
 
-- A connection string da API está fixa em `Host=localhost;Port=5434` no `Program.cs`. Por isso a API e o `migrate` compartilham a rede do container do banco (`network_mode: service:db`), e o Postgres escuta na porta 5434. Pelo mesmo motivo, a porta 5000 da API é publicada pelo serviço `db`.
+- A connection string padrão de desenvolvimento é `Host=localhost;Port=5434` (sobrescreva com `ConnectionStrings__Default`). Por isso a API e o `migrate` compartilham a rede do container do banco (`network_mode: service:db`), e o Postgres escuta na porta 5434. Pelo mesmo motivo, a porta 5000 da API é publicada pelo serviço `db`.
 - O `appsettings.json` é montado como volume somente leitura e **não** entra na imagem (veja `Notee-API/.dockerignore`).
 - O front chama a API em `http://localhost:5000` (`Notee-Front/src/api.js`), e o CORS da API libera `http://localhost:5173`. Mantenha essas portas.
 
@@ -106,8 +110,13 @@ Pré-requisitos: .NET SDK 10, Node.js 20.19+ (ou 22+) e um PostgreSQL acessível
 
 ```bash
 cd Notee-API
-dotnet test
+dotnet test                                   # testes de domínio (xUnit)
+
+# Suítes HTTP de integração: rode contra uma API apontando para um banco de TESTE
+NOTEE_API=http://localhost:5099 node tests/http/run-all.mjs
 ```
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa testes de domínio, migrations, as suítes HTTP contra um PostgreSQL efêmero e lint + build do front a cada push e pull request.
 
 ## Estrutura do repositório
 
@@ -120,7 +129,8 @@ dotnet test
 │   ├── src/NoteLab/
 │   │   ├── Modules/
 │   │   │   ├── Identity/   # registro, login, recuperação de senha (JWT)
-│   │   │   ├── Notes/      # notas, categorias e tags
+│   │   │   ├── KnowledgeMaps/ # mapas de ideias (boards, posições, conexões)
+│   │   │   ├── Notes/      # notas, revisões, categorias, tags e referências
 │   │   │   └── Research/   # dúvidas + serviços de IA + worker
 │   │   ├── Migrations/
 │   │   ├── Shared/

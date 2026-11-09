@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API (.NET 10 + PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: notelab_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d notelab_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__Default: Host=localhost;Port=5432;Database=notelab_ci;Username=postgres;Password=ci
+      Jwt__Key: ci-only-key-not-a-secret-but-long-enough-0123456789
+      RateLimit__AuthPerMinute: "1000"
+      DOTNET_NOLOGO: "true"
+    defaults:
+      run:
+        working-directory: Notee-API
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests
+        run: dotnet test tests/NoteLab.Tests/NoteLab.Tests.csproj --nologo
+
+      - name: Apply migrations
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.12
+          dotnet ef database update --project src/NoteLab --connection "$ConnectionStrings__Default"
+
+      - name: Start API
+        run: |
+          nohup dotnet run --project src/NoteLab --no-launch-profile --urls http://localhost:5099 > api.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5099/boards || true)
+            [ "$code" = "401" ] && exit 0
+            sleep 2
+          done
+          cat api.log; exit 1
+
+      - name: HTTP integration suites
+        run: NOTEE_API=http://localhost:5099 node tests/http/run-all.mjs
+
+      - name: API log on failure
+        if: failure()
+        run: cat api.log || true
+
+  front:
+    name: Front (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Notee-Front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Notee-Front/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
