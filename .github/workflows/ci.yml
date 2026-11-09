@@ -10,8 +10,13 @@ permissions:
 
 jobs:
   api:
-    name: API (.NET 10 + PostgreSQL)
+    name: API (.NET 10 + PostgreSQL, ${{ matrix.messaging }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # inprocess: tabela de jobs como fila; sqs: Outbox -> SQS no LocalStack provisionado via Terraform
+        messaging: [inprocess, sqs]
     services:
       postgres:
         image: postgres:16
@@ -29,6 +34,9 @@ jobs:
       RateLimit__AuthPerMinute: "1000"
       Research__PollSeconds: "1"
       Research__MaxJobsPerHour: "5"
+      Messaging__Provider: ${{ matrix.messaging }}
+      Messaging__Sqs__ServiceUrl: http://localhost:4566
+      Messaging__Sqs__QueueUrl: http://localhost:4566/000000000000/notee-research-jobs
       DOTNET_NOLOGO: "true"
     defaults:
       run:
@@ -41,6 +49,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: hashicorp/setup-terraform@v3
+        if: matrix.messaging == 'sqs'
+        with:
+          terraform_wrapper: false
+
+      - name: LocalStack + Terraform (SQS)
+        if: matrix.messaging == 'sqs'
+        working-directory: infra/terraform/localstack
+        run: |
+          docker run -d --name localstack -p 4566:4566 -e SERVICES=sqs localstack/localstack:4.4
+          for i in $(seq 1 60); do curl -s localhost:4566/_localstack/health | grep -Eq '"sqs": "(available|running)"' && break; sleep 2; done
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
 
       - name: Unit tests
         run: dotnet test tests/NoteLab.Tests/NoteLab.Tests.csproj --nologo

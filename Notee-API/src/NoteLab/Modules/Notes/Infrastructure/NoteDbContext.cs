@@ -20,6 +20,8 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<NoteSuggestion> NoteSuggestions { get; set; }
     public DbSet<NoteSettings> NoteSettings { get; set; }
     public DbSet<RefreshSession> RefreshSessions { get; set; }
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<InboxMessage> InboxMessages { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -90,6 +92,22 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(j => j.DoubtId).IsUnique().HasFilter("\"Status\" IN ('Queued', 'Running')").HasDatabaseName("IX_ResearchJobs_ActivePerDoubt");
             // Idempotency-Key única por dono.
             e.HasIndex(j => new { j.OwnerId, j.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+        });
+
+        // ---- Outbox / Inbox (M11) ----
+        modelBuilder.Entity<OutboxMessage>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.Property(m => m.Type).HasMaxLength(100).IsRequired();
+            e.Property(m => m.Payload).HasColumnType("jsonb").IsRequired();
+            e.Property(m => m.LastError).HasMaxLength(300);
+            e.HasIndex(m => m.OccurredAt).HasFilter("\"ProcessedAt\" IS NULL").HasDatabaseName("IX_OutboxMessages_Pending");
+        });
+
+        modelBuilder.Entity<InboxMessage>(e =>
+        {
+            e.HasKey(m => new { m.Consumer, m.MessageId });
+            e.Property(m => m.Consumer).HasMaxLength(100);
         });
 
         // ---- Sessões de refresh (M04) ----

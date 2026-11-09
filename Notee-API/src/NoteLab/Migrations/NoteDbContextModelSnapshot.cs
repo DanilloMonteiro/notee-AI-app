@@ -475,6 +475,23 @@ namespace NoteLab.Migrations
                     b.ToTable("GraphSuggestions");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.InboxMessage", b =>
+                {
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Consumer", "MessageId");
+
+                    b.ToTable("InboxMessages");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.Note", b =>
                 {
                     b.Property<Guid>("Id")
@@ -697,6 +714,43 @@ namespace NoteLab.Migrations
                     b.HasIndex("NoteId", "Status");
 
                     b.ToTable("NoteSuggestions");
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("IX_OutboxMessages_Pending")
+                        .HasFilter("\"ProcessedAt\" IS NULL");
+
+                    b.ToTable("OutboxMessages");
                 });
 
             modelBuilder.Entity("NoteLab.Domain.PublicProfile", b =>

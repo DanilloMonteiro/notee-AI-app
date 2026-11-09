@@ -68,5 +68,15 @@ services:
       - api
     restart: unless-stopped
 
+  # Opcional: SQS emulado (docker compose --profile aws up -d localstack) + Terraform em infra/terraform/localstack.
+  localstack:
+    image: localstack/localstack:4.4
+    container_name: notee-localstack
+    profiles: ["aws"]
+    environment:
+      SERVICES: sqs
+    ports:
+      - "4566:4566"
+
 volumes:
   notee-pgdata:

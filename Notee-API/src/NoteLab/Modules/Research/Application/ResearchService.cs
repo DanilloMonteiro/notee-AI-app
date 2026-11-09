@@ -118,6 +118,7 @@ public sealed class ResearchService
 
         doubt.MarkQueued();
         _db.ResearchJobs.Add(job);
+        _db.OutboxMessages.Add(OutboxEvents.JobEnqueued(job)); // mesma transação (Outbox)
         NoteeTelemetry.JobsEnqueued.Add(1, new KeyValuePair<string, object?>("trigger", "manual"));
         try
         {
@@ -191,6 +192,7 @@ public sealed class ResearchService
         {
             job = new ResearchJob(doubt.Id, doubt.OwnerId, null);
             _db.ResearchJobs.Add(job);
+            _db.OutboxMessages.Add(OutboxEvents.JobEnqueued(job)); // mesma transação (Outbox)
             NoteeTelemetry.JobsEnqueued.Add(1, new KeyValuePair<string, object?>("trigger", "auto"));
         }
 

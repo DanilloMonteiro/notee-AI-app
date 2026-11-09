@@ -19,9 +19,11 @@ public class DoubtProcessingWorker : BackgroundService
     private readonly ILogger<DoubtProcessingWorker> _logger;
     private readonly string _workerId = $"{Environment.MachineName}:{Guid.NewGuid():N}"[..40];
     private readonly TimeSpan _pollInterval;
+    private readonly WorkSignal _signal;
 
-    public DoubtProcessingWorker(IServiceScopeFactory scopeFactory, ILogger<DoubtProcessingWorker> logger, IConfiguration config)
+    public DoubtProcessingWorker(IServiceScopeFactory scopeFactory, ILogger<DoubtProcessingWorker> logger, IConfiguration config, WorkSignal signal)
     {
+        _signal = signal;
         _scopeFactory = scopeFactory;
         _logger = logger;
         _pollInterval = TimeSpan.FromSeconds(Math.Max(1, config.GetValue<int?>("Research:PollSeconds") ?? 5));
@@ -41,10 +43,10 @@ public class DoubtProcessingWorker : BackgroundService
                 _logger.LogError(ex, "Falha no ciclo do worker de pesquisa");
             }
 
-            // Lote cheio: provavelmente há mais trabalho; não espera.
+            // Lote cheio: provavelmente há mais trabalho; não espera. Senão, aguarda evento (Outbox/SQS) ou o polling.
             if (processed < BatchSize)
             {
-                await Task.Delay(_pollInterval, stoppingToken);
+                await _signal.WaitAsync(_pollInterval, stoppingToken);
             }
         }
     }

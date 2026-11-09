@@ -74,6 +74,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
+builder.Services.AddNoteeMessaging(builder.Configuration); // Outbox + (opcional) SQS no LocalStack
 builder.Services.AddHostedService<DoubtProcessingWorker>(); // É assim que se regista um BackgroundService
 
 // Providers de IA: Fake determinístico é o padrão; externo só com consentimento do dono (ADR-019).

@@ -118,6 +118,27 @@ NOTEE_API=http://localhost:5099 node tests/http/run-all.mjs
 
 O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa testes de domínio, migrations, as suítes HTTP contra um PostgreSQL efêmero e lint + build do front a cada push e pull request.
 
+## Fila de pesquisa (Outbox + SQS no LocalStack)
+
+Por padrão a tabela `ResearchJobs` é a fila e o Outbox só acorda o worker local (`Messaging:Provider=inprocess`). Para usar SQS **emulado** (nunca AWS real):
+
+```bash
+docker compose --profile aws up -d localstack
+cd infra/terraform/localstack
+terraform init && terraform apply -auto-approve      # cria a fila e a DLQ no LocalStack
+# (sem Terraform instalado: docker run --rm -v "$PWD:/work" -w /work hashicorp/terraform:1.12 init/apply -var localstack_endpoint=http://host.docker.internal:4566)
+```
+
+Depois rode a API com:
+
+```bash
+Messaging__Provider=sqs
+Messaging__Sqs__ServiceUrl=http://localhost:4566
+Messaging__Sqs__QueueUrl=http://localhost:4566/000000000000/notee-research-jobs
+```
+
+O evento é gravado no Outbox na mesma transação do job, publicado no SQS e consumido com deduplicação (Inbox). O worker continua reivindicando jobs com lease/fencing; o polling segue como rede de segurança.
+
 ## Operação
 
 - `GET /health/live` e `GET /health/ready` (verifica o PostgreSQL).
