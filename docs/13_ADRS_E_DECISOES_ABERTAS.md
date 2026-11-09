@@ -108,3 +108,14 @@ Decisão: estados `Draft`, `Active`, `Archived`, `Trashed` (novo). Rotas `POST /
 ### ADR-022 — Revisões imutáveis de notas
 Status: Proposto (implementado) · Data: 2026-11-09
 Decisão: tabela `NoteRevisions` (UNIQUE `NoteId, NoteVersion`) com título, conteúdo, categoria e tags de cada versão salva. Criar e editar geram revisão; arquivar/lixeira e mapas não. Notas anteriores ao histórico recebem uma revisão `Baseline` com o estado anterior na primeira edição. `POST /notes/{id}/restore-revision` aplica o conteúdo como **nova** versão (`Restored`, com `RestoredFromVersion`) — o histórico nunca é reescrito. Categoria/tags que não existem mais são ignoradas na restauração. Sem política de retenção por enquanto (reavaliar com volume real).
+
+### ADR-013 (atualização) — Dúvidas criadas no mapa
+Status: Proposto (implementado) · Data: 2026-11-09
+Decisão: `Doubt.Anchor` passou a ser opcional e `Doubt.Origin` (`Selection` | `BoardQuestion`) foi adicionado. `POST /notes/{noteId}/doubts {question}` cria a dúvida sem âncora, ligada à nota (nunca ao mapa). Dúvidas do editor continuam exigindo âncora.
+
+### ADR-023 — Jobs de pesquisa duráveis com a tabela como fila
+Status: Proposto (implementado) · Data: 2026-11-09
+Contexto: M09/M11/M12 pedem 202 + job durável, idempotência, lease/fencing, retry e cancelamento. SQS/LocalStack (M11/M16) ainda não está provisionado.
+Decisão: `ResearchJobs` é criado **na mesma transação** da dúvida (ou por `POST /doubts/{id}/research-jobs`, que responde `202` + `Location`). O worker reivindica com `UPDATE ... WHERE Id IN (SELECT ... FOR UPDATE SKIP LOCKED) RETURNING`, lease de 2 min e `FencingToken` (token de concorrência do EF: escrita de worker obsoleto é descartada). Lease vencido é reivindicado de novo. Falhas: até 3 tentativas com backoff 10s/20s/40s. Cancelamento: imediato na fila; em execução, sinalizado e respeitado antes de gravar. Índices únicos: um job ativo por dúvida; `Idempotency-Key` por dono. Respostas registram provider e `Evidence = NoSource` (providers atuais não devolvem citações verificáveis).
+Consequências: sem broker externo, a tabela é a fila e já funciona como Outbox transacional; publicar em SQS fica para quando LocalStack existir (M11/M16), mantendo este contrato.
+Testes: unitários de `ResearchJob`; suíte HTTP `research` (19 verificações); recuperação de lease e migration com dados legados verificadas manualmente no banco de teste.

@@ -360,14 +360,29 @@ namespace NoteLab.Migrations
                     b.Property<string>("Answer")
                         .HasColumnType("text");
 
+                    b.Property<string>("AnswerProvider")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Evidence")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<Guid>("NoteId")
                         .HasColumnType("uuid");
 
                     b.Property<long>("NoteRevision")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Selection");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()
@@ -384,6 +399,8 @@ namespace NoteLab.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "NoteId");
 
                     b.ToTable("Doubts");
                 });
@@ -533,6 +550,84 @@ namespace NoteLab.Migrations
                         .IsUnique();
 
                     b.ToTable("NoteRevisions");
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.ResearchJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("CancelRequested")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DoubtId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("FencingToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoubtId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ResearchJobs_ActivePerDoubt")
+                        .HasFilter("\"Status\" IN ('Queued', 'Running')");
+
+                    b.HasIndex("OwnerId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("ResearchJobs");
                 });
 
             modelBuilder.Entity("NoteLab.Domain.Tag", b =>
@@ -718,8 +813,7 @@ namespace NoteLab.Migrations
                                 .HasForeignKey("DoubtId");
                         });
 
-                    b.Navigation("Anchor")
-                        .IsRequired();
+                    b.Navigation("Anchor");
                 });
 
             modelBuilder.Entity("NoteLab.Domain.NoteReference", b =>
@@ -736,6 +830,15 @@ namespace NoteLab.Migrations
                     b.HasOne("NoteLab.Domain.Note", null)
                         .WithMany()
                         .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.ResearchJob", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Doubt", null)
+                        .WithMany()
+                        .HasForeignKey("DoubtId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

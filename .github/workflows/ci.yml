@@ -27,6 +27,7 @@ jobs:
       ConnectionStrings__Default: Host=localhost;Port=5432;Database=notelab_ci;Username=postgres;Password=ci
       Jwt__Key: ci-only-key-not-a-secret-but-long-enough-0123456789
       RateLimit__AuthPerMinute: "1000"
+      Research__PollSeconds: "1"
       DOTNET_NOLOGO: "true"
     defaults:
       run:

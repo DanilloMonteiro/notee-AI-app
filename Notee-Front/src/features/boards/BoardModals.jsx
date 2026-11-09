@@ -273,3 +273,41 @@ export function ReferenceModal({ kind, onSubmit, onClose }) {
     </Modal>
   );
 }
+
+export function QuestionModal({ noteTitle, onSubmit, onClose }) {
+  const [question, setQuestion] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async e => {
+    e.preventDefault();
+    setBusy(true);
+    const done = await onSubmit(question.trim());
+    if (!done) setBusy(false);
+  };
+
+  return (
+    <Modal title="Nova dúvida no mapa" onClose={onClose}>
+      <form onSubmit={submit}>
+        <p className="small muted mb16">
+          A dúvida fica ligada à nota <strong>{noteTitle}</strong> e aparece em todos os mapas, sem trecho selecionado.
+        </p>
+        <div className="field">
+          <label htmlFor="board-question">Pergunta</label>
+          <textarea
+            id="board-question"
+            required
+            maxLength={500}
+            placeholder="O que você quer entender melhor?"
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+          />
+        </div>
+        <div className="callout neutral">
+          <Icon name="info" className="sm" />
+          <span>A pesquisa usa o provedor permitido nas suas Configurações; sem autorização, a resposta é simulada e local.</span>
+        </div>
+        <Actions busy={busy} submitLabel="Criar dúvida" onClose={onClose} />
+      </form>
+    </Modal>
+  );
+}

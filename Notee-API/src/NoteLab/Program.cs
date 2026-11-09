@@ -64,6 +64,7 @@ builder.Services.AddScoped<NoteRepository>();
 builder.Services.AddScoped<INoteRepository>(sp => sp.GetRequiredService<NoteRepository>());
 builder.Services.AddScoped<IDoubtRepository, DoubtRepository>();
 builder.Services.AddScoped<BoardService>();
+builder.Services.AddScoped<ResearchService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
 builder.Services.AddProblemDetails();

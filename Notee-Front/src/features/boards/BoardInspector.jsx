@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../contexts/ToastContext';
 import { referencesApi } from './boardsApi';
-import { ReferenceModal } from './BoardModals';
+import { QuestionModal, ReferenceModal } from './BoardModals';
+import { apiFetch } from '../../api';
 import { edgeName, errorMessage } from './graph';
 
 const DOUBT_STATUS = {
@@ -49,6 +50,20 @@ function NotePanel({ node, doubts, edges, nodesById, onSelectDoubt, onEditEdge, 
   const [refs, setRefs] = useState([]);
   const [loadingRefs, setLoadingRefs] = useState(true);
   const [refModal, setRefModal] = useState(null); // 'book' | 'source'
+  const [questionOpen, setQuestionOpen] = useState(false);
+
+  // AC09: dúvida livre ligada à nota, sem âncora (origem BoardQuestion).
+  const addQuestion = async question => {
+    try {
+      await apiFetch(`/notes/${node.noteId}/doubts`, { method: 'POST', body: JSON.stringify({ question }) });
+      setQuestionOpen(false);
+      onReferencesChanged(); // recarrega o mapa (satélites e contagens)
+      return true;
+    } catch (err) {
+      toastRef.current(errorMessage(err, 'Não foi possível criar a dúvida.'), 'warning');
+      return false;
+    }
+  };
   const { addToast } = useToast();
   // addToast muda a cada render do provider; a ref evita recarregar (ou entrar em loop) por isso.
   const toastRef = useRef(addToast);
@@ -153,9 +168,9 @@ function NotePanel({ node, doubts, edges, nodesById, onSelectDoubt, onEditEdge, 
           <h4>
             Dúvidas <span className="pill">{noteDoubts.length}</span>
           </h4>
-          <Link className="btn compact" to={`/note/${node.noteId}`} title="Marque um trecho no editor para criar uma dúvida">
-            <Icon name="plus" className="sm" /> No editor
-          </Link>
+          <button className="btn compact" onClick={() => setQuestionOpen(true)}>
+            <Icon name="plus" className="sm" /> Nova
+          </button>
         </div>
         {noteDoubts.length ? (
           noteDoubts.map(d => (
@@ -192,6 +207,7 @@ function NotePanel({ node, doubts, edges, nodesById, onSelectDoubt, onEditEdge, 
       </div>
 
       {refModal && <ReferenceModal kind={refModal} onSubmit={addRef} onClose={() => setRefModal(null)} />}
+      {questionOpen && <QuestionModal noteTitle={node.title} onSubmit={addQuestion} onClose={() => setQuestionOpen(false)} />}
     </>
   );
 }

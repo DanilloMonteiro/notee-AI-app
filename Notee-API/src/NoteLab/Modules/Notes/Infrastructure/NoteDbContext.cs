@@ -12,6 +12,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<NoteReference> NoteReferences { get; set; }
     public DbSet<UserPreferences> UserPreferences { get; set; }
     public DbSet<NoteRevision> NoteRevisions { get; set; }
+    public DbSet<ResearchJob> ResearchJobs { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -54,6 +55,34 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(r => r.Url).HasMaxLength(NoteReference.UrlMaxLength);
             e.HasOne<Note>().WithMany().HasForeignKey(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => new { r.OwnerId, r.NoteId });
+        });
+
+        modelBuilder.Entity<Doubt>(e =>
+        {
+            e.Navigation(d => d.Anchor).IsRequired(false);
+            e.Property(d => d.Origin).HasConversion<string>().HasMaxLength(20).HasDefaultValue(DoubtOrigin.Selection);
+            e.Property(d => d.Evidence).HasConversion<string>().HasMaxLength(16);
+            e.Property(d => d.AnswerProvider).HasMaxLength(20);
+            e.HasIndex(d => new { d.OwnerId, d.NoteId });
+        });
+
+        modelBuilder.Entity<ResearchJob>(e =>
+        {
+            e.HasKey(j => j.Id);
+            e.Property(j => j.OwnerId).IsRequired();
+            e.Property(j => j.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(j => j.LeaseOwner).HasMaxLength(64);
+            e.Property(j => j.IdempotencyKey).HasMaxLength(100);
+            e.Property(j => j.Provider).HasMaxLength(20);
+            e.Property(j => j.LastError).HasMaxLength(300);
+            e.Property(j => j.FencingToken).IsConcurrencyToken();
+            e.HasOne<Doubt>().WithMany().HasForeignKey(j => j.DoubtId).OnDelete(DeleteBehavior.Cascade);
+            // Fila: busca por prontos e por leases vencidos.
+            e.HasIndex(j => new { j.Status, j.NextAttemptAt });
+            // No máximo um job ativo por dúvida.
+            e.HasIndex(j => j.DoubtId).IsUnique().HasFilter("\"Status\" IN ('Queued', 'Running')").HasDatabaseName("IX_ResearchJobs_ActivePerDoubt");
+            // Idempotency-Key única por dono.
+            e.HasIndex(j => new { j.OwnerId, j.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
         });
 
         modelBuilder.Entity<NoteRevision>(e =>

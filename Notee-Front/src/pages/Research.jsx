@@ -37,7 +37,7 @@ export function Research() {
 
       <div className="callout neutral mb24">
         <Icon name="shield" />
-        <span>O Worker no backend processa estas dúvidas em segundo plano com o Google Gemini.</span>
+        <span>As dúvidas são pesquisadas em segundo plano. Sem autorização em Configurações, as respostas são simuladas e nada sai do Notee.</span>
       </div>
 
       {error && (
