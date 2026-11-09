@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import { NoteOrganizer } from '../components/NoteOrganizer';
 import { RevisionHistory } from '../components/RevisionHistory';
 import { PublishPanel } from '../features/publishing/PublishPanel';
+import { NoteSuggestions } from '../components/NoteSuggestions';
 import { STATUS_LABEL } from '../notes';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
@@ -495,6 +496,8 @@ export function Note() {
         onTagsChange={setTagIds}
         disabled={isTrashed}
       />
+
+      <NoteSuggestions noteId={id} isDirty={isDirty} disabled={isTrashed} onNoteChanged={loadNoteAndDoubts} />
 
       <div className="editor-layout" style={{ '--editor-aside-width': `${asideWidth}px` }}>
         <section className="card editor-main-card">

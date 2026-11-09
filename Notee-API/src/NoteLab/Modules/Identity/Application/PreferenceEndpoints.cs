@@ -7,6 +7,7 @@ namespace NoteLab.Application;
 
 public record PreferencesResponse(
     bool ResearchEnabled,
+    bool AutoResearch,
     bool ExternalAiConsent,
     int? ConsentVersion,
     DateTimeOffset? ConsentedAt,
@@ -16,7 +17,7 @@ public record PreferencesResponse(
     long Version);
 
 /// <summary>Campos nulos não são alterados. Conceder consentimento exige ConsentVersion vigente.</summary>
-public record UpdatePreferencesRequest(bool? ResearchEnabled, bool? ExternalAiConsent, int? ConsentVersion, long ExpectedVersion);
+public record UpdatePreferencesRequest(bool? ResearchEnabled, bool? ExternalAiConsent, int? ConsentVersion, long ExpectedVersion, bool? AutoResearch = null);
 
 public record MeResponse(string Id, string? Email);
 
@@ -38,6 +39,7 @@ public sealed class PreferencesService
 
     public PreferencesResponse ToResponse(UserPreferences p) => new(
         p.ResearchEnabled,
+        p.AutoResearch,
         p.ExternalAiConsent,
         p.ConsentVersion,
         p.ConsentedAt,
@@ -62,6 +64,11 @@ public sealed class PreferencesService
             if (request.ResearchEnabled.HasValue)
             {
                 prefs.SetResearchEnabled(request.ResearchEnabled.Value);
+            }
+
+            if (request.AutoResearch.HasValue)
+            {
+                prefs.SetAutoResearch(request.AutoResearch.Value);
             }
 
             if (request.ExternalAiConsent.HasValue)

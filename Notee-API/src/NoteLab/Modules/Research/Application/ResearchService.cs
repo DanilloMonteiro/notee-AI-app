@@ -181,8 +181,13 @@ public sealed class ResearchService
 
         // Pesquisa automática ao criar, salvo se a conta desligou a pesquisa (fica pendente).
         ResearchJob? job = null;
+        // Precedência: pesquisa desligada (conta) > configuração da nota > padrão da conta (M10).
         // Acima da cota, a dúvida é registrada mas fica pendente (pode ser pesquisada depois).
-        if ((await PreferencesAsync(doubt.OwnerId, ct)).ResearchEnabled && !await QuotaExceededAsync(doubt.OwnerId, ct))
+        AutoResearchOverride noteOverride = await _db.NoteSettings.AsNoTracking()
+            .Where(s => s.NoteId == doubt.NoteId && s.OwnerId == doubt.OwnerId)
+            .Select(s => s.AutoResearch)
+            .FirstOrDefaultAsync(ct);
+        if (NoteSettings.ShouldAutoResearch(await PreferencesAsync(doubt.OwnerId, ct), noteOverride) && !await QuotaExceededAsync(doubt.OwnerId, ct))
         {
             job = new ResearchJob(doubt.Id, doubt.OwnerId, null);
             _db.ResearchJobs.Add(job);

@@ -622,6 +622,83 @@ namespace NoteLab.Migrations
                     b.ToTable("NoteRevisions");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.NoteSettings", b =>
+                {
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AutoResearch")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("NoteId");
+
+                    b.ToTable("NoteSettings");
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.NoteSuggestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("NoteVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NoteId", "Status");
+
+                    b.ToTable("NoteSuggestions");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.PublicProfile", b =>
                 {
                     b.Property<string>("UserId")
@@ -843,6 +920,11 @@ namespace NoteLab.Migrations
                     b.Property<string>("UserId")
                         .HasColumnType("text");
 
+                    b.Property<bool>("AutoResearch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<int?>("ConsentVersion")
                         .HasColumnType("integer");
 
@@ -1036,6 +1118,24 @@ namespace NoteLab.Migrations
                 });
 
             modelBuilder.Entity("NoteLab.Domain.NoteRevision", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Note", null)
+                        .WithMany()
+                        .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.NoteSettings", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Note", null)
+                        .WithOne()
+                        .HasForeignKey("NoteLab.Domain.NoteSettings", "NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.NoteSuggestion", b =>
                 {
                     b.HasOne("NoteLab.Domain.Note", null)
                         .WithMany()

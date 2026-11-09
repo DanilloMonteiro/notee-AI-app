@@ -127,6 +127,21 @@ export function Settings() {
 
             <div className="settings-row">
               <div>
+                <h4>Pesquisa automática</h4>
+                <p>Pesquisar assim que uma dúvida é criada. Cada nota pode sobrepor esta escolha. Mudar aqui não pesquisa dúvidas antigas.</p>
+              </div>
+              <button
+                className={`switch ${prefs.autoResearch ? 'on' : ''}`}
+                role="switch"
+                aria-checked={prefs.autoResearch}
+                aria-label="Pesquisa automática"
+                disabled={saving || !prefs.researchEnabled}
+                onClick={() => update({ autoResearch: !prefs.autoResearch })}
+              />
+            </div>
+
+            <div className="settings-row">
+              <div>
                 <h4>Usar IA externa</h4>
                 <p>{CONSENT_TEXT}</p>
                 {prefs.consentedAt && (

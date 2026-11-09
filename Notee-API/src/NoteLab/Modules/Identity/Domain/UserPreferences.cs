@@ -11,6 +11,8 @@ public sealed class UserPreferences
 
     public string UserId { get; private set; }
     public bool ResearchEnabled { get; private set; } = true;
+    /// <summary>Pesquisar automaticamente ao criar dúvida (padrão da conta; a nota pode sobrepor).</summary>
+    public bool AutoResearch { get; private set; } = true;
     public bool ExternalAiConsent { get; private set; }
     public int? ConsentVersion { get; private set; }
     public DateTimeOffset? ConsentedAt { get; private set; }
@@ -34,6 +36,12 @@ public sealed class UserPreferences
     }
 
     public static UserPreferences Default(string userId) => new(userId);
+
+    public void SetAutoResearch(bool enabled)
+    {
+        AutoResearch = enabled;
+        Touch();
+    }
 
     public void SetResearchEnabled(bool enabled)
     {

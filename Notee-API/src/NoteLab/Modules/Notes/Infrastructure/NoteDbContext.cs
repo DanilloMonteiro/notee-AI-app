@@ -17,6 +17,8 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<Publication> Publications { get; set; }
     public DbSet<PublicationRevision> PublicationRevisions { get; set; }
     public DbSet<PublicProfile> PublicProfiles { get; set; }
+    public DbSet<NoteSuggestion> NoteSuggestions { get; set; }
+    public DbSet<NoteSettings> NoteSettings { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -89,6 +91,29 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(j => new { j.OwnerId, j.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
         });
 
+        // ---- Análise assistida e configuração por nota (M10) ----
+        modelBuilder.Entity<NoteSuggestion>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.OwnerId).IsRequired();
+            e.Property(s => s.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(s => s.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(s => s.Value).HasMaxLength(NoteSuggestion.ValueMaxLength).IsRequired();
+            e.Property(s => s.Reason).HasMaxLength(300);
+            e.Property(s => s.Provider).HasMaxLength(20);
+            e.HasOne<Note>().WithMany().HasForeignKey(s => s.NoteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.NoteId, s.Status });
+        });
+
+        modelBuilder.Entity<NoteSettings>(e =>
+        {
+            e.HasKey(s => s.NoteId);
+            e.Property(s => s.OwnerId).IsRequired();
+            e.Property(s => s.AutoResearch).HasConversion<string>().HasMaxLength(16);
+            e.Property(s => s.Version).IsConcurrencyToken();
+            e.HasOne<Note>().WithOne().HasForeignKey<NoteSettings>(s => s.NoteId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ---- Publishing (M08) ----
         modelBuilder.Entity<Publication>(e =>
         {
@@ -138,6 +163,8 @@ public sealed class NoteDbContext : IdentityDbContext
         {
             e.HasKey(p => p.UserId);
             e.Property(p => p.Version).IsConcurrencyToken();
+            // Contas existentes continuam com pesquisa automática ligada; true é o "não informado" do EF.
+            e.Property(p => p.AutoResearch).HasDefaultValue(true).HasSentinel(true);
             e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithOne().HasForeignKey<UserPreferences>(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
