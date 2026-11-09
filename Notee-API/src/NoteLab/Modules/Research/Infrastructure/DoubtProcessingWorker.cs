@@ -1,65 +1,78 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using NoteLab.Domain;
-using NoteLab.Application;
 using Microsoft.EntityFrameworkCore;
+using NoteLab.Application;
+using NoteLab.Domain;
 
 namespace NoteLab.Infrastructure;
 
+/// <summary>
+/// Processa dúvidas pendentes. O provider é escolhido por dono (ADR-019):
+/// sem consentimento para IA externa, usa o Fake determinístico; com pesquisa desligada, não processa.
+/// </summary>
 public class DoubtProcessingWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<DoubtProcessingWorker> _logger;
 
-    public DoubtProcessingWorker(IServiceScopeFactory scopeFactory)
+    public DoubtProcessingWorker(IServiceScopeFactory scopeFactory, ILogger<DoubtProcessingWorker> logger)
     {
         _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Este loop roda para sempre enquanto a aplicação estiver viva
         while (!stoppingToken.IsCancellationRequested)
         {
-            // 1. Criamos um escopo temporário (como se fosse uma requisição HTTP)
-            using (var scope = _scopeFactory.CreateScope())
+            try
             {
-                // 2. Pedimos as nossas dependências para este escopo
-                var db = scope.ServiceProvider.GetRequiredService<NoteDbContext>();
-                var aiService = scope.ServiceProvider.GetRequiredService<IAiService>();
-
-                // SUA MISSÃO COMEÇA AQUI:
-
-                // a) Busque no banco (db.Doubts) as dúvidas onde Status == DoubtStatus.Pending.
-                List<Doubt> doubts = await db.Doubts.Where(d => d.Status == DoubtStatus.Pending).Take(10).ToListAsync(stoppingToken);
-
-                // b) Faça um foreach nessas dúvidas.
-                foreach(var doubt in doubts) {
-                    // c) Chame doubt.MarkAsRunning() e dê um SaveChanges.
-                    doubt.MarkAsRunning();
-                    await db.SaveChangesAsync(stoppingToken);
-
-                    try
-                    {
-                        // d) Chame o aiService.GetAnswerAsync(...)
-                        string respostaDaIA = await aiService.GetAnswerAsync(doubt.Question, doubt.Anchor.ExactQuote, stoppingToken);
-
-                        // e) Chame doubt.Complete(respostaDaIA) e dê um SaveChanges final.
-                        doubt.Complete(respostaDaIA);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Se a IA falhar (ex: erro 404, sem internet, etc.), o sistema não morre!
-                        Console.WriteLine($"[AVISO] Falha ao processar a dúvida {doubt.Id}: {ex.Message}");
-                        doubt.Fail(); // Lembra-se do método Fail que criámos na entidade?
-                    }
-                   
-                    await db.SaveChangesAsync(stoppingToken);
-                }
-                
+                await ProcessBatchAsync(stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Falha no ciclo do worker de dúvidas");
             }
 
-            // Pausa de 10 segundos antes de procurar de novo
-            await Task.Delay(10000, stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+        }
+    }
+
+    private async Task ProcessBatchAsync(CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NoteDbContext>();
+        var selector = scope.ServiceProvider.GetRequiredService<AiProviderSelector>();
+
+        // Dúvidas de contas com pesquisa desligada permanecem pendentes.
+        List<Doubt> doubts = await db.Doubts
+            .Where(d => d.Status == DoubtStatus.Pending
+                        && !db.UserPreferences.Any(p => p.UserId == d.OwnerId && !p.ResearchEnabled))
+            .OrderBy(d => d.CreatedAt)
+            .Take(10)
+            .ToListAsync(ct);
+
+        foreach (Doubt doubt in doubts)
+        {
+            UserPreferences prefs = await db.UserPreferences.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == doubt.OwnerId, ct)
+                                    ?? UserPreferences.Default(doubt.OwnerId);
+            IAiService provider = selector.For(prefs);
+
+            doubt.MarkAsRunning();
+            await db.SaveChangesAsync(ct);
+
+            try
+            {
+                string answer = await provider.GetAnswerAsync(doubt.Question, doubt.Anchor?.ExactQuote ?? string.Empty, ct);
+                doubt.Complete(answer);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Não registrar texto da nota/pergunta no log (privacidade).
+                _logger.LogWarning("Falha ao processar a dúvida {DoubtId} com o provider {Provider}: {Error}",
+                    doubt.Id, selector.Describe(prefs), ex.GetType().Name);
+                doubt.Fail();
+            }
+
+            await db.SaveChangesAsync(ct);
         }
     }
 }

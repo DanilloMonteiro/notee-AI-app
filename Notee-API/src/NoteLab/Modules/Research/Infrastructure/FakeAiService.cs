@@ -1,15 +1,20 @@
-using Microsoft.EntityFrameworkCore;
-
 namespace NoteLab.Application;
+
+/// <summary>
+/// Provider determinístico usado por padrão: não chama nenhum serviço externo e
+/// não inventa fontes. A mesma entrada gera sempre a mesma resposta.
+/// </summary>
 public class FakeAiService : IAiService
 {
-    public FakeAiService()
-    {
-    }
-    async public Task<string> GetAnswerAsync(string question, string exactQuote, CancellationToken ct)
-    {
-        await Task.Delay(2000);
+    public const string Marker = "[Resposta simulada]";
 
-        return "String";
+    public Task<string> GetAnswerAsync(string question, string exactQuote, CancellationToken ct)
+    {
+        string context = string.IsNullOrWhiteSpace(exactQuote) ? "sem trecho selecionado" : $"trecho: “{exactQuote.Trim()}”";
+        string answer =
+            $"{Marker} Nenhum serviço externo foi consultado ({context}). " +
+            $"Pergunta registrada: “{question.Trim()}”. " +
+            "Sem fonte. Para respostas reais, autorize o uso de IA externa em Configurações.";
+        return Task.FromResult(answer);
     }
-} 
+}

@@ -89,3 +89,13 @@ Decisão: rejeitar auto-conexão (domínio + `CHECK`); rejeitar duplicata exata 
 Status: Proposto · Data: 2026-11-09
 Contexto: o front real é React + JavaScript com `apiFetch`, sem TanStack Query nem TS.
 Decisão: implementar `src/features/boards/*.jsx` no padrão existente, sem adicionar dependências. Migração para TS/TanStack Query fica como decisão separada.
+
+### ADR-019 — Consentimento explícito antes de IA externa; Fake por padrão
+Status: Proposto (implementado) · Data: 2026-11-09
+Contexto: o worker enviava pergunta e trecho ao Gemini sem consentimento, contrariando `10_SEGURANCA_E_PRIVACIDADE.md`.
+Decisão: tabela `UserPreferences` (pesquisa ligada/desligada, consentimento versionado). `AiProviderSelector` usa Gemini só se a conta consentiu na versão vigente do termo **e** há chave real configurada; caso contrário, `FakeAiService` determinístico, que declara "Sem fonte". Pesquisa desligada deixa a dúvida pendente. Revogação vale para os próximos processamentos.
+Consequências: contas existentes passam a receber respostas simuladas até consentirem em Configurações.
+
+### ADR-020 — Segredos via configuração
+Status: Proposto (implementado) · Data: 2026-11-09
+Decisão: `Jwt:*`, `ConnectionStrings:Default` e `Cors:Origins` vêm da configuração (appsettings local não versionado, variáveis de ambiente). Na ausência, valores de desenvolvimento com **aviso no log**. A chave JWT antiga deixou de existir no código: tokens emitidos antes da mudança são invalidados. Expiração padrão reduzida de 240h para 12h. Rate limit de 10 req/min por IP em `/auth` (`RateLimit:AuthPerMinute`).

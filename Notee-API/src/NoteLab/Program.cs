@@ -1,4 +1,6 @@
-﻿using NoteLab.Application;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using NoteLab.Application;
 using NoteLab.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -14,10 +16,13 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Permite apontar para outro banco (ex.: testes) via ConnectionStrings__Default,
-// mantendo o padrão local anterior quando nada for configurado.
-string connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? "Host=localhost;Port=5434;Database=notelab_db;Username=postgres;Password=admin";
+// Segredos vêm da configuração (appsettings.json local, variáveis de ambiente ou user-secrets).
+// Sem configuração, valores de DESENVOLVIMENTO são usados com aviso no log.
+string connectionString = ConnectionStrings.Resolve(builder.Configuration, out bool devConnection);
+JwtSettings jwt = JwtSettings.From(builder.Configuration);
+builder.Services.AddSingleton(jwt);
+string[] corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
+    ?? ["http://localhost:3000", "http://localhost:5173", "http://localhost:4200"];
 
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(options =>
@@ -67,7 +72,22 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddHostedService<DoubtProcessingWorker>(); // É assim que se regista um BackgroundService
-builder.Services.AddHttpClient<IAiService, GeminiAiService>(); // OpenAiService
+
+// Providers de IA: Fake determinístico é o padrão; externo só com consentimento do dono (ADR-019).
+builder.Services.AddSingleton<FakeAiService>();
+builder.Services.AddHttpClient<GeminiAiService>();
+builder.Services.AddScoped<AiProviderSelector>();
+builder.Services.AddScoped<PreferencesService>();
+
+// Limite de tentativas nas rotas de autenticação (M04).
+int authPerMinute = builder.Configuration.GetValue<int?>("RateLimit:AuthPerMinute") ?? 10;
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = authPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -79,10 +99,9 @@ builder.Services
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            // Adicione as 3 linhas abaixo:
-            ValidIssuer = "NoteeApi",
-            ValidAudience = "NoteeApp",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SuperChaveSecretaDoNoteeComPeloMenos32Caracteres!"))
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = jwt.SigningKey
         };
     });
 
@@ -90,8 +109,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendUI", policy =>
     {
-        // Aqui listamos as origens permitidas (sem a barra final "/")
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173", "http://localhost:4200")
+        // Origens permitidas vêm de Cors:Origins (padrão: portas locais do Vite/React)
+        policy.WithOrigins(corsOrigins)
               .AllowAnyHeader()  // Permite enviarmos o cabeçalho "Authorization: Bearer..."
               .AllowAnyMethod(); // Permite GET, POST, PUT, DELETE, etc.
     });
@@ -126,14 +145,26 @@ app.UseSwaggerUI();
 app.UseCors("FrontendUI");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapIdentityEndpoints();
+app.MapPreferenceEndpoints();
 app.MapNoteEndpoints();
 app.MapResearchEndpoints();
 app.MapNoteReferenceEndpoints();
 app.MapBoardEndpoints();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+if (jwt.UsesDevelopmentKey)
+{
+    logger.LogWarning("Jwt:Key não configurada — usando chave de DESENVOLVIMENTO. Configure Jwt__Key fora de ambiente local.");
+}
+
+if (devConnection)
+{
+    logger.LogWarning("ConnectionStrings:Default não configurada — usando o Postgres local de desenvolvimento.");
+}
 
 // Verificar conexão com PostgreSQL
 try

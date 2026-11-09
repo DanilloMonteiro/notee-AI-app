@@ -10,6 +10,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<Tag> Tags { get; set; }
     public DbSet<Doubt> Doubts { get; set; }
     public DbSet<NoteReference> NoteReferences { get; set; }
+    public DbSet<UserPreferences> UserPreferences { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -51,6 +52,14 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(r => r.Url).HasMaxLength(NoteReference.UrlMaxLength);
             e.HasOne<Note>().WithMany().HasForeignKey(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => new { r.OwnerId, r.NoteId });
+        });
+
+        modelBuilder.Entity<UserPreferences>(e =>
+        {
+            e.HasKey(p => p.UserId);
+            e.Property(p => p.Version).IsConcurrencyToken();
+            e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithOne().HasForeignKey<UserPreferences>(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         ConfigureKnowledgeMaps(modelBuilder);

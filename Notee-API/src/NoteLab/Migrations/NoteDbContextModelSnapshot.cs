@@ -496,6 +496,35 @@ namespace NoteLab.Migrations
                     b.ToTable("Tags");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.UserPreferences", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ConsentVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ConsentedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ExternalAiConsent")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ResearchEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserPreferences");
+                });
+
             modelBuilder.Entity("NoteTags", b =>
                 {
                     b.Property<Guid>("NoteId")
@@ -640,6 +669,15 @@ namespace NoteLab.Migrations
                     b.HasOne("NoteLab.Domain.Note", null)
                         .WithMany()
                         .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.UserPreferences", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithOne()
+                        .HasForeignKey("NoteLab.Domain.UserPreferences", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

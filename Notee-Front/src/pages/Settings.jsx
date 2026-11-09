@@ -1,31 +1,60 @@
 // src/pages/Settings.jsx
-import React, { useState, useEffect } from 'react';
+// Preferências da conta salvas na API (não no navegador): pesquisa e consentimento para IA externa.
+import React, { useEffect, useState } from 'react';
 import { Icon } from '../components/Icon';
+import { apiFetch } from '../api';
+import { useToast } from '../contexts/ToastContext';
+
+const CONSENT_TEXT =
+  'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA configurado ' +
+  '(atualmente Google Gemini) para gerar uma resposta. Outras notas, mapas e dados da conta não são enviados. ' +
+  'Posso revogar a qualquer momento; a revogação vale para as próximas pesquisas.';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState('research');
+  const [prefs, setPrefs] = useState(null);
+  const [me, setMe] = useState(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { addToast } = useToast();
 
-  // Preferências locais
-  const [autoResearch, setAutoResearch] = useState(false);
-  const [researchEnabled, setResearchEnabled] = useState(true);
-
-  // Carrega as preferências guardadas ao abrir a página
   useEffect(() => {
-    const savedAuto = localStorage.getItem('notee_pref_auto') === 'true';
-    const savedEnabled = localStorage.getItem('notee_pref_enabled') !== 'false';
-    setAutoResearch(savedAuto);
-    setResearchEnabled(savedEnabled);
+    let alive = true;
+    Promise.all([apiFetch('/me/preferences'), apiFetch('/me')])
+      .then(([p, m]) => {
+        if (!alive) return;
+        setPrefs(p);
+        setMe(m);
+      })
+      .catch(err => alive && setError(err.message || 'Não foi possível carregar as preferências.'));
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // Guarda as preferências sempre que os switches mudam
-  const toggleAuto = () => {
-    setAutoResearch(!autoResearch);
-    localStorage.setItem('notee_pref_auto', !autoResearch);
+  const update = async changes => {
+    setSaving(true);
+    try {
+      const next = await apiFetch('/me/preferences', {
+        method: 'PATCH',
+        body: JSON.stringify({ ...changes, expectedVersion: prefs.version }),
+      });
+      setPrefs(next);
+      addToast('Preferências salvas.');
+    } catch (err) {
+      addToast(err.message || 'Não foi possível salvar.', 'warning');
+      if (err.status === 409) setPrefs(await apiFetch('/me/preferences'));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const toggleEnabled = () => {
-    setResearchEnabled(!researchEnabled);
-    localStorage.setItem('notee_pref_enabled', !researchEnabled);
+  const toggleConsent = () => {
+    if (prefs.externalAiConsent) {
+      update({ externalAiConsent: false });
+    } else if (window.confirm(`${CONSENT_TEXT}\n\nConfirmar autorização?`)) {
+      update({ externalAiConsent: true, consentVersion: prefs.currentConsentVersion });
+    }
   };
 
   return (
@@ -47,55 +76,80 @@ export function Settings() {
         </button>
       </div>
 
+      {error && (
+        <div className="callout warning mb24">
+          <Icon name="warning" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div style={{ maxWidth: '900px' }}>
-        {activeTab === 'research' && (
+        {activeTab === 'research' && prefs && (
           <div className="card settings-section">
             <h2 className="mb24">O seu ritmo. As suas escolhas.</h2>
 
             <div className="settings-row">
               <div>
                 <h4>Permitir pesquisas</h4>
-                <p>Chave geral. Desligada, bloqueia novas pesquisas em qualquer nota.</p>
+                <p>Chave geral. Desligada, as dúvidas ficam pendentes e nenhuma resposta é gerada.</p>
               </div>
               <button
-                className={`switch ${researchEnabled ? 'on' : ''}`}
+                className={`switch ${prefs.researchEnabled ? 'on' : ''}`}
                 role="switch"
-                onClick={toggleEnabled}
-              ></button>
+                aria-checked={prefs.researchEnabled}
+                aria-label="Permitir pesquisas"
+                disabled={saving}
+                onClick={() => update({ researchEnabled: !prefs.researchEnabled })}
+              />
             </div>
 
             <div className="settings-row">
               <div>
-                <h4>Pesquisa automática padrão</h4>
-                <p>O Worker do Gemini pesquisa a dúvida assim que você a marca no editor.</p>
+                <h4>Usar IA externa</h4>
+                <p>{CONSENT_TEXT}</p>
+                {prefs.consentedAt && (
+                  <p className="tiny muted">
+                    Autorizado em {new Date(prefs.consentedAt).toLocaleString('pt-BR')} (termo v{prefs.consentVersion}).
+                  </p>
+                )}
+                {!prefs.externalProviderConfigured && (
+                  <p className="tiny muted">Nenhuma chave de provedor externo está configurada no servidor.</p>
+                )}
               </div>
-              <button className={`switch ${autoResearch ? 'on' : ''}`} role="switch" onClick={toggleAuto}></button>
+              <button
+                className={`switch ${prefs.externalAiConsent ? 'on' : ''}`}
+                role="switch"
+                aria-checked={prefs.externalAiConsent}
+                aria-label="Autorizar IA externa"
+                disabled={saving}
+                onClick={toggleConsent}
+              />
             </div>
 
             <div className="settings-row">
               <div>
-                <h4>Modelo de Inteligência Artificial</h4>
-                <p>A API C# processa as dúvidas usando o Google Gemini 1.5 Flash.</p>
+                <h4>Provedor em uso</h4>
+                <p>
+                  {prefs.effectiveProvider === 'gemini'
+                    ? 'As dúvidas são respondidas pelo Google Gemini.'
+                    : 'Respostas simuladas e determinísticas: nenhum dado sai do Notee e nenhuma fonte é inventada.'}
+                </p>
               </div>
-              <span className="pill green">Gemini API</span>
+              <span className={`pill ${prefs.effectiveProvider === 'gemini' ? 'blue' : 'green'}`}>
+                {prefs.effectiveProvider === 'gemini' ? 'Gemini (externo)' : 'Simulado (local)'}
+              </span>
             </div>
           </div>
         )}
 
         {activeTab === 'account' && (
           <div className="card settings-section">
-            <h2 className="mb24">O seu perfil local</h2>
+            <h2 className="mb24">Sua conta</h2>
             <div className="field">
-              <label>Nome</label>
-              <input type="text" value="Alex Costa" readOnly />
+              <label htmlFor="me-email">E-mail</label>
+              <input id="me-email" type="email" value={me?.email || ''} readOnly />
             </div>
-            <div className="field">
-              <label>E-mail de desenvolvimento</label>
-              <input type="email" value="alex@example.test" readOnly />
-            </div>
-            <p className="tiny muted mt16">
-              Para atualizar estes dados, deverá implementar o endpoint de atualização no Identity do .NET.
-            </p>
+            <p className="tiny muted mt16">Seus dados são privados e isolados por conta.</p>
           </div>
         )}
       </div>

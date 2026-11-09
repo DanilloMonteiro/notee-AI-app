@@ -11,7 +11,7 @@ public static class IdentityEndpoints
     public static void MapIdentityEndpoints(this IEndpointRouteBuilder app)
     {
         // Cria um grupo base para todas as rotas começarem com /auth
-        var group = app.MapGroup("/auth");
+        var group = app.MapGroup("/auth").RequireRateLimiting("auth");
 
         group.MapPost("/register", async (UserManager<IdentityUser> userManager, CancellationToken ct, RegisterRequest request) =>
         {
@@ -27,7 +27,7 @@ public static class IdentityEndpoints
             return Results.Ok();
         });
 
-        group.MapPost("/login", async (UserManager<IdentityUser> userManager, CancellationToken ct, LoginrRequest request) =>
+        group.MapPost("/login", async (UserManager<IdentityUser> userManager, JwtSettings jwt, CancellationToken ct, LoginrRequest request) =>
         {
             var user = await userManager.FindByEmailAsync(request.Email);
 
@@ -43,15 +43,15 @@ public static class IdentityEndpoints
             };
 
             // 2. Definimos a chave e o algoritmo de assinatura
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SuperChaveSecretaDoNoteeComPeloMenos32Caracteres!"));
+            var key = jwt.SigningKey;
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             // 3. Montamos o token
             var token = new JwtSecurityToken(
-                issuer: "NoteeApi",
-                audience: "NoteeApp",
+                issuer: jwt.Issuer,
+                audience: jwt.Audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(240),
+                expires: DateTime.UtcNow.AddHours(jwt.ExpirationHours),
                 signingCredentials: creds
             );
 
