@@ -234,34 +234,11 @@ function DoubtPanel({ doubt, note }) {
   );
 }
 
-function AiPanel() {
-  return (
-    <>
-      <div className="graph-ai-intro">
-        <span className="graph-ai-icon">
-          <Icon name="spark" />
-        </span>
-        <div>
-          <h3>Assistente do mapa</h3>
-          <p>Ideias propostas, nunca aplicadas sem sua aprovação.</p>
-        </div>
-      </div>
-      <div className="callout neutral" style={{ fontSize: 12 }}>
-        <Icon name="info" className="sm" />
-        <span>
-          Ainda não disponível nesta versão. A prévia de contexto e as sugestões com IA (MAP-04 e MAP-05) dependem de consentimento e de
-          jobs duráveis. Nenhum dado do mapa é enviado a serviços externos.
-        </span>
-      </div>
-    </>
-  );
-}
-
 export function BoardInspector(props) {
   const { tab, setTab, selectedNode, selectedDoubt, nodesById } = props;
 
   let content;
-  if (tab === 'ai') content = <AiPanel />;
+  if (tab === 'ai') content = props.aiPanel;
   else if (selectedDoubt) content = <DoubtPanel doubt={selectedDoubt} note={nodesById.get(selectedDoubt.noteId)} />;
   else if (selectedNode) content = <NotePanel key={selectedNode.noteId} node={selectedNode} {...props} />;
   else

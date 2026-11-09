@@ -405,6 +405,76 @@ namespace NoteLab.Migrations
                     b.ToTable("Doubts");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.GraphSuggestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BoardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContextHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedEdgeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FromNoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("FromNoteVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("RelationType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("ToNoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ToNoteVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromNoteId");
+
+                    b.HasIndex("ToNoteId");
+
+                    b.HasIndex("BoardId", "Status");
+
+                    b.ToTable("GraphSuggestions");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.Note", b =>
                 {
                     b.Property<Guid>("Id")
@@ -814,6 +884,27 @@ namespace NoteLab.Migrations
                         });
 
                     b.Navigation("Anchor");
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.GraphSuggestion", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Board", null)
+                        .WithMany()
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NoteLab.Domain.Note", null)
+                        .WithMany()
+                        .HasForeignKey("FromNoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NoteLab.Domain.Note", null)
+                        .WithMany()
+                        .HasForeignKey("ToNoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("NoteLab.Domain.NoteReference", b =>

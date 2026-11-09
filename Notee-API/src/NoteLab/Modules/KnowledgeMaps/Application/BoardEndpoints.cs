@@ -72,3 +72,42 @@ public static class BoardEndpoints
     private static IResult NotFound(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Não encontrado", detail: detail);
 }
+
+/// <summary>Rotas de contexto e sugestões do mapa (MAP-04/MAP-05).</summary>
+public static class GraphAiEndpoints
+{
+    public static void MapGraphAiEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/boards/{boardId:guid}").RequireAuthorization().WithTags("BoardsAI");
+
+        group.MapPost("/context-preview", async (Guid boardId, GraphScopeRequest request, GraphContextService service, System.Security.Claims.ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            MapResult<GraphContextResponse> result = await service.BuildAsync(BoardEndpoints.OwnerId(user), boardId, request, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : BoardEndpoints.ToProblem(result);
+        });
+
+        group.MapGet("/suggestions", async (Guid boardId, GraphContextService service, System.Security.Claims.ClaimsPrincipal user, CancellationToken ct, string? status = null) =>
+        {
+            List<GraphSuggestionResponse>? list = await service.ListAsync(BoardEndpoints.OwnerId(user), boardId, status, ct);
+            return list is null ? Results.Problem(statusCode: 404, title: "Não encontrado", detail: "Mapa não encontrado.") : Results.Ok(list);
+        });
+
+        group.MapPost("/suggestions", async (Guid boardId, GraphScopeRequest request, GraphContextService service, System.Security.Claims.ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            MapResult<List<GraphSuggestionResponse>> result = await service.GenerateAsync(BoardEndpoints.OwnerId(user), boardId, request, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : BoardEndpoints.ToProblem(result);
+        });
+
+        group.MapPost("/suggestions/{suggestionId:guid}/accept", async (Guid boardId, Guid suggestionId, GraphContextService service, System.Security.Claims.ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            MapResult<BoardEdgeResponse> result = await service.AcceptAsync(BoardEndpoints.OwnerId(user), boardId, suggestionId, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : BoardEndpoints.ToProblem(result);
+        });
+
+        group.MapPost("/suggestions/{suggestionId:guid}/dismiss", async (Guid boardId, Guid suggestionId, GraphContextService service, System.Security.Claims.ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            MapResult<bool> result = await service.DismissAsync(BoardEndpoints.OwnerId(user), boardId, suggestionId, ct);
+            return result.IsSuccess ? Results.NoContent() : BoardEndpoints.ToProblem(result);
+        });
+    }
+}

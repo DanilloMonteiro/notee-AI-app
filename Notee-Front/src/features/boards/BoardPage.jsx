@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { boardsApi, createNote } from './boardsApi';
 import { BoardCanvas } from './BoardCanvas';
 import { BoardInspector } from './BoardInspector';
+import { GraphAiPanel } from './GraphAiPanel';
 import { BoardFormModal, EdgeModal, NewNoteModal } from './BoardModals';
 import { autoLayout, errorMessage, fitView, zoomAround } from './graph';
 
@@ -61,6 +62,10 @@ function BoardView({ boardId }) {
   const [linkMode, setLinkMode] = useState(false);
   const [linkFromId, setLinkFromId] = useState(null);
   const [tab, setTab] = useState('note');
+  // Escopo do contexto de IA (MAP-04): mapa inteiro ou subgrafo escolhido no canvas.
+  const [aiScope, setAiScope] = useState('all');
+  const [contextSelection, setContextSelection] = useState(() => new Set());
+  const selectingContext = tab === 'ai' && aiScope === 'manual';
   const [modal, setModal] = useState(null); // { type: 'board' | 'note' | 'edge', ... }
   const [prefs, setPrefs] = useState(loadPrefs);
   const [resizing, setResizing] = useState(false);
@@ -149,6 +154,15 @@ function BoardView({ boardId }) {
   };
 
   const selectNote = noteId => {
+    if (selectingContext && !linkMode) {
+      setContextSelection(prev => {
+        const next = new Set(prev);
+        if (next.has(noteId)) next.delete(noteId);
+        else next.add(noteId);
+        return next;
+      });
+      return;
+    }
     if (linkMode) {
       if (!linkFromId) {
         setLinkFromId(noteId);
@@ -488,6 +502,7 @@ function BoardView({ boardId }) {
             selectedNoteId={selectedNoteId}
             selectedDoubtId={selectedDoubtId}
             linkFromId={linkFromId}
+            contextSelection={selectingContext ? contextSelection : null}
             onSelectNote={selectNote}
             onSelectDoubt={selectDoubt}
             onEditEdge={edge => setModal({ type: 'edge', edge })}
@@ -523,6 +538,22 @@ function BoardView({ boardId }) {
           onEditEdge={edge => setModal({ type: 'edge', edge })}
           onConnectFrom={connectFrom}
           onReferencesChanged={() => load()}
+          aiPanel={
+            <GraphAiPanel
+              boardId={boardId}
+              scope={aiScope}
+              setScope={setAiScope}
+              selection={contextSelection}
+              clearSelection={() => setContextSelection(new Set())}
+              nodeCount={board.nodes.length}
+              internalEdgeCount={
+                aiScope === 'manual'
+                  ? board.edges.filter(e => contextSelection.has(e.fromNoteId) && contextSelection.has(e.toNoteId)).length
+                  : board.edges.length
+              }
+              onGraphChanged={() => load()}
+            />
+          }
         />
       </div>
 

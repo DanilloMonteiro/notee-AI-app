@@ -65,6 +65,7 @@ builder.Services.AddScoped<INoteRepository>(sp => sp.GetRequiredService<NoteRepo
 builder.Services.AddScoped<IDoubtRepository, DoubtRepository>();
 builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<ResearchService>();
+builder.Services.AddScoped<GraphContextService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
 builder.Services.AddProblemDetails();
@@ -155,6 +156,7 @@ app.MapNoteEndpoints();
 app.MapResearchEndpoints();
 app.MapNoteReferenceEndpoints();
 app.MapBoardEndpoints();
+app.MapGraphAiEndpoints();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 

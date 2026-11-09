@@ -16,6 +16,7 @@ export function BoardCanvas({
   selectedNoteId,
   selectedDoubtId,
   linkFromId,
+  contextSelection,
   onSelectNote,
   onSelectDoubt,
   onEditEdge,
@@ -182,11 +183,12 @@ export function BoardCanvas({
         {nodes.map(raw => {
           const node = positionOf(raw);
           const selected = selectedNoteId === node.noteId || linkFromId === node.noteId;
+          const inContext = contextSelection?.has(node.noteId);
           return (
             <button
               key={node.noteId}
               type="button"
-              className={`graph-note ${selected ? 'selected' : ''}`}
+              className={`graph-note ${selected ? 'selected' : ''} ${inContext ? 'context-selected' : ''}`}
               style={{ left: node.x, top: node.y }}
               aria-label={`Selecionar ${node.title}`}
               aria-pressed={selected}
@@ -204,6 +206,11 @@ export function BoardCanvas({
                   <Icon name="note" className="sm" />
                 </span>
                 <span className="graph-note-category">{node.categoryName || 'Sem categoria'}</span>
+                {inContext && (
+                  <span className="graph-context-check">
+                    <Icon name="check" className="sm" />
+                  </span>
+                )}
               </span>
               <strong className="graph-note-title">{node.title}</strong>
               <span className="graph-note-summary">{(node.excerpt || '').slice(0, 84) || 'Clique para escrever nesta nota.'}</span>

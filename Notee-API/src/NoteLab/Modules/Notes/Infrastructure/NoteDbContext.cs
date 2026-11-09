@@ -13,6 +13,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<UserPreferences> UserPreferences { get; set; }
     public DbSet<NoteRevision> NoteRevisions { get; set; }
     public DbSet<ResearchJob> ResearchJobs { get; set; }
+    public DbSet<GraphSuggestion> GraphSuggestions { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -145,6 +146,21 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(x => new { x.BoardId, x.FromNoteId });
             e.HasIndex(x => new { x.BoardId, x.ToNoteId });
             e.ToTable(t => t.HasCheckConstraint("CK_BoardEdges_NoSelfEdge", "\"FromNoteId\" <> \"ToNoteId\""));
+        });
+
+        modelBuilder.Entity<GraphSuggestion>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.OwnerId).IsRequired();
+            e.Property(s => s.RelationType).HasConversion<string>().HasMaxLength(32);
+            e.Property(s => s.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(s => s.Reason).HasMaxLength(GraphSuggestion.ReasonMaxLength);
+            e.Property(s => s.ContextHash).HasMaxLength(64);
+            e.Property(s => s.Provider).HasMaxLength(20);
+            e.HasOne<Board>().WithMany().HasForeignKey(s => s.BoardId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Note>().WithMany().HasForeignKey(s => s.FromNoteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Note>().WithMany().HasForeignKey(s => s.ToNoteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.BoardId, s.Status });
         });
     }
 }
