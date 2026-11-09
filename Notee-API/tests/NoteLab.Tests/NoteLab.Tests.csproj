@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NoteLab\NoteLab.csproj" />
+    <ProjectReference Include="..\..\src\NoteLab\NoteLab.csproj" />
   </ItemGroup>
 
 </Project>
