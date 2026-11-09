@@ -118,6 +118,13 @@ NOTEE_API=http://localhost:5099 node tests/http/run-all.mjs
 
 O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa testes de domínio, migrations, as suítes HTTP contra um PostgreSQL efêmero e lint + build do front a cada push e pull request.
 
+## Operação
+
+- `GET /health/live` e `GET /health/ready` (verifica o PostgreSQL).
+- Traces e métricas via OpenTelemetry: defina `OTEL_EXPORTER_OTLP_ENDPOINT` (ex.: `http://localhost:4317`) para exportar; sem isso nada é enviado.
+- Erros seguem Problem Details com `traceId` para localizar o log correspondente.
+- Limites configuráveis: `RateLimit:AuthPerMinute`, `RateLimit:ApiPerMinute`, `Research:MaxJobsPerHour`, `Research:PollSeconds`.
+
 ## Estrutura do repositório
 
 ```

@@ -66,6 +66,7 @@ public static class BoardEndpoints
     {
         MapErrorKind.NotFound => NotFound(result.Message),
         MapErrorKind.Conflict => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Conflito", detail: result.Message),
+        MapErrorKind.TooManyRequests => Results.Problem(statusCode: StatusCodes.Status429TooManyRequests, title: "Limite atingido", detail: result.Message),
         _ => Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Erro de validação", detail: result.Message)
     };
 

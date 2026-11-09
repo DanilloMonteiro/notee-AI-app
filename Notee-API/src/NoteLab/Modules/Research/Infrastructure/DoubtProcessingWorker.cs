@@ -104,9 +104,16 @@ public class DoubtProcessingWorker : BackgroundService
             return; // reivindicado por outro worker depois de nós, ou dúvida apagada
         }
 
+        // Span por job: correlaciona logs e métricas pelo JobId, sem texto da nota/pergunta.
+        using var activity = NoteeTelemetry.Research.StartActivity("research.job.process");
+        activity?.SetTag("notee.job.id", job.Id);
+        activity?.SetTag("notee.job.attempt", job.Attempt);
+        var started = System.Diagnostics.Stopwatch.StartNew();
+
         UserPreferences prefs = await db.UserPreferences.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == job.OwnerId, ct)
                                 ?? UserPreferences.Default(job.OwnerId);
         string providerName = selector.Describe(prefs);
+        activity?.SetTag("notee.provider", providerName);
 
         if (job.CancelRequested || !prefs.ResearchEnabled)
         {
@@ -160,6 +167,11 @@ public class DoubtProcessingWorker : BackgroundService
         }
 
         await SaveFencedAsync(db, job, ct);
+
+        var tags = new System.Diagnostics.TagList { { "status", job.Status.ToString() }, { "provider", providerName } };
+        NoteeTelemetry.JobsFinished.Add(1, tags);
+        NoteeTelemetry.JobDuration.Record(started.Elapsed.TotalMilliseconds, tags);
+        activity?.SetTag("notee.job.status", job.Status.ToString());
     }
 
     /// <summary>FencingToken é token de concorrência: gravação de worker obsoleto falha e é descartada.</summary>

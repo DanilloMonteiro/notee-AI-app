@@ -73,7 +73,8 @@ public enum MapErrorKind
 {
     NotFound,
     Conflict,
-    Validation
+    Validation,
+    TooManyRequests
 }
 
 public sealed record MapResult<T>(T? Value, MapErrorKind? Error = null, string? Message = null)
@@ -84,4 +85,5 @@ public sealed record MapResult<T>(T? Value, MapErrorKind? Error = null, string? 
     public static MapResult<T> NotFound(string message) => new(default, MapErrorKind.NotFound, message);
     public static MapResult<T> Conflict(string message) => new(default, MapErrorKind.Conflict, message);
     public static MapResult<T> Invalid(string message) => new(default, MapErrorKind.Validation, message);
+    public static MapResult<T> TooMany(string message) => new(default, MapErrorKind.TooManyRequests, message);
 }

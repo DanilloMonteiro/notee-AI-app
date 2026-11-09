@@ -28,6 +28,7 @@ jobs:
       Jwt__Key: ci-only-key-not-a-secret-but-long-enough-0123456789
       RateLimit__AuthPerMinute: "1000"
       Research__PollSeconds: "1"
+      Research__MaxJobsPerHour: "5"
       DOTNET_NOLOGO: "true"
     defaults:
       run:

@@ -68,7 +68,7 @@ builder.Services.AddScoped<ResearchService>();
 builder.Services.AddScoped<GraphContextService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
-builder.Services.AddProblemDetails();
+builder.Services.AddNoteeObservability(builder.Configuration); // OpenTelemetry, health checks, ProblemDetails com traceId
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -87,6 +87,8 @@ int authPerMinute = builder.Configuration.GetValue<int?>("RateLimit:AuthPerMinut
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Limite global por usuário/IP (M14); /auth tem limite próprio mais restrito.
+    options.GlobalLimiter = ObservabilityExtensions.ApiLimiter(builder.Configuration.GetValue<int?>("RateLimit:ApiPerMinute") ?? 600);
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = authPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -142,14 +144,20 @@ app.UseSerilogRequestLogging(options =>
 
 
 app.UseExceptionHandler();
+app.UseSecurityHeaders();
 app.UseStatusCodePages();
-app.UseSwagger();
-app.UseSwaggerUI();
+// Swagger só em Development ou se Swagger:Enabled=true (não expor o contrato em produção por padrão).
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swagger:Enabled"))
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 app.UseCors("FrontendUI");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
+app.MapNoteeHealth();
 app.MapIdentityEndpoints();
 app.MapPreferenceEndpoints();
 app.MapNoteEndpoints();

@@ -11,10 +11,13 @@ namespace NoteLab.Application;
 public sealed class ResearchService
 {
     private readonly NoteDbContext _db;
+    private readonly int _maxJobsPerHour;
 
-    public ResearchService(NoteDbContext db)
+    public ResearchService(NoteDbContext db, IConfiguration config)
     {
         _db = db;
+        // Cota por conta (M14): protege custo do provider e abuso.
+        _maxJobsPerHour = Math.Max(1, config.GetValue<int?>("Research:MaxJobsPerHour") ?? 60);
     }
 
     public async Task<MapResult<(Doubt Doubt, ResearchJob? Job)>> CreateSelectionDoubtAsync(string ownerId, CreateDoubtRequest request, CancellationToken ct)
@@ -98,6 +101,11 @@ public sealed class ResearchService
             return MapResult<ResearchJob>.Conflict("A pesquisa está desligada em Configurações.");
         }
 
+        if (await QuotaExceededAsync(ownerId, ct))
+        {
+            return MapResult<ResearchJob>.TooMany($"Limite de {_maxJobsPerHour} pesquisas por hora atingido. Tente mais tarde.");
+        }
+
         ResearchJob job;
         try
         {
@@ -110,6 +118,7 @@ public sealed class ResearchService
 
         doubt.MarkQueued();
         _db.ResearchJobs.Add(job);
+        NoteeTelemetry.JobsEnqueued.Add(1, new KeyValuePair<string, object?>("trigger", "manual"));
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -172,14 +181,22 @@ public sealed class ResearchService
 
         // Pesquisa automática ao criar, salvo se a conta desligou a pesquisa (fica pendente).
         ResearchJob? job = null;
-        if ((await PreferencesAsync(doubt.OwnerId, ct)).ResearchEnabled)
+        // Acima da cota, a dúvida é registrada mas fica pendente (pode ser pesquisada depois).
+        if ((await PreferencesAsync(doubt.OwnerId, ct)).ResearchEnabled && !await QuotaExceededAsync(doubt.OwnerId, ct))
         {
             job = new ResearchJob(doubt.Id, doubt.OwnerId, null);
             _db.ResearchJobs.Add(job);
+            NoteeTelemetry.JobsEnqueued.Add(1, new KeyValuePair<string, object?>("trigger", "auto"));
         }
 
         await _db.SaveChangesAsync(ct);
         return (doubt, job);
+    }
+
+    private async Task<bool> QuotaExceededAsync(string ownerId, CancellationToken ct)
+    {
+        DateTimeOffset since = DateTimeOffset.UtcNow.AddHours(-1);
+        return await _db.ResearchJobs.CountAsync(j => j.OwnerId == ownerId && j.CreatedAt >= since, ct) >= _maxJobsPerHour;
     }
 
     private Task<Note?> EditableNoteAsync(string ownerId, Guid noteId, CancellationToken ct) =>
