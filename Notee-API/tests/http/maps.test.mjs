@@ -104,8 +104,19 @@ const notesAfter = (await call(alice, 'GET', '/notes?page=1&pageSize=50')).json;
 const b2After = (await call(alice, 'GET', `/boards/${b2.id}`)).json;
 ok(notesAfter.length === 3 && b2After.edges.length === 1, 'AC10: notas e conexões do outro mapa preservadas');
 
-// Exclusão definitiva de nota limpa posições/arestas (cascade)
-await call(alice, 'DELETE', `/notes/${nC.id}`);
+// MAP-AC12: arquivar tira a nota do mapa (conexões preservadas); restaurar devolve
+await call(alice, 'POST', `/notes/${nB.id}/archive`, {});
+const archived = (await call(alice, 'GET', `/boards/${b2.id}`)).json;
+ok(!archived.nodes.some(n => n.noteId === nB.id) && archived.edges.length === 0, 'AC12: nota arquivada some do mapa');
+await call(alice, 'POST', `/notes/${nB.id}/restore`, {});
+const restored = (await call(alice, 'GET', `/boards/${b2.id}`)).json;
+ok(restored.nodes.some(n => n.noteId === nB.id) && restored.edges.length === 1, 'AC12: restaurar devolve nó e conexão');
+
+// Exclusão definitiva (só da lixeira) limpa posições/arestas (cascade)
+ok((await call(alice, 'DELETE', `/notes/${nC.id}`)).status === 409, 'excluir nota fora da lixeira -> 409');
+await call(alice, 'POST', `/notes/${nC.id}/trash`, {});
+ok((await call(alice, 'GET', `/boards/${b2.id}`)).json.nodes.length === 2, 'nota na lixeira some do mapa');
+ok((await call(alice, 'DELETE', `/notes/${nC.id}`)).status === 204, 'excluir nota da lixeira -> 204');
 const b2Final = (await call(alice, 'GET', `/boards/${b2.id}`)).json;
 ok(b2Final.nodes.length === 2 && b2Final.edges.length === 0, 'excluir nota remove nó e conexões no mapa');
 

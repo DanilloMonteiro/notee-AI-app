@@ -16,7 +16,7 @@ export function Home() {
   const loadDashboard = async () => {
     try {
       // Trazemos apenas as notas mais recentes para o ecrã inicial
-      const data = await apiFetch('/notas?page=1&pageSize=4');
+      const data = await apiFetch('/notes?page=1&pageSize=4');
       setRecentNotes(data || []);
     } catch (err) {
       console.error('Erro ao carregar o dashboard:', err);

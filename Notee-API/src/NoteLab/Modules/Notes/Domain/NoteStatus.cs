@@ -4,5 +4,6 @@ public enum NoteStatus
 {
     Draft,
     Active,
-    Archived
+    Archived,
+    Trashed
 }

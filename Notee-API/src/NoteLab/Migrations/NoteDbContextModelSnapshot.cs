@@ -407,12 +407,18 @@ namespace NoteLab.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PlainText")
+                        .HasColumnType("text");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("TrashedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -422,6 +428,8 @@ namespace NoteLab.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "Status", "UpdatedAt");
 
                     b.ToTable("Notes");
                 });

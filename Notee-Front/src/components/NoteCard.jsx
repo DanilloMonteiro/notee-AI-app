@@ -2,14 +2,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icon';
+import { STATUS_LABEL, formatShortDate, noteExcerpt } from '../notes';
 
-export function NoteCard({ note }) {
-  // A API C# devolve o status, titulo e tags. O React lida com as datas e a interface.
-  const formattedDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
+/** Cartão de nota. `actions` (opcional) aparece abaixo do cartão, fora do link. */
+export function NoteCard({ note, actions }) {
   const tags = note.tags || [];
+  const excerpt = noteExcerpt(note.content);
 
-  return (
-    // No React Router usamos <Link> em vez de <a> para navegar sem recarregar a página inteira
+  const card = (
     <Link className="card note-card" to={`/note/${note.id}`}>
       <div className="row between">
         <div className="note-icon">
@@ -20,8 +20,8 @@ export function NoteCard({ note }) {
 
       <div>
         <h3>{note.title}</h3>
-        <p className="note-preview mt16" style={{ marginTop: '8px' }}>
-          {note.status === 'Active' ? 'Ideia em desenvolvimento...' : 'Nota guardada.'}
+        <p className="note-preview" style={{ marginTop: '8px' }}>
+          {excerpt || 'Nota sem texto ainda.'}
         </p>
       </div>
 
@@ -34,11 +34,22 @@ export function NoteCard({ note }) {
       </div>
 
       <div className="note-card-footer">
-        <span>{formattedDate}</span>
+        <span>
+          {formatShortDate(note.updatedAt)}
+          {note.status === 'Archived' || note.status === 'Trashed' ? ` · ${STATUS_LABEL[note.status]}` : ''}
+        </span>
         <span className="row gap8">
           <Icon name="lock" className="sm" /> Privada
         </span>
       </div>
     </Link>
+  );
+
+  if (!actions) return card;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {card}
+      <div className="row gap8 wrap">{actions}</div>
+    </div>
   );
 }

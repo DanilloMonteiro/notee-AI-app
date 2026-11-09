@@ -60,7 +60,8 @@ builder.Services.AddSerilog((services, config) => config
     )
 );
 
-builder.Services.AddScoped<INoteRepository, NoteRepository>();
+builder.Services.AddScoped<NoteRepository>();
+builder.Services.AddScoped<INoteRepository>(sp => sp.GetRequiredService<NoteRepository>());
 builder.Services.AddScoped<IDoubtRepository, DoubtRepository>();
 builder.Services.AddScoped<BoardService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));

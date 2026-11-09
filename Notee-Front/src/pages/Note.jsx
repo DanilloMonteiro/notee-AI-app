@@ -4,6 +4,8 @@ import { useParams, Link } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
+import { NoteOrganizer } from '../components/NoteOrganizer';
+import { STATUS_LABEL } from '../notes';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
 
@@ -176,6 +178,8 @@ export function Note() {
   const [doubts, setDoubts] = useState([]);
 
   const [title, setTitle] = useState('');
+  const [categoryId, setCategoryId] = useState(null);
+  const [tagIds, setTagIds] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [newBlockType, setNewBlockType] = useState('paragraph');
 
@@ -222,6 +226,8 @@ export function Note() {
       const noteData = await apiFetch(`/notes/${id}`);
       setNote(noteData);
       setTitle(noteData.title || '');
+      setCategoryId(noteData.categoryId ?? null);
+      setTagIds((noteData.tags || []).map(t => t.id));
       try {
         const parsedBlocks = JSON.parse(noteData.content || '[]');
         setBlocks(
@@ -296,14 +302,18 @@ export function Note() {
         expectedVersion: note.version || 0,
         title: title,
         content: JSON.stringify(blocks),
-        categoryId: note.categoryId || null,
-        tagIds: note.tags?.map(t => t.id) || [],
+        categoryId: categoryId || null,
+        tagIds,
       };
-      await apiFetch(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-      setNote({ ...note, title, content: JSON.stringify(blocks), version: (note.version || 0) + 1 });
+      // A API devolve a nota salva (com a nova versão e a categoria resolvida).
+      const saved = await apiFetch(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      setNote(saved);
       addToast('Alterações salvas.', 'check');
     } catch (err) {
-      addToast('Falha ao salvar.', 'info');
+      addToast(
+        err?.status === 409 ? 'A nota foi alterada em outro lugar. Copie seu texto e recarregue a página.' : err?.message || 'Falha ao salvar.',
+        'warning',
+      );
     } finally {
       setSaving(false);
     }
@@ -378,7 +388,32 @@ export function Note() {
       </div>
     );
 
-  const isDirty = title !== note.title || JSON.stringify(blocks) !== (note.content || '[]');
+  const savedTagIds = (note.tags || []).map(t => t.id);
+  const isDirty =
+    title !== note.title ||
+    JSON.stringify(blocks) !== (note.content || '[]') ||
+    (categoryId || null) !== (note.categoryId || null) ||
+    tagIds.length !== savedTagIds.length ||
+    tagIds.some(t => !savedTagIds.includes(t));
+  const isTrashed = note.status === 'Trashed';
+
+  const handleLifecycle = async action => {
+    if (isDirty) {
+      addToast('Salve as alterações antes de mudar o estado da nota.', 'warning');
+      return;
+    }
+    try {
+      const updated = await apiFetch(`/notes/${id}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({ expectedVersion: note.version }),
+      });
+      setNote(updated);
+      const labels = { archive: 'Nota arquivada.', trash: 'Nota movida para a lixeira.', restore: 'Nota restaurada.' };
+      addToast(labels[action]);
+    } catch (err) {
+      addToast(err?.message || 'Não foi possível concluir a ação.', 'warning');
+    }
+  };
 
   return (
     <div>
@@ -386,17 +421,46 @@ export function Note() {
         <div>
           <div className="overline">NOTAS / {note.categoryName || 'Sem categoria'}</div>
           <h1>{title || 'Sem título'}</h1>
-          <p>Nota • {note.status}</p>
+          <p>Nota • {STATUS_LABEL[note.status] || note.status}</p>
         </div>
-        <div className="row gap8">
+        <div className="row gap8 wrap">
           <Link to="/notes" className="btn">
             <Icon name="back" /> Voltar
           </Link>
-          <button className={`btn ${isDirty ? 'primary' : ''}`} onClick={handleSave} disabled={saving || !isDirty}>
+          {note.status === 'Archived' || isTrashed ? (
+            <button className="btn" onClick={() => handleLifecycle('restore')}>
+              <Icon name="refresh" className="sm" /> Restaurar
+            </button>
+          ) : (
+            <button className="btn" onClick={() => handleLifecycle('archive')}>
+              <Icon name="archive" className="sm" /> Arquivar
+            </button>
+          )}
+          {!isTrashed && (
+            <button className="btn" onClick={() => handleLifecycle('trash')}>
+              <Icon name="trash" className="sm" /> Lixeira
+            </button>
+          )}
+          <button className={`btn ${isDirty ? 'primary' : ''}`} onClick={handleSave} disabled={saving || !isDirty || isTrashed}>
             <Icon name="save" className="sm" /> {saving ? 'A salvar...' : 'Salvar alterações'}
           </button>
         </div>
       </div>
+
+      {isTrashed && (
+        <div className="callout warning mb24">
+          <Icon name="warning" />
+          <span>Esta nota está na lixeira e não pode ser editada. Restaure-a para continuar escrevendo.</span>
+        </div>
+      )}
+
+      <NoteOrganizer
+        categoryId={categoryId}
+        tagIds={tagIds}
+        onCategoryChange={setCategoryId}
+        onTagsChange={setTagIds}
+        disabled={isTrashed}
+      />
 
       <div className="editor-layout" style={{ '--editor-aside-width': `${asideWidth}px` }}>
         <section className="card editor-main-card">

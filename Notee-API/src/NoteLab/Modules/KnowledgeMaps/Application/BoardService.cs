@@ -431,7 +431,7 @@ public sealed class BoardService
     // ---- Auxiliares ----------------------------------------------------------
 
     private IQueryable<Note> EligibleNotes(string ownerId) =>
-        _db.Notes.AsNoTracking().Where(n => n.OwnerId == ownerId && n.Status != NoteStatus.Archived);
+        _db.Notes.AsNoTracking().Where(n => n.OwnerId == ownerId && (n.Status == NoteStatus.Draft || n.Status == NoteStatus.Active));
 
     private Task<Board?> FindBoardAsync(string ownerId, Guid boardId, CancellationToken ct) =>
         boardId == Guid.Empty

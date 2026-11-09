@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace NoteLab.Domain;
 
 public sealed class Note
@@ -7,14 +5,18 @@ public sealed class Note
     public Guid Id { get; private set; }
     public NoteTitle Title { get; private set; }
     public string? Content { get; private set; }
-    public string OwnerId {get; private set; }
+    /// <summary>Texto simples extraído no servidor (para busca), sem a estrutura JSON dos blocos.</summary>
+    public string? PlainText { get; private set; }
+    public string OwnerId { get; private set; }
     public NoteStatus Status { get; private set; }
-    public long Version {get; private set; } = 1;
+    public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
-    public Guid? CategoryId { get; private set; }    
+    public DateTimeOffset? TrashedAt { get; private set; }
+    public Guid? CategoryId { get; private set; }
     private readonly List<Tag> _tags = new();
     public IReadOnlyCollection<Tag> Tags => _tags.AsReadOnly();
+
     public Note(
         NoteTitle title,
         string ownerId,
@@ -29,8 +31,12 @@ public sealed class Note
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>Notas na lixeira não podem ser editadas; restaure antes.</summary>
+    public bool IsEditable => Status != NoteStatus.Trashed;
+
     public void Update(NoteTitle title, string? content)
     {
+        EnsureEditable();
         Title = title;
         Content = content;
     }
@@ -40,15 +46,41 @@ public sealed class Note
         if (Status == NoteStatus.Archived)
         {
             throw new DomainException("Cannot archive a note that is already archived");
-        } 
+        }
+
+        if (Status == NoteStatus.Trashed)
+        {
+            throw new DomainException("Restaure a nota da lixeira antes de arquivá-la.");
+        }
 
         Status = NoteStatus.Archived;
-        UpdatedAt = DateTimeOffset.UtcNow;
+        RegisterUpdate();
     }
 
-    public void Restore() {
+    /// <summary>Envia para a lixeira (reversível). Exclusão definitiva só a partir daqui.</summary>
+    public void MoveToTrash()
+    {
+        if (Status == NoteStatus.Trashed)
+        {
+            throw new DomainException("A nota já está na lixeira.");
+        }
+
+        Status = NoteStatus.Trashed;
+        TrashedAt = DateTimeOffset.UtcNow;
+        RegisterUpdate();
+    }
+
+    /// <summary>Volta de Arquivada/Lixeira para Ativa.</summary>
+    public void Restore()
+    {
+        if (Status is not (NoteStatus.Archived or NoteStatus.Trashed))
+        {
+            throw new DomainException("Somente notas arquivadas ou na lixeira podem ser restauradas.");
+        }
+
         Status = NoteStatus.Active;
-        UpdatedAt = DateTimeOffset.UtcNow;
+        TrashedAt = null;
+        RegisterUpdate();
     }
 
     public void SetCategory(Category category)
@@ -62,13 +94,15 @@ public sealed class Note
         {
             throw new DomainException("Cannot set a category of other owner to this note");
         }
-    
+
         CategoryId = category.Id;
     }
 
+    public void ClearCategory() => CategoryId = null;
+
     public void UpdateTags(IEnumerable<Tag> newTags)
     {
-        if (!newTags.Any() || newTags == null)
+        if (newTags == null || !newTags.Any())
         {
             throw new DomainException("Cannot set null tags to a note");
         }
@@ -82,9 +116,21 @@ public sealed class Note
         _tags.AddRange(newTags);
     }
 
+    public void ClearTags() => _tags.Clear();
+
+    public void SetPlainText(string? plainText) => PlainText = plainText;
+
     public void RegisterUpdate()
     {
         Version++;
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    private void EnsureEditable()
+    {
+        if (!IsEditable)
+        {
+            throw new DomainException("Notas na lixeira não podem ser editadas. Restaure a nota primeiro.");
+        }
     }
 }

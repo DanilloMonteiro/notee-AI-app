@@ -99,3 +99,8 @@ Consequências: contas existentes passam a receber respostas simuladas até cons
 ### ADR-020 — Segredos via configuração
 Status: Proposto (implementado) · Data: 2026-11-09
 Decisão: `Jwt:*`, `ConnectionStrings:Default` e `Cors:Origins` vêm da configuração (appsettings local não versionado, variáveis de ambiente). Na ausência, valores de desenvolvimento com **aviso no log**. A chave JWT antiga deixou de existir no código: tokens emitidos antes da mudança são invalidados. Expiração padrão reduzida de 240h para 12h. Rate limit de 10 req/min por IP em `/auth` (`RateLimit:AuthPerMinute`).
+
+### ADR-021 — Ciclo de vida da nota e busca no servidor
+Status: Proposto (implementado) · Data: 2026-11-09
+Decisão: estados `Draft`, `Active`, `Archived`, `Trashed` (novo). Rotas `POST /notes/{id}/archive|trash|restore` (com `expectedVersion` opcional) e `DELETE /notes/{id}` **somente na lixeira** (409 caso contrário), apagando também as dúvidas da nota. Nota na lixeira não é editável. `GET /notes` passa a filtrar por `status` (padrão: rascunho+ativa), `query`, `categoryId`, `tagId`, ordenado por `UpdatedAt desc, Id` e com `X-Total-Count`. Busca via `ILIKE` em título e na nova coluna `PlainText` (texto extraído dos blocos no servidor; notas antigas usam `Content` até serem salvas). FTS do PostgreSQL fica para quando houver medição (ADR-008).
+`PUT /notes/{id}` passa a substituir categoria (nula = remove) e tags (lista vazia = remove; nula = mantém). Categorias e tags ganharam listagem com contagem, renomear e excluir (nome único por dono, sem diferenciar maiúsculas).
