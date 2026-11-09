@@ -7,6 +7,7 @@
 - Antes de publicar, configurar URL do frontend e CORS, secrets de produção, execução de migrations e persistência das chaves de Data Protection; validar o fluxo completo no ambiente escolhido.
 - Railway escolhido pelo responsável: imagem da API ajustada para incluir o bundle de migrations e imagem do frontend aceita argumentos de build `VITE_API_URL` e `VITE_ADMIN_PATH`. Os builds Docker locais das duas imagens passaram em 09/11/2026; a execução no Railway ainda não foi verificada.
 - Railway, 09/11/2026: PostgreSQL criado com volume persistente e conexão privada configurada na API. Os logs confirmam acesso ao banco novo, mas a inicialização falha porque as migrations ainda não foram aplicadas (`AspNetUsers` ausente). O bundle no Dockerfile local precisa ser publicado antes de configurar o pré-deploy.
+- Atualização Railway: branch `deploy` publicada no commit `f0276a3`, CI aprovado; migrations executadas no pré-deploy e API conectada ao PostgreSQL. Deploy `d6a2605a-0cb8-47ec-b4dc-607f81f0c710` observado como SUCCESS, com `/health/ready` retornando 200. Persistência das chaves de Data Protection e bloqueio de deploy por CI pendem de configuração.
 
 **Data de preparação deste pacote:** 09/11/2026.
 
