@@ -1,10 +1,11 @@
 // src/pages/Note.jsx
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { NoteOrganizer } from '../components/NoteOrganizer';
+import { RevisionHistory } from '../components/RevisionHistory';
 import { STATUS_LABEL } from '../notes';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
@@ -180,6 +181,8 @@ export function Note() {
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState(null);
   const [tagIds, setTagIds] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const closeHistory = useCallback(() => setShowHistory(false), []);
   const [blocks, setBlocks] = useState([]);
   const [newBlockType, setNewBlockType] = useState('paragraph');
 
@@ -221,24 +224,27 @@ export function Note() {
     setDoubts(doubtsData || []);
   };
 
+  // Aplica uma nota vinda da API ao estado do editor (carga inicial e restauração de revisão).
+  const applyLoadedNote = noteData => {
+    setNote(noteData);
+    setTitle(noteData.title || '');
+    setCategoryId(noteData.categoryId ?? null);
+    setTagIds((noteData.tags || []).map(t => t.id));
+    try {
+      const parsedBlocks = JSON.parse(noteData.content || '[]');
+      setBlocks(
+        Array.isArray(parsedBlocks) && parsedBlocks.length > 0
+          ? parsedBlocks
+          : [{ id: generateId(), type: 'paragraph', text: noteData.content || '' }],
+      );
+    } catch {
+      setBlocks([{ id: generateId(), type: 'paragraph', text: noteData.content || '' }]);
+    }
+  };
+
   const loadNoteAndDoubts = async () => {
     try {
-      const noteData = await apiFetch(`/notes/${id}`);
-      setNote(noteData);
-      setTitle(noteData.title || '');
-      setCategoryId(noteData.categoryId ?? null);
-      setTagIds((noteData.tags || []).map(t => t.id));
-      try {
-        const parsedBlocks = JSON.parse(noteData.content || '[]');
-        setBlocks(
-          Array.isArray(parsedBlocks) && parsedBlocks.length > 0
-            ? parsedBlocks
-            : [{ id: generateId(), type: 'paragraph', text: noteData.content || '' }],
-        );
-      } catch (e) {
-        setBlocks([{ id: generateId(), type: 'paragraph', text: noteData.content || '' }]);
-      }
-
+      applyLoadedNote(await apiFetch(`/notes/${id}`));
       await loadDoubts();
     } catch (err) {
       setError('Não foi possível carregar os dados da nota.');
@@ -436,6 +442,9 @@ export function Note() {
               <Icon name="archive" className="sm" /> Arquivar
             </button>
           )}
+          <button className="btn" onClick={() => setShowHistory(true)}>
+            <Icon name="clock" className="sm" /> Histórico
+          </button>
           {!isTrashed && (
             <button className="btn" onClick={() => handleLifecycle('trash')}>
               <Icon name="trash" className="sm" /> Lixeira
@@ -452,6 +461,21 @@ export function Note() {
           <Icon name="warning" />
           <span>Esta nota está na lixeira e não pode ser editada. Restaure-a para continuar escrevendo.</span>
         </div>
+      )}
+
+      {showHistory && (
+        <RevisionHistory
+          noteId={id}
+          currentVersion={note.version}
+          isDirty={isDirty}
+          disabled={isTrashed}
+          onClose={closeHistory}
+          onRestored={(restored, fromVersion) => {
+            setShowHistory(false);
+            applyLoadedNote(restored);
+            addToast(`Versão ${fromVersion} restaurada como v${restored.version}.`);
+          }}
+        />
       )}
 
       <NoteOrganizer

@@ -57,6 +57,26 @@ public static class NoteEndpoints
                 _ => Results.NotFound(),
             });
 
+        // ---- Revisões (M06) ----
+        group.MapGet("/{id:guid}/revisions", async (Guid id, NoteRepository repo, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            List<RevisionSummaryResponse>? revisions = await repo.ListRevisionsAsync(Owner(user), id, ct);
+            return revisions is null ? Results.NotFound() : Results.Ok(revisions);
+        });
+
+        group.MapGet("/{id:guid}/revisions/{revisionId:guid}", async (Guid id, Guid revisionId, NoteRepository repo, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            RevisionResponse? revision = await repo.GetRevisionAsync(Owner(user), id, revisionId, ct);
+            return revision is null ? Results.NotFound() : Results.Ok(revision);
+        });
+
+        group.MapPost("/{id:guid}/restore-revision", async (Guid id, RestoreRevisionRequest request, NoteRepository repo, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            string ownerId = Owner(user);
+            Note? note = await repo.RestoreRevisionAsync(ownerId, id, request.RevisionId, request.ExpectedVersion, ct);
+            return note is null ? Results.NotFound() : Results.Ok(await repo.ToResponseAsync(ownerId, note, ct));
+        });
+
         MapTaxonomy(group);
     }
 

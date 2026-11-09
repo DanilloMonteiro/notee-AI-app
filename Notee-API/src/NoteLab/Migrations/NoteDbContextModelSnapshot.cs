@@ -485,6 +485,56 @@ namespace NoteLab.Migrations
                     b.ToTable("NoteReferences");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.NoteRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("NoteVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<long?>("RestoredFromVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TagIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NoteId", "NoteVersion")
+                        .IsUnique();
+
+                    b.ToTable("NoteRevisions");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -673,6 +723,15 @@ namespace NoteLab.Migrations
                 });
 
             modelBuilder.Entity("NoteLab.Domain.NoteReference", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Note", null)
+                        .WithMany()
+                        .HasForeignKey("NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.NoteRevision", b =>
                 {
                     b.HasOne("NoteLab.Domain.Note", null)
                         .WithMany()

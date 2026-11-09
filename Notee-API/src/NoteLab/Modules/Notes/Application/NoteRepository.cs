@@ -80,6 +80,7 @@ public class NoteRepository : INoteRepository
     {
         data.SetPlainText(NoteText.Extract(data.Content, PlainTextMaxLength));
         _db.Notes.Add(data);
+        _db.NoteRevisions.Add(NoteRevision.Capture(data, RevisionReason.Created));
         await _db.SaveChangesAsync(ct);
         return data;
     }
@@ -100,6 +101,17 @@ public class NoteRepository : INoteRepository
         if (note.Version != expectedVersion)
         {
             throw new DbUpdateConcurrencyException("Incompatibilidade de versão");
+        }
+
+        if (!note.IsEditable)
+        {
+            throw new DomainException("Notas na lixeira não podem ser editadas. Restaure a nota primeiro.");
+        }
+
+        // Notas criadas antes do histórico: guarda o estado anterior como linha de base.
+        if (!await _db.NoteRevisions.AnyAsync(r => r.NoteId == note.Id, ct))
+        {
+            _db.NoteRevisions.Add(NoteRevision.CaptureBaseline(note));
         }
 
         // PUT substitui o estado: categoria nula remove a categoria.
@@ -137,7 +149,108 @@ public class NoteRepository : INoteRepository
         note.Update(new NoteTitle(title), content);
         note.SetPlainText(NoteText.Extract(content, PlainTextMaxLength));
         note.RegisterUpdate();
+        _db.NoteRevisions.Add(NoteRevision.Capture(note, RevisionReason.Edited));
 
+        await _db.SaveChangesAsync(ct);
+        return note;
+    }
+
+    // ---- Revisões (M06) ----
+
+    public async Task<List<RevisionSummaryResponse>?> ListRevisionsAsync(string ownerId, Guid noteId, CancellationToken ct)
+    {
+        if (!await _db.Notes.AnyAsync(n => n.Id == noteId && n.OwnerId == ownerId, ct))
+        {
+            return null;
+        }
+
+        return await _db.NoteRevisions.AsNoTracking()
+            .Where(r => r.NoteId == noteId && r.OwnerId == ownerId)
+            .OrderByDescending(r => r.NoteVersion)
+            .Select(r => new RevisionSummaryResponse(r.Id, r.NoteVersion, r.Title, r.Reason.ToString(), r.RestoredFromVersion, r.CreatedAt))
+            .ToListAsync(ct);
+    }
+
+    public async Task<RevisionResponse?> GetRevisionAsync(string ownerId, Guid noteId, Guid revisionId, CancellationToken ct)
+    {
+        NoteRevision? r = await _db.NoteRevisions.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == revisionId && x.NoteId == noteId && x.OwnerId == ownerId, ct);
+        if (r is null)
+        {
+            return null;
+        }
+
+        List<Guid> tagIds = r.GetTagIds().ToList();
+        List<TagResponse> tags = await _db.Tags.AsNoTracking()
+            .Where(t => t.OwnerId == ownerId && tagIds.Contains(t.Id))
+            .Select(t => new TagResponse(t.Id, t.Name))
+            .ToListAsync(ct);
+        string? category = r.CategoryId is null
+            ? null
+            : await _db.Categories.AsNoTracking().Where(c => c.Id == r.CategoryId && c.OwnerId == ownerId).Select(c => c.Name).SingleOrDefaultAsync(ct);
+
+        return new RevisionResponse(r.Id, r.NoteVersion, r.Title, r.Content ?? string.Empty, r.CategoryId, category, tags,
+            r.Reason.ToString(), r.RestoredFromVersion, r.CreatedAt);
+    }
+
+    /// <summary>
+    /// Restaura uma revisão criando uma NOVA versão (o histórico nunca é reescrito).
+    /// Categoria/tags que não existem mais são ignoradas.
+    /// </summary>
+    public async Task<Note?> RestoreRevisionAsync(string ownerId, Guid noteId, Guid revisionId, long expectedVersion, CancellationToken ct)
+    {
+        Note? note = await _db.Notes.Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == noteId && n.OwnerId == ownerId, ct);
+        NoteRevision? revision = note is null
+            ? null
+            : await _db.NoteRevisions.AsNoTracking().SingleOrDefaultAsync(r => r.Id == revisionId && r.NoteId == noteId && r.OwnerId == ownerId, ct);
+        if (note is null || revision is null)
+        {
+            return null;
+        }
+
+        if (note.Version != expectedVersion)
+        {
+            throw new DbUpdateConcurrencyException("Incompatibilidade de versão");
+        }
+
+        if (!note.IsEditable)
+        {
+            throw new DomainException("Restaure a nota da lixeira antes de restaurar uma revisão.");
+        }
+
+        if (!await _db.NoteRevisions.AnyAsync(r => r.NoteId == note.Id && r.NoteVersion == note.Version, ct))
+        {
+            _db.NoteRevisions.Add(NoteRevision.CaptureBaseline(note));
+        }
+
+        note.Update(new NoteTitle(revision.Title), revision.Content);
+        note.SetPlainText(NoteText.Extract(revision.Content, PlainTextMaxLength));
+
+        Category? category = revision.CategoryId is null
+            ? null
+            : await _db.Categories.SingleOrDefaultAsync(c => c.Id == revision.CategoryId && c.OwnerId == ownerId, ct);
+        if (category is null)
+        {
+            note.ClearCategory();
+        }
+        else
+        {
+            note.SetCategory(category);
+        }
+
+        List<Guid> tagIds = revision.GetTagIds().ToList();
+        List<Tag> tags = await _db.Tags.Where(t => t.OwnerId == ownerId && tagIds.Contains(t.Id)).ToListAsync(ct);
+        if (tags.Count == 0)
+        {
+            note.ClearTags();
+        }
+        else
+        {
+            note.UpdateTags(tags);
+        }
+
+        note.RegisterUpdate();
+        _db.NoteRevisions.Add(NoteRevision.Capture(note, RevisionReason.Restored, revision.NoteVersion));
         await _db.SaveChangesAsync(ct);
         return note;
     }

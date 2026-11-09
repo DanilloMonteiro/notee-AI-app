@@ -21,3 +21,19 @@ public sealed record NoteQuery(string? Status, string? Query, Guid? CategoryId, 
 public sealed record NotePage(List<NoteResponse> Items, int Total);
 
 public sealed record RenameRequest(string Name);
+
+public sealed record RevisionSummaryResponse(Guid Id, long Version, string Title, string Reason, long? RestoredFromVersion, DateTimeOffset CreatedAt);
+
+public sealed record RevisionResponse(
+    Guid Id,
+    long Version,
+    string Title,
+    string Content,
+    Guid? CategoryId,
+    string? CategoryName,
+    List<TagResponse> Tags,
+    string Reason,
+    long? RestoredFromVersion,
+    DateTimeOffset CreatedAt);
+
+public sealed record RestoreRevisionRequest(Guid RevisionId, long ExpectedVersion);

@@ -11,6 +11,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<Doubt> Doubts { get; set; }
     public DbSet<NoteReference> NoteReferences { get; set; }
     public DbSet<UserPreferences> UserPreferences { get; set; }
+    public DbSet<NoteRevision> NoteRevisions { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -53,6 +54,17 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(r => r.Url).HasMaxLength(NoteReference.UrlMaxLength);
             e.HasOne<Note>().WithMany().HasForeignKey(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => new { r.OwnerId, r.NoteId });
+        });
+
+        modelBuilder.Entity<NoteRevision>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Property(r => r.OwnerId).IsRequired();
+            e.Property(r => r.Title).HasMaxLength(100).IsRequired();
+            e.Property(r => r.TagIds).IsRequired();
+            e.Property(r => r.Reason).HasConversion<string>().HasMaxLength(16);
+            e.HasIndex(r => new { r.NoteId, r.NoteVersion }).IsUnique();
+            e.HasOne<Note>().WithMany().HasForeignKey(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserPreferences>(e =>
