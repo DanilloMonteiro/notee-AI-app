@@ -45,4 +45,16 @@ public class DoubtRepository : IDoubtRepository
 
         return await _db.Doubts.AsNoTracking().Where(d => d.OwnerId == ownerId && d.NoteId == noteId).ToListAsync();
     }
+
+    public async Task<bool> DeleteDoubtAsync(string ownerId, Guid id, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return false;
+
+        var doubt = await _db.Doubts.FirstOrDefaultAsync(d => d.Id == id && d.OwnerId == ownerId, ct);
+        if (doubt == null) return false;
+        
+        _db.Doubts.Remove(doubt);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
 }

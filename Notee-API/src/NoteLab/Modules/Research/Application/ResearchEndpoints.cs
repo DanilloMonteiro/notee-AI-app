@@ -36,8 +36,10 @@ public static class ResearchEndpoints
             { 
                 Id = doubt.Id, 
                 Question = doubt.Question, 
-                Answer = doubt.Answer, 
-                Status = doubt.Status.ToString() 
+                Answer = doubt.Answer,
+                Status = doubt.Status.ToString(),
+                BlockId = doubt.Anchor.BlockId,
+                ExactQuote = doubt.Anchor.ExactQuote
             });
         });
 
@@ -48,7 +50,7 @@ public static class ResearchEndpoints
 
             if (doubts == null || !doubts.Any()) return Results.NotFound("Duvidas nao encontrada.");
 
-            var response = doubts.Select(d => new DoubtResponse(d.Id, d.Question, d.Answer, d.Status.ToString(), d.Anchor.BlockId, d.Anchor.StartIndex, d.Anchor.EndIndex)).ToList();
+            var response = doubts.Select(d => new DoubtResponse(d.Id, d.Question, d.Answer, d.Status.ToString(), d.Anchor.BlockId, d.Anchor.ExactQuote, d.Anchor.StartIndex, d.Anchor.EndIndex)).ToList();
 
             return Results.Ok(response);
         });
@@ -65,18 +67,8 @@ public static class ResearchEndpoints
             if (ownerId is null)
                 return Results.Unauthorized();
 
-            logger.LogInformation(
-                "Buscando dúvidas da nota {NoteId}",
-                noteId
-            );
-
             var doubts = await doubtRepo.GetByNoteIdAsync(
                 ownerId, noteId, ct
-            );
-
-            logger.LogInformation(
-                "Encontradas {Count} dúvidas",
-                doubts.Count
             );
 
             var response = doubts.Select(d => new DoubtResponse(
@@ -85,11 +77,22 @@ public static class ResearchEndpoints
                 d.Answer,
                 d.Status.ToString(),
                 d.Anchor.BlockId,
+                d.Anchor.ExactQuote,
                 d.Anchor.StartIndex,
                 d.Anchor.EndIndex
             )).ToList();
 
             return Results.Ok(response);
+        });
+
+        group.MapDelete("/{id}", async (Guid id, IDoubtRepository doubtRepo, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            string ownerId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new UnauthorizedAccessException();
+            
+            bool deleted = await doubtRepo.DeleteDoubtAsync(ownerId, id, ct);
+            
+            if (!deleted) return Results.NotFound("Dúvida não encontrada ou não pertence ao usuário.");
+            return Results.NoContent();
         });
     }
 }

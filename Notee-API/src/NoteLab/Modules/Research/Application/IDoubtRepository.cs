@@ -10,4 +10,6 @@ public interface IDoubtRepository
     public Task<List<Doubt>> GetByNoteIdAsync(string ownerId, Guid noteId, CancellationToken ct);
 
     public Task<List<Doubt>> GetAllAsync(string ownerId, CancellationToken ct);
+
+    public Task<bool> DeleteDoubtAsync(string ownerId, Guid id, CancellationToken ct);
 }

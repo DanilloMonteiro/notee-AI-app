@@ -6,6 +6,7 @@ public record DoubtResponse(
     string? Answer,
     string Status,
     string BlockId,
+    string ExactQuote,
     int StartIndex,
     int EndIndex
 );
