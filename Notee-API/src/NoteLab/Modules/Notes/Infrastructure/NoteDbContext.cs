@@ -14,6 +14,9 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<NoteRevision> NoteRevisions { get; set; }
     public DbSet<ResearchJob> ResearchJobs { get; set; }
     public DbSet<GraphSuggestion> GraphSuggestions { get; set; }
+    public DbSet<Publication> Publications { get; set; }
+    public DbSet<PublicationRevision> PublicationRevisions { get; set; }
+    public DbSet<PublicProfile> PublicProfiles { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -84,6 +87,40 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(j => j.DoubtId).IsUnique().HasFilter("\"Status\" IN ('Queued', 'Running')").HasDatabaseName("IX_ResearchJobs_ActivePerDoubt");
             // Idempotency-Key única por dono.
             e.HasIndex(j => new { j.OwnerId, j.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+        });
+
+        // ---- Publishing (M08) ----
+        modelBuilder.Entity<Publication>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.OwnerId).IsRequired();
+            e.Property(p => p.Slug).HasMaxLength(Publication.SlugMaxLength).IsRequired();
+            e.Property(p => p.ShareToken).HasMaxLength(64).IsRequired();
+            e.Property(p => p.Visibility).HasConversion<string>().HasMaxLength(16);
+            e.Property(p => p.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(p => p.Version).IsConcurrencyToken();
+            e.HasIndex(p => p.ShareToken).IsUnique();
+            // Endereço único por autor entre publicações ativas.
+            e.HasIndex(p => new { p.OwnerId, p.Slug }).IsUnique().HasFilter("\"Status\" = 'Published'");
+            // Excluir a nota definitivamente remove suas publicações.
+            e.HasOne<Note>().WithMany().HasForeignKey(p => p.NoteId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PublicationRevision>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Title).HasMaxLength(100).IsRequired();
+            e.HasOne<Publication>().WithMany().HasForeignKey(r => r.PublicationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.PublicationId, r.PublishedAt });
+        });
+
+        modelBuilder.Entity<PublicProfile>(e =>
+        {
+            e.HasKey(p => p.UserId);
+            e.Property(p => p.Handle).HasMaxLength(PublicProfile.HandleMaxLength).IsRequired();
+            e.Property(p => p.DisplayName).HasMaxLength(PublicProfile.DisplayNameMaxLength).IsRequired();
+            e.HasIndex(p => p.Handle).IsUnique();
+            e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithOne().HasForeignKey<PublicProfile>(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<NoteRevision>(e =>

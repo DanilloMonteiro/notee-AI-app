@@ -14,6 +14,8 @@ import { Search } from './pages/Search';
 import { ToastProvider } from './contexts/ToastContext';
 import { BoardsPage } from './features/boards/BoardsPage';
 import { BoardPage } from './features/boards/BoardPage';
+import { MyPublicationsPage } from './features/publishing/MyPublicationsPage';
+import { LibraryPage, PublicNotePage, PublicProfilePage, SharedNotePage } from './features/publishing/PublicPages';
 
 function App() {
   return (
@@ -21,6 +23,11 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* Leitura pública: sem login */}
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/p/:handle/:slug" element={<PublicNotePage />} />
+          <Route path="/s/:token" element={<SharedNotePage />} />
+          <Route path="/u/:handle" element={<PublicProfilePage />} />
 
           <Route element={<PrivateRoute />}>
             <Route element={<AppShell />}>
@@ -33,6 +40,7 @@ function App() {
               <Route path="/search" element={<Search />} />
               <Route path="/boards" element={<BoardsPage />} />
               <Route path="/boards/:boardId" element={<BoardPage />} />
+              <Route path="/publications" element={<MyPublicationsPage />} />
             </Route>
           </Route>
         </Routes>

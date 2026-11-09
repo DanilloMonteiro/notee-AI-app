@@ -6,6 +6,7 @@ import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { NoteOrganizer } from '../components/NoteOrganizer';
 import { RevisionHistory } from '../components/RevisionHistory';
+import { PublishPanel } from '../features/publishing/PublishPanel';
 import { STATUS_LABEL } from '../notes';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
@@ -183,6 +184,8 @@ export function Note() {
   const [tagIds, setTagIds] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const closeHistory = useCallback(() => setShowHistory(false), []);
+  const [showPublish, setShowPublish] = useState(false);
+  const closePublish = useCallback(() => setShowPublish(false), []);
   const [blocks, setBlocks] = useState([]);
   const [newBlockType, setNewBlockType] = useState('paragraph');
 
@@ -442,6 +445,9 @@ export function Note() {
               <Icon name="archive" className="sm" /> Arquivar
             </button>
           )}
+          <button className="btn" onClick={() => setShowPublish(true)}>
+            <Icon name="globe" className="sm" /> Publicar
+          </button>
           <button className="btn" onClick={() => setShowHistory(true)}>
             <Icon name="clock" className="sm" /> Histórico
           </button>
@@ -461,6 +467,10 @@ export function Note() {
           <Icon name="warning" />
           <span>Esta nota está na lixeira e não pode ser editada. Restaure-a para continuar escrevendo.</span>
         </div>
+      )}
+
+      {showPublish && (
+        <PublishPanel noteId={id} noteTitle={note.title} isDirty={isDirty} disabled={isTrashed} onClose={closePublish} />
       )}
 
       {showHistory && (

@@ -165,6 +165,7 @@ app.MapResearchEndpoints();
 app.MapNoteReferenceEndpoints();
 app.MapBoardEndpoints();
 app.MapGraphAiEndpoints();
+app.MapPublishingEndpoints();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
+import { publishingApi } from '../features/publishing/publishingApi';
 
 const CONSENT_TEXT =
   'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA configurado ' +
@@ -16,15 +17,21 @@ export function Settings() {
   const [me, setMe] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState({ handle: '', displayName: '' });
+  const [profileSaved, setProfileSaved] = useState(null);
   const { addToast } = useToast();
 
   useEffect(() => {
     let alive = true;
-    Promise.all([apiFetch('/me/preferences'), apiFetch('/me')])
-      .then(([p, m]) => {
+    Promise.all([apiFetch('/me/preferences'), apiFetch('/me'), publishingApi.profile()])
+      .then(([p, m, prof]) => {
         if (!alive) return;
         setPrefs(p);
         setMe(m);
+        if (prof) {
+          setProfile(prof);
+          setProfileSaved(prof);
+        }
       })
       .catch(err => alive && setError(err.message || 'Não foi possível carregar as preferências.'));
     return () => {
@@ -44,6 +51,21 @@ export function Settings() {
     } catch (err) {
       addToast(err.message || 'Não foi possível salvar.', 'warning');
       if (err.status === 409) setPrefs(await apiFetch('/me/preferences'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveProfile = async e => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const saved = await publishingApi.saveProfile(profile.handle.trim(), profile.displayName.trim());
+      setProfile(saved);
+      setProfileSaved(saved);
+      addToast('Perfil público salvo.');
+    } catch (err) {
+      addToast(err.message || 'Não foi possível salvar o perfil.', 'warning');
     } finally {
       setSaving(false);
     }
@@ -150,6 +172,47 @@ export function Settings() {
               <input id="me-email" type="email" value={me?.email || ''} readOnly />
             </div>
             <p className="tiny muted mt16">Seus dados são privados e isolados por conta.</p>
+
+            <h3 className="mt16 mb16" style={{ marginTop: 28 }}>
+              Perfil público
+            </h3>
+            <p className="small muted mb16">
+              Usado apenas nas publicações que você marcar como públicas. Notas, mapas e dúvidas continuam privados.
+            </p>
+            <form onSubmit={saveProfile}>
+              <div className="field">
+                <label htmlFor="profile-handle">Identificador (endereço)</label>
+                <input
+                  id="profile-handle"
+                  required
+                  maxLength={30}
+                  pattern="[a-z0-9_-]{3,30}"
+                  placeholder="ex.: alex_costa"
+                  value={profile.handle}
+                  onChange={e => setProfile({ ...profile, handle: e.target.value.toLowerCase() })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="profile-name">Nome público</label>
+                <input
+                  id="profile-name"
+                  required
+                  maxLength={60}
+                  value={profile.displayName}
+                  onChange={e => setProfile({ ...profile, displayName: e.target.value })}
+                />
+              </div>
+              <div className="row gap8">
+                <button className="btn primary" type="submit" disabled={saving}>
+                  Salvar perfil
+                </button>
+                {profileSaved && (
+                  <a className="btn ghost" href={`/u/${profileSaved.handle}`}>
+                    Ver perfil público
+                  </a>
+                )}
+              </div>
+            </form>
           </div>
         )}
       </div>
