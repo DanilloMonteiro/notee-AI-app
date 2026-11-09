@@ -35,6 +35,9 @@ jobs:
       Research__PollSeconds: "1"
       Research__MaxJobsPerHour: "5"
       Messaging__Provider: ${{ matrix.messaging }}
+      # Provider externo apontado para o servidor FALSO da suíte provider.test.mjs (nenhuma chamada real)
+      Gemini__ApiKey: fake-key
+      Gemini__BaseUrl: http://localhost:5199
       Messaging__Sqs__ServiceUrl: http://localhost:4566
       Messaging__Sqs__QueueUrl: http://localhost:4566/000000000000/notee-research-jobs
       DOTNET_NOLOGO: "true"

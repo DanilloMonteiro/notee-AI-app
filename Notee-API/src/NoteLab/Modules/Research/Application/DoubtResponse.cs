@@ -21,6 +21,7 @@ public record DoubtResponse(
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; init; }
     public ResearchJobResponse? LatestJob { get; init; }
+    public List<SourceResponse> Sources { get; init; } = [];
 
     public static DoubtResponse From(Doubt d, ResearchJob? latestJob = null) =>
         new(d.Id, d.Question, d.Answer, d.Status.ToString(), d.Anchor?.BlockId, d.Anchor?.ExactQuote,
@@ -49,9 +50,15 @@ public record ResearchJobResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset? CompletedAt)
 {
+    public int? InputTokens { get; init; }
+    public int? OutputTokens { get; init; }
+
     public static ResearchJobResponse From(ResearchJob j) =>
         new(j.Id, j.DoubtId, j.Status.ToString(), j.Attempt, j.MaxAttempts, j.NextAttemptAt, j.CancelRequested,
-            j.Provider, j.LastError, j.CreatedAt, j.CompletedAt);
+            j.Provider, j.LastError, j.CreatedAt, j.CompletedAt)
+        { InputTokens = j.InputTokens, OutputTokens = j.OutputTokens };
 }
 
 public record CreateBoardDoubtRequest(string Question);
+
+public record SourceResponse(string Title, string Url);

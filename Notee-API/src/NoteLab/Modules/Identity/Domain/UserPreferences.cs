@@ -7,7 +7,8 @@ namespace NoteLab.Domain;
 public sealed class UserPreferences
 {
     /// <summary>Versão do texto de consentimento apresentado ao usuário.</summary>
-    public const int CurrentConsentVersion = 1;
+    /// <remarks>v2 (09/11/2026): o provedor passa a buscar na web para citar fontes.</remarks>
+    public const int CurrentConsentVersion = 2;
 
     public string UserId { get; private set; }
     public bool ResearchEnabled { get; private set; } = true;

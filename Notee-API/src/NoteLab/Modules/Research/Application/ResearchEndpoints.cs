@@ -31,7 +31,8 @@ public static class ResearchEndpoints
             }
 
             Dictionary<Guid, ResearchJob> jobs = await service.LatestJobsAsync([doubt.Id], ct);
-            return Results.Ok(DoubtResponse.From(doubt, jobs.GetValueOrDefault(doubt.Id)));
+            List<SourceResponse> sources = await service.SourcesAsync(doubt.Id, ct);
+            return Results.Ok(DoubtResponse.From(doubt, jobs.GetValueOrDefault(doubt.Id)) with { Sources = sources });
         });
 
         // Lista vazia é 200 [] (antes respondia 404).

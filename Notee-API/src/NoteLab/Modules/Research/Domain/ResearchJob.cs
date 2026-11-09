@@ -33,6 +33,9 @@ public sealed class ResearchJob
     public string? IdempotencyKey { get; private set; }
     public string? Provider { get; private set; }
     public string? LastError { get; private set; }
+    /// <summary>Uso reportado pelo provider (custo), quando disponível.</summary>
+    public int? InputTokens { get; private set; }
+    public int? OutputTokens { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
@@ -84,9 +87,11 @@ public sealed class ResearchJob
         UpdatedAt = now;
     }
 
-    public void Succeed(string provider, DateTimeOffset now)
+    public void Succeed(string provider, DateTimeOffset now, int? inputTokens = null, int? outputTokens = null)
     {
         EnsureRunning();
+        InputTokens = inputTokens;
+        OutputTokens = outputTokens;
         Status = ResearchJobStatus.Succeeded;
         Provider = provider;
         LastError = null;

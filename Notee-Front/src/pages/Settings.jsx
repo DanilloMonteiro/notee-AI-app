@@ -8,7 +8,8 @@ import { publishingApi } from '../features/publishing/publishingApi';
 
 const CONSENT_TEXT =
   'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA configurado ' +
-  '(atualmente Google Gemini) para gerar uma resposta. Outras notas, mapas e dados da conta não são enviados. ' +
+  '(atualmente Google Gemini) para gerar uma resposta; o provedor pode buscar na web para indicar fontes. ' +
+  'Outras notas, mapas e dados da conta não são enviados. ' +
   'Posso revogar a qualquer momento; a revogação vale para as próximas pesquisas.';
 
 export function Settings() {

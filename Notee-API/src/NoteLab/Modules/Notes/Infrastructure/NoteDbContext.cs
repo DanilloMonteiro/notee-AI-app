@@ -22,6 +22,7 @@ public sealed class NoteDbContext : IdentityDbContext
     public DbSet<RefreshSession> RefreshSessions { get; set; }
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<InboxMessage> InboxMessages { get; set; }
+    public DbSet<ResearchSource> ResearchSources { get; set; }
 
     // Módulo KnowledgeMaps (Mapas de Ideias)
     public DbSet<Board> Boards { get; set; }
@@ -92,6 +93,15 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(j => j.DoubtId).IsUnique().HasFilter("\"Status\" IN ('Queued', 'Running')").HasDatabaseName("IX_ResearchJobs_ActivePerDoubt");
             // Idempotency-Key única por dono.
             e.HasIndex(j => new { j.OwnerId, j.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<ResearchSource>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Title).HasMaxLength(300).IsRequired();
+            e.Property(s => s.Url).HasMaxLength(2048).IsRequired();
+            e.HasOne<Doubt>().WithMany().HasForeignKey(s => s.DoubtId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.DoubtId, s.Position });
         });
 
         // ---- Outbox / Inbox (M11) ----

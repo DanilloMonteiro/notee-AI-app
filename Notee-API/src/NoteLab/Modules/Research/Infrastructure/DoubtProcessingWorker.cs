@@ -130,7 +130,7 @@ public class DoubtProcessingWorker : BackgroundService
 
         try
         {
-            string answer = await selector.For(prefs).GetAnswerAsync(doubt.Question, doubt.Anchor?.ExactQuote ?? string.Empty, ct);
+            AiAnswer answer = await selector.For(prefs).AnswerAsync(doubt.Question, doubt.Anchor?.ExactQuote ?? string.Empty, ct);
 
             // O usuário pode ter cancelado enquanto o provider respondia.
             await db.Entry(job).ReloadAsync(ct);
@@ -147,8 +147,16 @@ public class DoubtProcessingWorker : BackgroundService
             }
             else
             {
-                job.Succeed(providerName, now);
-                doubt.Complete(answer, providerName, AnswerEvidence.NoSource);
+                job.Succeed(providerName, now, answer.InputTokens, answer.OutputTokens);
+                // Fontes da nova resposta substituem as da anterior; sem fontes => "Sem fonte".
+                db.ResearchSources.RemoveRange(await db.ResearchSources.Where(s => s.DoubtId == doubt.Id).ToListAsync(ct)); // mesma gravação (fencing)
+                int position = 0;
+                foreach (AiSource source in answer.Sources)
+                {
+                    db.ResearchSources.Add(new ResearchSource(doubt.Id, job.Id, position++, source.Title, source.Url));
+                }
+
+                doubt.Complete(answer.Text, providerName, answer.Sources.Count > 0 ? AnswerEvidence.Sourced : AnswerEvidence.NoSource);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

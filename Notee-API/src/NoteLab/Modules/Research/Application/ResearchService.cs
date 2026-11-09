@@ -167,6 +167,10 @@ public sealed class ResearchService
         return MapResult<ResearchJob>.Ok(job);
     }
 
+    public Task<List<SourceResponse>> SourcesAsync(Guid doubtId, CancellationToken ct) =>
+        _db.ResearchSources.AsNoTracking().Where(s => s.DoubtId == doubtId).OrderBy(s => s.Position)
+            .Select(s => new SourceResponse(s.Title, s.Url)).ToListAsync(ct);
+
     public async Task<Dictionary<Guid, ResearchJob>> LatestJobsAsync(IEnumerable<Guid> doubtIds, CancellationToken ct)
     {
         List<Guid> ids = doubtIds.Distinct().ToList();

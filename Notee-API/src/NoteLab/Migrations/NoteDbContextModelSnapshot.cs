@@ -946,6 +946,9 @@ namespace NoteLab.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int?>("InputTokens")
+                        .HasColumnType("integer");
+
                     b.Property<string>("LastError")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
@@ -962,6 +965,9 @@ namespace NoteLab.Migrations
 
                     b.Property<DateTimeOffset>("NextAttemptAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("OutputTokens")
+                        .HasColumnType("integer");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()
@@ -993,6 +999,41 @@ namespace NoteLab.Migrations
                     b.HasIndex("Status", "NextAttemptAt");
 
                     b.ToTable("ResearchJobs");
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.ResearchSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DoubtId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("RetrievedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoubtId", "Position");
+
+                    b.ToTable("ResearchSources");
                 });
 
             modelBuilder.Entity("NoteLab.Domain.Tag", b =>
@@ -1280,6 +1321,15 @@ namespace NoteLab.Migrations
                 });
 
             modelBuilder.Entity("NoteLab.Domain.ResearchJob", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Doubt", null)
+                        .WithMany()
+                        .HasForeignKey("DoubtId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.ResearchSource", b =>
                 {
                     b.HasOne("NoteLab.Domain.Doubt", null)
                         .WithMany()

@@ -124,6 +124,7 @@ export function ResearchDetail() {
             <span className={`pill ${status.cls}`}>{status.label}</span>
             {doubt.origin === 'BoardQuestion' && <span className="pill">Pergunta do mapa</span>}
             {doubt.evidence === 'NoSource' && <span className="pill amber">Sem fonte</span>}
+            {doubt.evidence === 'Sourced' && <span className="pill green">{doubt.sources.length} fonte(s)</span>}
           </div>
 
           <h3 className="mt16">{doubt.question}</h3>
@@ -150,13 +151,30 @@ export function ResearchDetail() {
                 )}
               </div>
               <div className="divider"></div>
-              <div className="callout warning mt16">
-                <Icon name="info" />
-                <span>
-                  <strong>Sem fonte verificada.</strong> A resposta não traz citações conferíveis; a IA pode errar. Confirme informações
-                  importantes.
-                </span>
-              </div>
+              {doubt.sources?.length > 0 ? (
+                <div className="mt16">
+                  <h4 className="mb16">Fontes devolvidas pelo provedor</h4>
+                  <ol style={{ paddingLeft: 20, lineHeight: 1.8 }}>
+                    {doubt.sources.map(s => (
+                      <li key={s.url}>
+                        <a href={s.url} target="_blank" rel="noopener noreferrer">
+                          {s.title}
+                        </a>{' '}
+                        <span className="tiny muted">{new URL(s.url).hostname}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="tiny muted">Fontes indicadas pelo provedor; confira se elas sustentam a resposta.</p>
+                </div>
+              ) : (
+                <div className="callout warning mt16">
+                  <Icon name="info" />
+                  <span>
+                    <strong>Sem fonte verificada.</strong> A resposta não traz citações conferíveis; a IA pode errar. Confirme informações
+                    importantes.
+                  </span>
+                </div>
+              )}
             </>
           ) : (
             <p className="muted mt16">
@@ -194,6 +212,11 @@ export function ResearchDetail() {
                 </li>
                 {job.provider && <li>Provedor: {job.provider}</li>}
                 {job.lastError && <li>Último erro: {job.lastError}</li>}
+                {job.inputTokens != null && (
+                  <li>
+                    Tokens: {job.inputTokens} entrada / {job.outputTokens} saída
+                  </li>
+                )}
                 <li>Criada: {new Date(job.createdAt).toLocaleString('pt-BR')}</li>
                 {job.completedAt && <li>Concluída: {new Date(job.completedAt).toLocaleString('pt-BR')}</li>}
               </ul>
