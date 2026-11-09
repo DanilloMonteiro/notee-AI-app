@@ -16,6 +16,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Conflito de edição: a nota foi modificada por outro processo"),
             KeyNotFoundException => (StatusCodes.Status404NotFound, "Nota nao encontrada"),
             ArgumentException => (StatusCodes.Status400BadRequest, "Erro de validação"),
+            NoteLab.Domain.DomainException => (StatusCodes.Status400BadRequest, "Regra de negócio violada"),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Não autenticado"),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno do servidor")
         };
 

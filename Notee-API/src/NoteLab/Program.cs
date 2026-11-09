@@ -12,9 +12,12 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
 
-string connectionString = "Host=localhost;Port=5434;Database=notelab_db;Username=postgres;Password=admin";
-
 var builder = WebApplication.CreateBuilder(args);
+
+// Permite apontar para outro banco (ex.: testes) via ConnectionStrings__Default,
+// mantendo o padrão local anterior quando nada for configurado.
+string connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? "Host=localhost;Port=5434;Database=notelab_db;Username=postgres;Password=admin";
 
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(options =>
@@ -54,6 +57,7 @@ builder.Services.AddSerilog((services, config) => config
 
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
 builder.Services.AddScoped<IDoubtRepository, DoubtRepository>();
+builder.Services.AddScoped<BoardService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
 builder.Services.AddProblemDetails();
@@ -126,6 +130,8 @@ app.UseAuthorization();
 app.MapIdentityEndpoints();
 app.MapNoteEndpoints();
 app.MapResearchEndpoints();
+app.MapNoteReferenceEndpoints();
+app.MapBoardEndpoints();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
