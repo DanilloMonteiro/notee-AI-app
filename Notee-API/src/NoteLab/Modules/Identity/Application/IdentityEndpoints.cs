@@ -22,14 +22,33 @@ public static class IdentityEndpoints
     {
         var group = app.MapGroup("/auth").RequireRateLimiting("auth");
 
-        group.MapPost("/register", async (UserManager<IdentityUser> userManager, RegisterRequest request) =>
+        group.MapPost("/register", async (UserManager<ApplicationUser> userManager, RegisterRequest request) =>
         {
-            var user = new IdentityUser { UserName = request.Email, Email = request.Email };
+            // Mesmo formato dos erros do Identity ({ code, description }) para o frontend tratar tudo igual.
+            var invalid = new List<IdentityError>();
+            string? fullName = AccountData.NormalizeFullName(request.FullName);
+            if (fullName is null)
+            {
+                invalid.Add(new IdentityError { Code = "InvalidFullName", Description = $"Informe seu nome ({ApplicationUser.FullNameMinLength} a {ApplicationUser.FullNameMaxLength} caracteres)." });
+            }
+
+            string? phone = AccountData.NormalizePhone(request.PhoneNumber);
+            if (phone is null)
+            {
+                invalid.Add(new IdentityError { Code = "InvalidPhoneNumber", Description = "Informe um telefone válido com DDD, ex.: (11) 98765-4321." });
+            }
+
+            if (invalid.Count > 0)
+            {
+                return Results.BadRequest(invalid);
+            }
+
+            var user = new ApplicationUser { UserName = request.Email, Email = request.Email, FullName = fullName, PhoneNumber = phone };
             var result = await userManager.CreateAsync(user, request.Password);
             return result.Succeeded ? Results.Ok() : Results.BadRequest(result.Errors);
         });
 
-        group.MapPost("/login", async (UserManager<IdentityUser> userManager, NoteDbContext db, JwtSettings jwt, LoginrRequest request, CancellationToken ct) =>
+        group.MapPost("/login", async (UserManager<ApplicationUser> userManager, NoteDbContext db, JwtSettings jwt, LoginrRequest request, CancellationToken ct) =>
         {
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user == null || !await userManager.CheckPasswordAsync(user, request.Password))
@@ -84,7 +103,7 @@ public static class IdentityEndpoints
             return Results.NoContent(); // não revela se o token existia
         });
 
-        group.MapPost("/forgot-password", async (UserManager<IdentityUser> userManager, IWebHostEnvironment env, ILogger<Program> logger, ForgotPasswordRequest request) =>
+        group.MapPost("/forgot-password", async (UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ILogger<Program> logger, ForgotPasswordRequest request) =>
         {
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user != null)
@@ -100,7 +119,7 @@ public static class IdentityEndpoints
             return Results.Ok(new { Message = "Se o e-mail existir, receberá um link de recuperação" });
         });
 
-        group.MapPost("/reset-password", async (UserManager<IdentityUser> userManager, NoteDbContext db, ResetPasswordRequest request, CancellationToken ct) =>
+        group.MapPost("/reset-password", async (UserManager<ApplicationUser> userManager, NoteDbContext db, ResetPasswordRequest request, CancellationToken ct) =>
         {
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user == null)

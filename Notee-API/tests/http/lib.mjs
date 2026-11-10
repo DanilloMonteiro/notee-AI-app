@@ -34,7 +34,7 @@ let seq = 0;
 /** Registra e autentica um usuário novo e devolve o token. */
 export async function newUser(prefix = 'user') {
   const email = `${prefix}${Date.now()}${seq++}@test.local`;
-  await call(null, 'POST', '/auth/register', { email, password: 'Senha!Forte123' });
+  await call(null, 'POST', '/auth/register', { email, password: 'Senha!Forte123', fullName: 'Pessoa de Teste', phoneNumber: '11987654321' });
   const r = await call(null, 'POST', '/auth/login', { email, password: 'Senha!Forte123' });
   return r.json?.token;
 }

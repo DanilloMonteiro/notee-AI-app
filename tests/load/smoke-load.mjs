@@ -30,7 +30,7 @@ const json = (token, method, path, body) =>
 
 async function user(i) {
   const email = `load${Date.now()}_${i}@test.local`;
-  await json(null, 'POST', '/auth/register', { email, password: 'Senha!Forte123' });
+  await json(null, 'POST', '/auth/register', { email, password: 'Senha!Forte123', fullName: 'Carga de Teste', phoneNumber: '11987654321' });
   const { token } = await (await json(null, 'POST', '/auth/login', { email, password: 'Senha!Forte123' })).json();
   const board = await (await json(token, 'POST', '/boards', { title: 'Carga' })).json();
   for (let r = 0; r < ROUNDS; r++) {
