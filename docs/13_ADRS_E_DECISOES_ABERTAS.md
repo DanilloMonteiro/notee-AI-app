@@ -165,3 +165,11 @@ Evidência: testes unitários dos adaptadores; suíte `admin` de ponta a ponta c
 Status: Proposto (implementado) · Data: 2026-11-09
 Decisão: o administrador pode cadastrar/remover a chave de um provedor **apenas quando não houver chave na configuração do servidor** (`appsettings.json`/ambiente), que sempre tem prioridade e nunca é alterável pelo painel (409). Chaves do painel ficam na tabela `AiProviderSecrets`, **criptografadas** com ASP.NET Data Protection (propósito `Notee.AiProviderKeys.v1`); o valor nunca é devolvido pela API nem registrado em log — a interface mostra só a origem (`config`, `panel`, `none`). Se as chaves do Data Protection se perderem, a chave cadastrada deixa de ser legível e o provedor aparece como sem chave (basta cadastrar de novo); por isso o compose persiste o volume `notee-dpkeys`.
 Evidência: suíte `admin` (31 verificações) — 409 ao tentar sobrescrever/remover chave do servidor, cadastro e remoção pelo painel, valor nunca devolvido, DeepSeek respondendo com a chave do painel; no banco de teste o valor gravado começa com `CfDJ8...` (Data Protection) e não contém o texto original.
+
+## ADR-033 — evolução social incremental (10/11/2026)
+
+Decisão autorizada pelo usuário: evoluir o escopo anterior sem rede social para seguidores unilaterais, feed de publicações e reposts, comunidades públicas criadas pelos usuários, avaliações de utilidade e edição simultânea por convite. Somente o dono publica uma revisão explícita. As categorias pessoais permanecem independentes das comunidades.
+
+A implementação desta execução cobre somente a fundação: seguidores, feed cronológico paginado, curtidas e reposts. O feed consulta apenas publicações públicas ativas e revisões publicadas; nunca usa o rascunho. Chaves compostas e operações idempotentes evitam duplicação de relações e reações.
+
+Pendentes para concluir a primeira etapa: cursor de paginação, destaques, identificação dos autores dos reposts, interações na leitura pública, biografia e aba de reposts no perfil, bloqueio e denúncias. Comunidades, comentários, métricas, ranking combinado e colaboração em tempo real ainda não implementados. A arquitetura Yjs e seu serviço de sincronização permanecem propostas para a etapa de colaboração.

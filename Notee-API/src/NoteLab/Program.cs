@@ -173,6 +173,7 @@ app.MapNoteReferenceEndpoints();
 app.MapBoardEndpoints();
 app.MapGraphAiEndpoints();
 app.MapPublishingEndpoints();
+app.MapSocialEndpoints();
 app.MapNoteAnalysisEndpoints();
 app.MapAdminEndpoints();
 

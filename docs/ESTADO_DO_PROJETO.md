@@ -102,3 +102,10 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 
 - O painel explica a análise local da versão salva, os tipos de sugestão e o aceite individual; indica quando é preciso salvar antes de analisar.
 - `npm run build` em `Notee-Front` e `git diff --check` concluídos; verificação no navegador não executada.
+
+## Atualização 10/11/2026 — fundação social (parcial)
+
+- Implementados seguidores unilaterais, contagens no perfil, feed cronológico em `/feed`, curtidas de utilidade e reposts. Relações idempotentes com chaves compostas; feed somente de publicações públicas ativas e seus snapshots.
+- Migration `AddSocialFoundation` gerada e aplicada no banco isolado `notee_social_test_20261110`. A instância existente e o banco da aplicação não foram alterados.
+- Verificado: build frontend; compilação API Release; suíte HTTP social 12/12; suíte HTTP publishing 30/30; `git diff --check` sem erros.
+- Escopo ainda parcial: faltam cursor, destaques, atribuição de reposts, biografia, aba de reposts, bloqueios e denúncias; comunidades, discussão, ranking combinado e edição simultânea não implementados. ADR-033 registra continuidade. Nenhum deploy executado.

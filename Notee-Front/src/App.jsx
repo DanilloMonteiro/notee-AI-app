@@ -8,6 +8,7 @@ import { Landing } from './pages/Landing';
 import { Register } from './pages/Register';
 import { Notes } from './pages/Notes';
 import { Note } from './pages/Note';
+import { FeedPage } from './features/social/Social';
 import { Home } from './pages/Home';
 import { ResearchDetail } from './pages/ResearchDetails';
 import { Research } from './pages/Research';
@@ -40,6 +41,7 @@ function App() {
 
           <Route element={<PrivateRoute />}>
             <Route element={<AppShell />}>
+              <Route path="/feed" element={<FeedPage />} />
               <Route path="/home" element={<Home />} />
               <Route path="/notes" element={<Notes />} />
               <Route path="/note/:id" element={<Note />} />

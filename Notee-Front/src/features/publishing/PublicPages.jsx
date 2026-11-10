@@ -2,6 +2,7 @@
 // O conteúdo é renderizado como texto pelo React (sem HTML do autor), evitando XSS.
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { FollowButton } from '../social/Social';
 import { publicApi } from './publishingApi';
 
 function blocksOf(content) {
@@ -147,6 +148,7 @@ export function PublicProfilePage() {
         <>
           <div className="overline">PERFIL</div>
           <h1 className="mb24">{state.data.author.displayName}</h1>
+          <FollowButton handle={handle} />
           <NoteList notes={state.data.notes} />
         </>
       )}

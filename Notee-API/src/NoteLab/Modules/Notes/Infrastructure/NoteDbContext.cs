@@ -1,10 +1,13 @@
 namespace NoteLab.Domain;
 
 using Microsoft.EntityFrameworkCore;
+using NoteLab.Application;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
 {
+    public DbSet<SocialFollow> SocialFollows { get; set; }
+    public DbSet<SocialReaction> SocialReactions { get; set; }
     public DbSet<Note> Notes { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<Tag> Tags { get; set; }
@@ -230,6 +233,19 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<SocialFollow>(e => {
+            e.HasKey(x => new { x.UserId, x.TargetId });
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.TargetId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.TargetId);
+        });
+        modelBuilder.Entity<SocialReaction>(e => {
+            e.HasKey(x => new { x.UserId, x.PublicationId, x.Kind });
+            e.Property(x => x.Kind).HasMaxLength(16);
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Publication>().WithMany().HasForeignKey(x => x.PublicationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.PublicationId, x.Kind });
+        });
         ConfigureKnowledgeMaps(modelBuilder);
     }
 

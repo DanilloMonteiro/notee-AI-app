@@ -154,6 +154,43 @@ namespace NoteLab.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("NoteLab.Application.SocialFollow", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetId")
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId", "TargetId");
+
+                    b.HasIndex("TargetId");
+
+                    b.ToTable("SocialFollows");
+                });
+
+            modelBuilder.Entity("NoteLab.Application.SocialReaction", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PublicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "PublicationId", "Kind");
+
+                    b.HasIndex("PublicationId", "Kind");
+
+                    b.ToTable("SocialReactions");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.AiProviderSecret", b =>
                 {
                     b.Property<string>("ProviderId")
@@ -1199,6 +1236,36 @@ namespace NoteLab.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
+                    b.HasOne("NoteLab.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Application.SocialFollow", b =>
+                {
+                    b.HasOne("NoteLab.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("TargetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NoteLab.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Application.SocialReaction", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Publication", null)
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("NoteLab.Domain.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
