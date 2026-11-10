@@ -353,6 +353,7 @@ input[type='text'],
 input[type='email'],
 input[type='password'],
 input[type='number'],
+input[type='tel'],
 select,
 textarea {
   border: 1px solid #d8e1d3;
@@ -473,6 +474,12 @@ label.check input {
   font-size: 11px;
   font-weight: 700;
   flex: none;
+  overflow: hidden;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .avatar.big {
   width: 64px;
@@ -567,6 +574,29 @@ label.check input {
   padding: 12px 5px 0;
   border-top: 1px solid var(--line);
   margin-top: 14px;
+}
+/* Card da conta: leva às configurações; o botão de sair fica ao lado, fora do link */
+.user-card {
+  flex: 1;
+  min-width: 0;
+  padding: 5px;
+  margin: -5px;
+  border-radius: 9px;
+  color: inherit;
+  text-decoration: none;
+}
+.user-card:hover {
+  background: #f1f5ec;
+}
+.user-card .grow {
+  min-width: 0;
+}
+.user-card strong,
+.user-card .tiny {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .main-wrap {
   margin-left: var(--sidebar);
