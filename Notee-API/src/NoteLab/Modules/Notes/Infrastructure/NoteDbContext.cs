@@ -3,7 +3,7 @@ namespace NoteLab.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
-public sealed class NoteDbContext : IdentityDbContext
+public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
 {
     public DbSet<Note> Notes { get; set; }
     public DbSet<Category> Categories { get; set; }
@@ -38,6 +38,8 @@ public sealed class NoteDbContext : IdentityDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ApplicationUser>().Property(u => u.FullName).HasMaxLength(ApplicationUser.FullNameMaxLength);
 
         modelBuilder.Entity<Note>().Property(n => n.Title).HasConversion(title => title.Value, texto => new NoteTitle(texto));
         modelBuilder.Entity<Note>().Property(n => n.Version).IsConcurrencyToken();
@@ -147,7 +149,7 @@ public sealed class NoteDbContext : IdentityDbContext
             e.HasIndex(s => s.TokenHash).IsUnique();
             e.HasIndex(s => s.FamilyId);
             e.HasIndex(s => s.UserId);
-            e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ---- Análise assistida e configuração por nota (M10) ----
@@ -204,7 +206,7 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(p => p.Handle).HasMaxLength(PublicProfile.HandleMaxLength).IsRequired();
             e.Property(p => p.DisplayName).HasMaxLength(PublicProfile.DisplayNameMaxLength).IsRequired();
             e.HasIndex(p => p.Handle).IsUnique();
-            e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithOne().HasForeignKey<PublicProfile>(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ApplicationUser>().WithOne().HasForeignKey<PublicProfile>(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<NoteRevision>(e =>
@@ -224,7 +226,7 @@ public sealed class NoteDbContext : IdentityDbContext
             e.Property(p => p.Version).IsConcurrencyToken();
             // Contas existentes continuam com pesquisa automática ligada; true é o "não informado" do EF.
             e.Property(p => p.AutoResearch).HasDefaultValue(true).HasSentinel(true);
-            e.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithOne().HasForeignKey<UserPreferences>(p => p.UserId)
+            e.HasOne<ApplicationUser>().WithOne().HasForeignKey<UserPreferences>(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

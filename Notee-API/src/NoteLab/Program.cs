@@ -67,7 +67,7 @@ builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<ResearchService>();
 builder.Services.AddScoped<GraphContextService>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
+builder.Services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
 builder.Services.AddNoteeObservability(builder.Configuration); // OpenTelemetry, health checks, ProblemDetails com traceId
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();

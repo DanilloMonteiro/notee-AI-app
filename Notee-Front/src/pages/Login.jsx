@@ -1,11 +1,12 @@
 // src/pages/Login.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch, saveSession } from '../api';
 
 export function Login() {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const [email, setEmail] = useState(location.state?.registeredEmail || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export function Login() {
 
       if (token) {
         saveSession({ token, refreshToken: response.refreshToken });
-        navigate('/'); // Redireciona para a Visão Geral
+        navigate('/home'); // Redireciona para a Visão Geral
       } else {
         setError('Token não encontrado na resposta da API.');
       }
@@ -38,9 +39,9 @@ export function Login() {
   return (
     <div className="auth-shell">
       <aside className="auth-art">
-        <div className="logo">
+        <Link className="logo" to="/" aria-label="Notee, início">
           <span className="logo-mark">n</span>notee<span style={{ color: '#a7c17e' }}>.</span>
-        </div>
+        </Link>
         <h1>
           Anote agora.
           <br />
@@ -82,6 +83,13 @@ export function Login() {
               Entrar na conta <Icon name="arrow" className="sm" />
             </button>
           </form>
+
+          <p className="small muted" style={{ textAlign: 'center', marginTop: 22 }}>
+            Ainda não tem uma conta?{' '}
+            <Link to="/register" style={{ color: 'var(--brand)' }}>
+              Criar conta
+            </Link>
+          </p>
         </div>
       </main>
     </div>

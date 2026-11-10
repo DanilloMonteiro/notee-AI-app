@@ -1,11 +1,23 @@
 // src/components/AppShell.jsx
 import React, { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
+import { UserAvatar } from './UserAvatar';
 import { logout } from '../api';
+import { CurrentUserProvider, useCurrentUser } from '../contexts/CurrentUserContext';
 
 export function AppShell() {
+  return (
+    <CurrentUserProvider>
+      <AppShellLayout />
+    </CurrentUserProvider>
+  );
+}
+
+function AppShellLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user, loading } = useCurrentUser();
+  const displayName = user?.fullName || user?.email || (loading ? 'Carregando…' : 'Sua conta');
   const navigate = useNavigate(); // <-- Inicialize o hook
 
   // Função para limpar o token e sair
@@ -19,16 +31,16 @@ export function AppShell() {
     <div className={`app-shell ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <a className="logo" href="/" aria-label="Notee, início">
+          <Link className="logo" to="/home" aria-label="Notee, meu espaço">
             <span className="logo-mark">n</span>notee<span style={{ color: '#a7c17e' }}>.</span>
-          </a>
+          </Link>
           <button className="icon-btn sidebar-collapse-button" onClick={() => setIsCollapsed(!isCollapsed)}>
             <Icon name={isCollapsed ? 'panel-left-open' : 'panel-left-close'} />
           </button>
         </div>
 
         <div className="workspace row gap8">
-          <span className="avatar">AC</span>
+          <UserAvatar name={user?.fullName || user?.email} imageUrl={user?.avatarUrl} />
           <span className="grow">
             <strong className="small">Meu espaço</strong>
             <span className="tiny muted" style={{ display: 'block' }}>
@@ -39,7 +51,7 @@ export function AppShell() {
         </div>
 
         <nav>
-          <NavLink to="/" className={navClass} end>
+          <NavLink to="/home" className={navClass}>
             <Icon name="home" />
             <span>Visão geral</span>
           </NavLink>
@@ -72,13 +84,19 @@ export function AppShell() {
         </nav>
         <div className="sidebar-bottom">
           <div className="user-switch row gap8">
-            <span className="avatar">AC</span>
-            <div className="grow">
-              <strong className="small">Alex Costa</strong>
-              <div className="tiny muted">Conta de desenvolvimento</div>
-            </div>
+            <Link
+              to="/settings?tab=account"
+              className="user-card row gap8"
+              aria-label={`${displayName}: abrir configurações da conta`}
+              title="Configurações da conta"
+            >
+              <UserAvatar name={user?.fullName || user?.email} imageUrl={user?.avatarUrl} />
+              <div className="grow">
+                <strong className="small">{displayName}</strong>
+                {user?.fullName && user?.email && <div className="tiny muted">{user.email}</div>}
+              </div>
+            </Link>
 
-            {/* Adicione o evento onClick no botão! */}
             <button className="icon-btn" onClick={handleLogout} aria-label="Sair da conta" title="Sair">
               <Icon name="logout" />
             </button>

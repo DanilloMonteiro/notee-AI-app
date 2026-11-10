@@ -77,3 +77,28 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 2. Marcar os M01–M18 e MAP-01–MAP-05 como concluídos, parciais ou pendentes **somente** com evidência.
 3. Se já existe app web/backend, alinhar contratos reais com este pacote sem substituições globais.
 4. Se ainda é apenas o protótipo, começar M01 do PDF ou, sob autorização explícita, construir um incremento de UI de mapas demonstrável sem fingir backend.
+
+## Atualização 10/11/2026 — interface de tags
+
+- No editor, o campo de tags recebeu botão de adicionar, foco visível e layout flexível; as tags selecionadas receberam ajustes visuais e de remoção.
+- Validação local: `npm run build` em `Notee-Front` concluído; `git diff --check` sem erros. Verificação visual no navegador não executada.
+
+## Atualização 10/11/2026 — seleção e sugestões de tags
+
+- O organizador lista e filtra tags existentes ao focar o campo e permite criar categorias no próprio editor. O botão de análise existente identifica também as sugestões de tags; a análise é local e exige aceite individual.
+- `npm run build` em `Notee-Front` e `git diff --check` concluídos. Verificação visual no navegador não executada.
+
+## Atualização 10/11/2026 — apresentação de categorias
+
+- O seletor de categoria recebeu estilo alinhado ao campo de tags, e a criação abre em um card junto ao botão.
+- `npm run build` em `Notee-Front` e `git diff --check` concluídos; verificação visual no navegador não executada.
+
+## Atualização 10/11/2026 — conteúdo vazio no editor
+
+- Corrigida a interpretação da lista vazia de blocos para abrir o editor com parágrafo vazio, sem exibir `[]`.
+- `npm run build` em `Notee-Front` e `git diff --check` concluídos; teste no navegador não executado.
+
+## Atualização 10/11/2026 — explicação das sugestões
+
+- O painel explica a análise local da versão salva, os tipos de sugestão e o aceite individual; indica quando é preciso salvar antes de analisar.
+- `npm run build` em `Notee-Front` e `git diff --check` concluídos; verificação no navegador não executada.
