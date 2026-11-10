@@ -123,3 +123,12 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Verificado: build frontend aprovado; API Release sem avisos/erros; suite HTTP discovery 10/10 contra PostgreSQL isolado.
 - Commits desta continuidade: d0803b3 (fundacao social), 36bd493 (comunidades e comentarios). Descoberta registrada em commit separado a seguir.
 - O plano maior continua parcial: visualizacoes, cursor estavel, moderacao completa, respostas em comentarios e colaboracao simultanea ainda pendentes. Nao houve deploy ou alteracao do banco principal.
+
+## Atualizacao 10/11/2026 - leituras, respostas e moderacao
+
+- Implementadas leituras unicas por usuario/dia UTC, exclusao do autor da contagem e criterio de mais vistas na descoberta. A leitura publica autenticada recebeu botoes de utilidade/repost e conversa.
+- Comentarios com um nivel de resposta, exclusao por marcador preservando respostas e validacao de publicacao/revisao.
+- Criador nomeia moderadores e suspende/restaura membros; moderadores removem vinculos de notas da comunidade. Sair/entrar nao contorna suspensao. ADR-035 registra os limites.
+- Migration AddCommunityModerationAndReading aplicada no banco isolado notee_social_test_20261110. Testes HTTP: moderation 18/18, communities 14/14, discovery 10/10, social 12/12, publishing 30/30 (84 verificacoes). API Release e build frontend aprovados; lint concluiu com avisos.
+- Verificacao de interface no navegador inconclusiva: pagina carregou API_URL localhost:5000, enquanto a instancia isolada usa 5099; nao declarar fluxo visual aprovado. Instancias de teste encerradas.
+- Pendentes: cursor estavel, moderacao global/denuncias/bloqueios, refinamentos de perfil/feed, colaboracao simultanea. Nenhum deploy realizado; banco principal preservado.

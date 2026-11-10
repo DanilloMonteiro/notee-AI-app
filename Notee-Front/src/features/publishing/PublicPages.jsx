@@ -2,6 +2,7 @@
 // O conteúdo é renderizado como texto pelo React (sem HTML do autor), evitando XSS.
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ReadingActions } from '../social/ReadingActions';
 import { FollowButton } from '../social/Social';
 import { publicApi } from './publishingApi';
 
@@ -100,9 +101,11 @@ function Article({ state }) {
 
 export function PublicNotePage() {
   const { handle, slug } = useParams();
+  const state = useLoad(() => publicApi.note(handle, slug), [handle, slug]);
   return (
     <PublicShell>
-      <Article state={useLoad(() => publicApi.note(handle, slug), [handle, slug])} />
+      <Article state={state} />
+      {state.data && !state.error && <ReadingActions key={handle + slug} handle={handle} slug={slug} />}
     </PublicShell>
   );
 }

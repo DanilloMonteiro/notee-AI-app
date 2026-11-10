@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
 {
+    public DbSet<PublicationView> PublicationViews { get; set; }
     public DbSet<Community> Communities { get; set; }
     public DbSet<CommunityMember> CommunityMembers { get; set; }
     public DbSet<CommunityPublication> CommunityPublications { get; set; }
@@ -264,7 +265,13 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne<Community>().WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Publication>().WithMany().HasForeignKey(x => x.PublicationId).OnDelete(DeleteBehavior.Cascade);
         });
+        modelBuilder.Entity<PublicationView>(e => {
+            e.HasKey(x => new { x.PublicationId, x.UserId, x.Day });
+            e.HasOne<Publication>().WithMany().HasForeignKey(x => x.PublicationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         modelBuilder.Entity<PublicationComment>(e => {
+            e.HasOne<PublicationComment>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
             e.HasKey(x => x.Id); e.Property(x => x.Text).HasMaxLength(2000);
             e.HasOne<Publication>().WithMany().HasForeignKey(x => x.PublicationId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);

@@ -2943,3 +2943,6 @@ body.pane-is-resizing * {
 .organizer-category-form input { flex: none; width: 100%; padding: 9px 12px; border: 1px solid #cbdac7; border-radius: 10px; }
 .organizer-category-form input:focus { outline: 0; border-color: #52875c; box-shadow: 0 0 0 3px rgba(82, 135, 92, .18); }
 .organizer-category-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.discussion-comment { padding: 12px 0; border-top: 1px solid var(--line); }
+.discussion-replies { margin-left: 20px; padding-left: 14px; border-left: 2px solid var(--line); }

@@ -26,6 +26,23 @@ public static class SocialEndpoints
     public static void MapSocialEndpoints(this IEndpointRouteBuilder app)
     {
         var api = app.MapGroup("/social").RequireAuthorization().WithTags("Social");
+        api.MapPost("/reading/{handle}/{slug}", async (string handle, string slug, ClaimsPrincipal user, NoteDbContext db, CancellationToken ct) =>
+        {
+            string me = User(user);
+            var profile = await db.PublicProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.Handle == handle.ToLower(), ct);
+            if (profile is null) return Results.NotFound();
+            var publication = await Public(db).AsNoTracking().SingleOrDefaultAsync(p => p.OwnerId == profile.UserId && p.Slug == slug.ToLower(), ct);
+            if (publication is null) return Results.NotFound();
+            DateOnly day = DateOnly.FromDateTime(DateTime.UtcNow);
+            if (publication.OwnerId != me)
+                await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO \"PublicationViews\" (\"PublicationId\", \"UserId\", \"Day\") VALUES ({publication.Id}, {me}, {day}) ON CONFLICT DO NOTHING", ct);
+            return Results.Ok(new { publication.Id, isOwner = publication.OwnerId == me,
+                views = await db.PublicationViews.CountAsync(x => x.PublicationId == publication.Id, ct),
+                likes = await db.SocialReactions.CountAsync(x => x.PublicationId == publication.Id && x.Kind == "like", ct),
+                reposts = await db.SocialReactions.CountAsync(x => x.PublicationId == publication.Id && x.Kind == "repost", ct),
+                liked = await db.SocialReactions.AnyAsync(x => x.PublicationId == publication.Id && x.Kind == "like" && x.UserId == me, ct),
+                reposted = await db.SocialReactions.AnyAsync(x => x.PublicationId == publication.Id && x.Kind == "repost" && x.UserId == me, ct) });
+        });
         api.MapGet("/profiles/{handle}", async (string handle, ClaimsPrincipal user, NoteDbContext db, CancellationToken ct) =>
         {
             var profile = await db.PublicProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.Handle == handle.ToLower(), ct);

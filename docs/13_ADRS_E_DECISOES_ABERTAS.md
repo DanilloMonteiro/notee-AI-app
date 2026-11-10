@@ -179,3 +179,11 @@ Pendentes para concluir a primeira etapa: cursor de paginação, destaques, iden
 A descoberta permite selecionar ate 20 comunidades (uniao sem duplicacao), buscar titulo/conteudo publicado e escolher periodo de 7, 30 dias ou todo o periodo. Criterios iniciais: curtidas, reposts e recencia; pesos iguais entre criterios ativos. Contagens usam ln(1+n)/(1+ln(1+n)); recencia usa 1/(1+idadeEmDias/7); pontuacao e a media. O periodo limita publicacoes e eventos contados. Empate por data original e identificador.
 
 Primeira entrega usa paginacao por pagina e nao congela ranking durante navegacao; cursor com janela estavel e visualizacoes permanecem pendentes. Esta limitacao deve ser resolvida antes de considerar a descoberta completa.
+
+## ADR-035 - leituras, respostas e moderacao de comunidades (10/11/2026)
+
+Leituras sociais contam usuarios autenticados distintos por publicacao e dia UTC, excluindo o autor. O endpoint resolve apenas publicacoes publicas ativas e usa chave composta para idempotencia concorrente. A descoberta inclui visualizacoes no conjunto de criterios de mesmo peso; leitores anonimos continuam acessando o snapshot sem registro de leitura social.
+
+Comentarios aceitam um nivel de resposta, sempre na mesma publicacao. Exclusao pelo autor apaga o texto e preserva o marcador e as respostas. Cada comentario registra a revisao publica consultada.
+
+O criador nomeia moderadores e suspende/restaura membros. Moderadores removem somente vinculos da comunidade, sem alterar notas de terceiros ou discussoes globais. Suspensao permanece registrada mesmo ao tentar sair da comunidade; nao impede leitura publica ou comentarios na discussao global. Moderacao global, denuncias e bloqueios ainda nao implementados.

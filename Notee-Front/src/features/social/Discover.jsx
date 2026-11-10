@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../api';
 
-const CRITERIA = { likes: 'Mais uteis', recent: 'Mais recentes', reposts: 'Mais repostadas' };
+const CRITERIA = { likes: 'Mais uteis', recent: 'Mais recentes', reposts: 'Mais repostadas', views: 'Mais vistas' };
 export function DiscoverPage() {
   const [communities, setCommunities] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [criteria, setCriteria] = useState(['likes', 'recent', 'reposts']);
+  const [criteria, setCriteria] = useState(['likes', 'recent', 'reposts', 'views']);
   const [days, setDays] = useState(30);
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
@@ -27,6 +27,6 @@ export function DiscoverPage() {
       <label>Periodo<select value={days} onChange={e => { setDays(Number(e.target.value)); setPage(1); }}><option value={7}>Ultimos 7 dias</option><option value={30}>Ultimos 30 dias</option><option value={0}>Todo o periodo</option></select></label>
       <fieldset><legend>Combinar criterios</legend><div className="row gap8 wrap">{Object.entries(CRITERIA).map(([id, label]) => <label className="row gap8" key={id}><input type="checkbox" checked={criteria.includes(id)} disabled={criteria.length === 1 && criteria.includes(id)} onChange={e => { setCriteria(prev => e.target.checked ? [...prev, id] : prev.filter(x => x !== id)); setPage(1); }} />{label}</label>)}</div><p className="tiny muted">Os criterios escolhidos tem o mesmo peso. A pontuacao equilibra popularidade e idade da publicacao.</p></fieldset>
     </div>
-    {loading ? <p role="status">Buscando notas...</p> : error ? <p role="alert">{error}</p> : <div className="stack">{!rows.length && <p>Nenhuma nota encontrada com esses filtros.</p>}{rows.map(n => <article className="card pad" key={n.id}><Link to={'/u/' + n.handle}>{n.displayName}</Link><h2><Link to={'/p/' + n.handle + '/' + n.slug}>{n.title}</Link></h2><p className="tiny muted">{n.likes} curtidas / {n.reposts} reposts no periodo</p></article>)}</div>}
+    {loading ? <p role="status">Buscando notas...</p> : error ? <p role="alert">{error}</p> : <div className="stack">{!rows.length && <p>Nenhuma nota encontrada com esses filtros.</p>}{rows.map(n => <article className="card pad" key={n.id}><Link to={'/u/' + n.handle}>{n.displayName}</Link><h2><Link to={'/p/' + n.handle + '/' + n.slug}>{n.title}</Link></h2><p className="tiny muted">{n.likes} curtidas / {n.reposts} reposts / {n.views} leituras no periodo</p></article>)}</div>}
     <div className="row gap8 mt16"><button className="btn" disabled={loading || page === 1} onClick={() => setPage(p => p - 1)}>Anterior</button><span>Pagina {page}</span><button className="btn" disabled={loading || rows.length < 20} onClick={() => setPage(p => p + 1)}>Proxima</button></div></>;
 }

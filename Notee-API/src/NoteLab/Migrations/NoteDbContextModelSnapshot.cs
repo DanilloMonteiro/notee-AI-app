@@ -189,6 +189,12 @@ namespace NoteLab.Migrations
                     b.Property<string>("UserId")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsModerator")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("boolean");
+
                     b.HasKey("CommunityId", "UserId");
 
                     b.HasIndex("UserId");
@@ -220,6 +226,12 @@ namespace NoteLab.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("PublicationId")
                         .HasColumnType("uuid");
 
@@ -237,6 +249,8 @@ namespace NoteLab.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ParentId");
+
                     b.HasIndex("RevisionId");
 
                     b.HasIndex("UserId");
@@ -244,6 +258,24 @@ namespace NoteLab.Migrations
                     b.HasIndex("PublicationId", "CreatedAt");
 
                     b.ToTable("PublicationComments");
+                });
+
+            modelBuilder.Entity("NoteLab.Application.PublicationView", b =>
+                {
+                    b.Property<Guid>("PublicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.HasKey("PublicationId", "UserId", "Day");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PublicationViews");
                 });
 
             modelBuilder.Entity("NoteLab.Application.SocialFollow", b =>
@@ -1376,6 +1408,11 @@ namespace NoteLab.Migrations
 
             modelBuilder.Entity("NoteLab.Application.PublicationComment", b =>
                 {
+                    b.HasOne("NoteLab.Application.PublicationComment", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("NoteLab.Domain.Publication", null)
                         .WithMany()
                         .HasForeignKey("PublicationId")
@@ -1385,6 +1422,21 @@ namespace NoteLab.Migrations
                     b.HasOne("NoteLab.Domain.PublicationRevision", null)
                         .WithMany()
                         .HasForeignKey("RevisionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NoteLab.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Application.PublicationView", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Publication", null)
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
