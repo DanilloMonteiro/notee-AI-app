@@ -1,6 +1,6 @@
 // src/components/AppShell.jsx
 import React, { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { UserAvatar } from './UserAvatar';
 import { logout } from '../api';
@@ -18,6 +18,8 @@ function AppShellLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, loading } = useCurrentUser();
   const displayName = user?.fullName || user?.email || (loading ? 'Carregando…' : 'Sua conta');
+  const { pathname } = useLocation();
+  const pageName = pathname.startsWith('/communities/') ? 'Comunidade' : ({ '/discover': 'Descobrir notas', '/communities': 'Comunidades', '/feed': 'Seu feed', '/home': 'Visão geral', '/notes': 'Minhas notas', '/boards': 'Mapas de ideias', '/research': 'Dúvidas e pesquisas', '/publications': 'Publicações', '/search': 'Buscar nas notas', '/settings': 'Configurações' }[pathname] || 'Meu espaço');
   const navigate = useNavigate(); // <-- Inicialize o hook
 
   // Função para limpar o token e sair
@@ -51,9 +53,11 @@ function AppShellLayout() {
         </div>
 
         <nav>
+          <div className="nav-label">Explorar</div>
           <NavLink to="/discover" className={navClass}><Icon name="search" /><span>Descobrir</span></NavLink>
-          <NavLink to="/communities" className={navClass}><Icon name="globe" /><span>Comunidades</span></NavLink>
-          <NavLink to="/feed" className={navClass}><Icon name="globe" /><span>Feed</span></NavLink>
+          <NavLink to="/communities" className={navClass}><Icon name="user" /><span>Comunidades</span></NavLink>
+          <NavLink to="/feed" className={navClass}><Icon name="book" /><span>Feed</span></NavLink>
+          <div className="nav-label">Meu espaço</div>
           <NavLink to="/home" className={navClass}>
             <Icon name="home" />
             <span>Visão geral</span>
@@ -109,7 +113,7 @@ function AppShellLayout() {
       <div className="main-wrap">
         <header className="topbar">
           <div className="crumb">
-            Meu espaço <span>/</span> <strong>Aplicação React</strong>
+            Meu espaço <span>/</span> <strong>{pageName}</strong>
           </div>
           <div className="row">
             <button className="icon-btn">

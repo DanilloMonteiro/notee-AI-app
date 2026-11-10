@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Icon } from '../../components/Icon';
+import { SocialHeading, SocialState, PublicationCard, SocialPagination } from './SocialUI';
 import { apiFetch } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
 
 export function FollowButton({ handle }) {
   const [profile, setProfile] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState('');
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const { addToast } = useToast();
   useEffect(() => {
-    let alive = true;
-    apiFetch('/social/profiles/' + encodeURIComponent(handle)).then(p => { if (alive) setProfile(p); }).catch(() => {});
+    let alive = true; setLoadingProfile(true); setFailure(''); setProfile(null);
+    apiFetch('/social/profiles/' + encodeURIComponent(handle)).then(p => { if (alive) setProfile(p); }).catch(e => { if (alive) setFailure(e.status === 401 ? 'login' : e.message); }).finally(() => { if (alive) setLoadingProfile(false); });
     return () => { alive = false; };
   }, [handle]);
-  if (!profile) return <Link to="/login" className="small">Entre para seguir este perfil</Link>;
+  if (loadingProfile) return <p className="small muted" role="status">Carregando perfil…</p>;
+  if (failure === 'login') return <Link to="/login" className="btn compact">Entre para seguir este perfil</Link>;
+  if (!profile) return <p className="callout warning" role="alert">{failure}</p>;
   const toggle = async () => {
     setBusy(true);
     try {
@@ -21,12 +27,13 @@ export function FollowButton({ handle }) {
     } catch (err) { addToast(err.message, 'warning'); }
     finally { setBusy(false); }
   };
-  return <div className="row gap8 mb24"><span className="small muted">{profile.followers} seguidores / seguindo {profile.follows}</span>{!profile.isMe && <button className="btn compact" disabled={busy} onClick={toggle}>{profile.following ? 'Deixar de seguir' : 'Seguir'}</button>}</div>;
+  return <div className="social-profile-actions"><span className="small muted">{profile.followers} seguidores / seguindo {profile.follows}</span>{!profile.isMe && <button className={profile.following ? "btn compact" : "btn primary compact"} disabled={busy} title={profile.following ? "Deixar de seguir" : "Seguir perfil"} onClick={toggle}><Icon name={profile.following ? 'check' : 'plus'} className="sm" />{busy ? 'Atualizando…' : profile.following ? 'Seguindo' : 'Seguir'}</button>}</div>;
 }
 
 export function FeedPage() {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
+  const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -36,7 +43,7 @@ export function FeedPage() {
     setLoading(true);
     apiFetch('/social/feed?page=' + page).then(rows => { if (alive) { setItems(rows); setError(''); } }).catch(err => { if (alive) setError(err.message); }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [page]);
+  }, [page, reload]);
   const react = async (item, kind) => {
     setBusy(true);
     const active = kind === 'like' ? item.liked : item.reposted;
@@ -46,7 +53,9 @@ export function FeedPage() {
     } catch (err) { addToast(err.message, 'warning'); }
     finally { setBusy(false); }
   };
-  return <><div className="overline">PESSOAS QUE VOCÊ SEGUE</div><h1>Seu feed</h1><p className="muted mb24">Publicações e reposts públicos das pessoas que você acompanha.</p><Link to="/library" className="btn mb24">Explorar autores na biblioteca</Link>
-    {loading ? <p role="status">Carregando publicações…</p> : error ? <p role="alert">{error}</p> : <div className="stack">{!items.length && <div className="card pad">Nenhuma publicação nesta página. Siga autores pela biblioteca para acompanhar suas notas.</div>}{items.map(n => <article className="card pad" key={n.id}><Link className="small muted" to={'/u/' + n.handle}>{n.displayName} / @{n.handle}</Link><h2><Link to={'/p/' + n.handle + '/' + n.slug}>{n.title}</Link></h2><div className="row gap8 mt16"><button className="btn compact" aria-pressed={n.liked} disabled={busy} onClick={() => react(n, 'like')}>Útil / {n.likes}</button><button className="btn compact" aria-pressed={n.reposted} disabled={busy} onClick={() => react(n, 'repost')}>Repostar / {n.reposts}</button></div></article>)}</div>}
-    <div className="row gap8 mt16"><button className="btn" disabled={loading || page === 1} onClick={() => setPage(p => p - 1)}>Anterior</button><span>Página {page}</span><button className="btn" disabled={loading || items.length < 20} onClick={() => setPage(p => p + 1)}>Próxima</button></div></>;
+  return <div className="social-page">
+    <SocialHeading eyebrow="PESSOAS QUE VOCÊ SEGUE" title="Seu feed" description="Publicações e reposts de quem inspira suas ideias."><Link to="/discover" className="btn"><Icon name="search" />Descobrir notas</Link></SocialHeading>
+    {loading || error || !items.length ? <SocialState loading={loading} error={error} retry={() => setReload(r => r + 1)} title="Seu feed começa com uma conexão" description="Explore a biblioteca, encontre autores e siga os perfis que você quer acompanhar."><Link className="btn primary" to="/library">Explorar autores<Icon name="arrow" className="sm" /></Link></SocialState> : <div className="stack">{items.map(n => <PublicationCard note={n} key={n.id} actions={<><button className="btn compact" aria-pressed={n.liked} disabled={busy} onClick={() => react(n, 'like')}><Icon name="check" className="sm" />{n.liked ? 'Marcada como útil' : 'Marcar como útil'}</button><button className="btn compact" aria-pressed={n.reposted} disabled={busy} onClick={() => react(n, 'repost')}><Icon name="refresh" className="sm" />{n.reposted ? 'Repostada' : 'Repostar'}</button><Link className="btn compact ghost" to={'/p/' + n.handle + '/' + n.slug}>Ler nota<Icon name="arrow" className="sm" /></Link></>} />)}</div>}
+    {!error && <SocialPagination page={page} loading={loading} hasNext={items.length === 20} onChange={setPage} />}
+  </div>;
 }

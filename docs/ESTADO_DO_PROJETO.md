@@ -132,3 +132,10 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Migration AddCommunityModerationAndReading aplicada no banco isolado notee_social_test_20261110. Testes HTTP: moderation 18/18, communities 14/14, discovery 10/10, social 12/12, publishing 30/30 (84 verificacoes). API Release e build frontend aprovados; lint concluiu com avisos.
 - Verificacao de interface no navegador inconclusiva: pagina carregou API_URL localhost:5000, enquanto a instancia isolada usa 5099; nao declarar fluxo visual aprovado. Instancias de teste encerradas.
 - Pendentes: cursor estavel, moderacao global/denuncias/bloqueios, refinamentos de perfil/feed, colaboracao simultanea. Nenhum deploy realizado; banco principal preservado.
+
+## Atualização 10/11/2026 — consistência visual das telas sociais
+
+- Feed, descoberta, comunidades, participantes, comentários e ações de leitura alinhados aos tokens existentes: cabeçalhos, cards, avatares, ícones, campos, botões e espaçamentos. Componentes visuais compartilhados em SocialUI.jsx e estilos restritos em social.css.
+- Filtros em painel lateral; criação de comunidade com foco no nome; estados de carregamento, vazio e erro com nova tentativa; formulários de conversa com foco ao responder. Navegação com grupos e nomes de páginas reais. Paginação da comunidade utiliza o endpoint já existente.
+- Validação executada: build frontend aprovado; lint concluído com avisos, incluindo set-state-in-effect nos fluxos de fetch; diff conferido. Navegador com respostas simuladas (sem API/banco): catálogo, descoberta, moderação, conversa, foco na resposta/criação, erro e recuperação, feed vazio e reação ativa. Sem rolagem horizontal no feed em 1120 px e nas telas inspecionadas em 1440 px.
+- Esta rodada não revalidou persistência ou permissões da API; testes HTTP anteriores não foram repetidos. Não houve alteração de backend, migration ou deploy.
