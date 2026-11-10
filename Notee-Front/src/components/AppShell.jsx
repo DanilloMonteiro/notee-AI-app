@@ -51,6 +51,7 @@ function AppShellLayout() {
         </div>
 
         <nav>
+          <NavLink to="/communities" className={navClass}><Icon name="globe" /><span>Comunidades</span></NavLink>
           <NavLink to="/feed" className={navClass}><Icon name="globe" /><span>Feed</span></NavLink>
           <NavLink to="/home" className={navClass}>
             <Icon name="home" />

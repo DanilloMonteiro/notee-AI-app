@@ -109,3 +109,10 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Migration `AddSocialFoundation` gerada e aplicada no banco isolado `notee_social_test_20261110`. A instância existente e o banco da aplicação não foram alterados.
 - Verificado: build frontend; compilação API Release; suíte HTTP social 12/12; suíte HTTP publishing 30/30; `git diff --check` sem erros.
 - Escopo ainda parcial: faltam cursor, destaques, atribuição de reposts, biografia, aba de reposts, bloqueios e denúncias; comunidades, discussão, ranking combinado e edição simultânea não implementados. ADR-033 registra continuidade. Nenhum deploy executado.
+
+## Atualizacao 10/11/2026 - comunidades e discussao inicial
+
+- Comunidades abertas: criacao, participacao, vinculo idempotente de publicacoes publicas proprias e remocao pelo criador. Conversas vinculadas a publicacao com referencia a revisao e exclusao pelo autor do comentario.
+- Frontend: catalogo, pagina da comunidade, compartilhamento de publicacoes e comentarios. Ordenacoes iniciais por data, curtidas, reposts e soma de curtidas/reposts (ainda nao e o ranking normalizado completo planejado).
+- Migration AddCommunities aplicada somente no banco isolado notee_social_test_20261110. Suite HTTP communities: 14/14; build da API Release e frontend aprovados.
+- Pendentes: moderadores e suspensoes, respostas nos comentarios, pesquisa e filtros combinados completos, visualizacoes, paginacao da interface da comunidade, colaboracao simultanea. Sem deploy.

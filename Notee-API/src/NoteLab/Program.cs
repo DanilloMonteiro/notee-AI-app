@@ -174,6 +174,7 @@ app.MapBoardEndpoints();
 app.MapGraphAiEndpoints();
 app.MapPublishingEndpoints();
 app.MapSocialEndpoints();
+app.MapCommunityEndpoints();
 app.MapNoteAnalysisEndpoints();
 app.MapAdminEndpoints();
 

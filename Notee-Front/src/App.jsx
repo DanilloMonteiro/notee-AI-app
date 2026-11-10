@@ -8,6 +8,7 @@ import { Landing } from './pages/Landing';
 import { Register } from './pages/Register';
 import { Notes } from './pages/Notes';
 import { Note } from './pages/Note';
+import { CommunitiesPage, CommunityPage } from './features/social/Communities';
 import { FeedPage } from './features/social/Social';
 import { Home } from './pages/Home';
 import { ResearchDetail } from './pages/ResearchDetails';
@@ -41,6 +42,8 @@ function App() {
 
           <Route element={<PrivateRoute />}>
             <Route element={<AppShell />}>
+              <Route path="/communities" element={<CommunitiesPage />} />
+              <Route path="/communities/:id" element={<CommunityPage />} />
               <Route path="/feed" element={<FeedPage />} />
               <Route path="/home" element={<Home />} />
               <Route path="/notes" element={<Notes />} />
