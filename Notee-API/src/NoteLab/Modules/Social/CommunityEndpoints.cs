@@ -85,6 +85,37 @@ public static class CommunityEndpoints
             await db.CommunityPublications.Where(x => x.CommunityId == id && x.PublicationId == publicationId).ExecuteDeleteAsync(ct);
             return Results.NoContent();
         });
+        api.MapGet("/discover", async (NoteDbContext db, CancellationToken ct, string communities = "", string q = "", string criteria = "likes,recent,reposts", int days = 30, int page = 1) =>
+        {
+            if (days is not (0 or 7 or 30) || page < 1 || page > 10000 || q.Length > 200) return Results.BadRequest();
+            var ids = new List<Guid>();
+            foreach (string part in communities.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!Guid.TryParse(part, out Guid id)) return Results.BadRequest();
+                ids.Add(id);
+            }
+            if (ids.Count > 20) return Results.BadRequest();
+            var selected = criteria.Split(',', StringSplitOptions.RemoveEmptyEntries).Distinct().ToArray();
+            if (selected.Length == 0 || selected.Any(c => c is not ("likes" or "reposts" or "recent"))) return Results.BadRequest();
+            bool useLikes = selected.Contains("likes"), useReposts = selected.Contains("reposts"), useRecent = selected.Contains("recent");
+            DateTimeOffset now = DateTimeOffset.UtcNow, cutoff = now.AddDays(-days);
+            string search = q.Trim().ToLower();
+            var query = from p in Public(db)
+                join r in db.PublicationRevisions on p.CurrentRevisionId equals r.Id
+                join profile in db.PublicProfiles on p.OwnerId equals profile.UserId
+                where (ids.Count == 0 || db.CommunityPublications.Any(x => x.PublicationId == p.Id && ids.Contains(x.CommunityId)))
+                    && (days == 0 || p.CreatedAt >= cutoff)
+                    && (search == "" || r.Title.ToLower().Contains(search) || (r.Content != null && r.Content.ToLower().Contains(search)))
+                select new { p.Id, r.Title, p.Slug, profile.Handle, profile.DisplayName, p.CreatedAt,
+                    likes = db.SocialReactions.Count(x => x.PublicationId == p.Id && x.Kind == "like" && (days == 0 || x.CreatedAt >= cutoff)),
+                    reposts = db.SocialReactions.Count(x => x.PublicationId == p.Id && x.Kind == "repost" && (days == 0 || x.CreatedAt >= cutoff)) };
+            var ranked = query.Select(x => new { x.Id, x.Title, x.Slug, x.Handle, x.DisplayName, x.CreatedAt, x.likes, x.reposts,
+                score = ((useLikes ? Math.Log(1.0 + x.likes) / (1.0 + Math.Log(1.0 + x.likes)) : 0.0)
+                    + (useReposts ? Math.Log(1.0 + x.reposts) / (1.0 + Math.Log(1.0 + x.reposts)) : 0.0)
+                    + (useRecent ? 1.0 / (1.0 + (now - x.CreatedAt).TotalDays / 7.0) : 0.0)) / selected.Length });
+            return Results.Ok(await ranked.OrderByDescending(x => x.score).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                .Skip((page - 1) * 20).Take(20).ToListAsync(ct));
+        });
         api.MapGet("/{id:guid}/notes", async (Guid id, NoteDbContext db, CancellationToken ct, string sort = "recent", int page = 1) =>
         {
             if (sort is not ("recent" or "likes" or "reposts" or "combined")) return Results.BadRequest();

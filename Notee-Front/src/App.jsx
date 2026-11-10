@@ -9,6 +9,7 @@ import { Register } from './pages/Register';
 import { Notes } from './pages/Notes';
 import { Note } from './pages/Note';
 import { CommunitiesPage, CommunityPage } from './features/social/Communities';
+import { DiscoverPage } from './features/social/Discover';
 import { FeedPage } from './features/social/Social';
 import { Home } from './pages/Home';
 import { ResearchDetail } from './pages/ResearchDetails';
@@ -44,6 +45,7 @@ function App() {
             <Route element={<AppShell />}>
               <Route path="/communities" element={<CommunitiesPage />} />
               <Route path="/communities/:id" element={<CommunityPage />} />
+              <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/feed" element={<FeedPage />} />
               <Route path="/home" element={<Home />} />
               <Route path="/notes" element={<Notes />} />

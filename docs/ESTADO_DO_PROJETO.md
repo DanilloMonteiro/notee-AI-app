@@ -116,3 +116,10 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Frontend: catalogo, pagina da comunidade, compartilhamento de publicacoes e comentarios. Ordenacoes iniciais por data, curtidas, reposts e soma de curtidas/reposts (ainda nao e o ranking normalizado completo planejado).
 - Migration AddCommunities aplicada somente no banco isolado notee_social_test_20261110. Suite HTTP communities: 14/14; build da API Release e frontend aprovados.
 - Pendentes: moderadores e suspensoes, respostas nos comentarios, pesquisa e filtros combinados completos, visualizacoes, paginacao da interface da comunidade, colaboracao simultanea. Sem deploy.
+
+## Atualizacao 10/11/2026 - descoberta combinada
+
+- Pagina /discover com busca, selecao de comunidades, periodo e combinacao de curtidas, reposts e recencia. Consulta apenas snapshots publicos ativos; uniao de comunidades sem duplicacao. ADR-034 descreve calculo e limites.
+- Verificado: build frontend aprovado; API Release sem avisos/erros; suite HTTP discovery 10/10 contra PostgreSQL isolado.
+- Commits desta continuidade: d0803b3 (fundacao social), 36bd493 (comunidades e comentarios). Descoberta registrada em commit separado a seguir.
+- O plano maior continua parcial: visualizacoes, cursor estavel, moderacao completa, respostas em comentarios e colaboracao simultanea ainda pendentes. Nao houve deploy ou alteracao do banco principal.

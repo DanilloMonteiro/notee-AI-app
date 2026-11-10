@@ -173,3 +173,9 @@ Decisão autorizada pelo usuário: evoluir o escopo anterior sem rede social par
 A implementação desta execução cobre somente a fundação: seguidores, feed cronológico paginado, curtidas e reposts. O feed consulta apenas publicações públicas ativas e revisões publicadas; nunca usa o rascunho. Chaves compostas e operações idempotentes evitam duplicação de relações e reações.
 
 Pendentes para concluir a primeira etapa: cursor de paginação, destaques, identificação dos autores dos reposts, interações na leitura pública, biografia e aba de reposts no perfil, bloqueio e denúncias. Comunidades, comentários, métricas, ranking combinado e colaboração em tempo real ainda não implementados. A arquitetura Yjs e seu serviço de sincronização permanecem propostas para a etapa de colaboração.
+
+## ADR-034 - descoberta combinada incremental (10/11/2026)
+
+A descoberta permite selecionar ate 20 comunidades (uniao sem duplicacao), buscar titulo/conteudo publicado e escolher periodo de 7, 30 dias ou todo o periodo. Criterios iniciais: curtidas, reposts e recencia; pesos iguais entre criterios ativos. Contagens usam ln(1+n)/(1+ln(1+n)); recencia usa 1/(1+idadeEmDias/7); pontuacao e a media. O periodo limita publicacoes e eventos contados. Empate por data original e identificador.
+
+Primeira entrega usa paginacao por pagina e nao congela ranking durante navegacao; cursor com janela estavel e visualizacoes permanecem pendentes. Esta limitacao deve ser resolvida antes de considerar a descoberta completa.
