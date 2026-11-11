@@ -1,10 +1,27 @@
 // src/pages/Settings.jsx
 // Preferências da conta salvas na API (não no navegador): pesquisa e consentimento para IA externa.
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
+import { UserAvatar } from '../components/UserAvatar';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
+import { useCurrentUser } from '../contexts/CurrentUserContext';
 import { publishingApi } from '../features/publishing/publishingApi';
+
+const TABS = ['research', 'account'];
+
+/** Sugestão de identificador a partir do nome: "Ana Souza" -> "ana_souza". */
+function handleFromName(name) {
+  const slug = (name || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 30);
+  return slug.length >= 3 ? slug : 'seu_nome';
+}
 
 const consentText = providerName =>
   'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA escolhido pela ' +
@@ -13,22 +30,27 @@ const consentText = providerName =>
   'Posso revogar a qualquer momento; a revogação vale para as próximas pesquisas.';
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState('research');
+  // A aba fica na URL (?tab=account) para o card da conta na sidebar abrir direto em "Conta".
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'research';
+  const setActiveTab = tab => setSearchParams(tab === 'research' ? {} : { tab }, { replace: true });
+
+  const { user: me } = useCurrentUser();
   const [prefs, setPrefs] = useState(null);
-  const [me, setMe] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState({ handle: '', displayName: '' });
+  // displayName null = ainda não editado: mostra o nome da conta como sugestão.
+  const [profile, setProfile] = useState({ handle: '', displayName: null });
   const [profileSaved, setProfileSaved] = useState(null);
   const { addToast } = useToast();
+  const publicName = profile.displayName ?? (me?.fullName || '');
 
   useEffect(() => {
     let alive = true;
-    Promise.all([apiFetch('/me/preferences'), apiFetch('/me'), publishingApi.profile()])
-      .then(([p, m, prof]) => {
+    Promise.all([apiFetch('/me/preferences'), publishingApi.profile()])
+      .then(([p, prof]) => {
         if (!alive) return;
         setPrefs(p);
-        setMe(m);
         if (prof) {
           setProfile(prof);
           setProfileSaved(prof);
@@ -61,7 +83,7 @@ export function Settings() {
     e.preventDefault();
     setSaving(true);
     try {
-      const saved = await publishingApi.saveProfile(profile.handle.trim(), profile.displayName.trim());
+      const saved = await publishingApi.saveProfile(profile.handle.trim(), publicName.trim());
       setProfile(saved);
       setProfileSaved(saved);
       addToast('Perfil público salvo.');
@@ -183,6 +205,22 @@ export function Settings() {
         {activeTab === 'account' && (
           <div className="card settings-section">
             <h2 className="mb24">Sua conta</h2>
+            <div className="row gap8 mb24">
+              {/* A foto virá de me.avatarUrl quando o upload existir; até lá, iniciais. */}
+              <UserAvatar name={me?.fullName || me?.email} imageUrl={me?.avatarUrl} className="big" />
+              <div className="grow" style={{ marginLeft: 8 }}>
+                <strong>{me?.fullName || 'Nome não informado'}</strong>
+                <div className="small muted">{me?.email}</div>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="me-name">Nome</label>
+              <input id="me-name" type="text" value={me?.fullName || ''} placeholder="Não informado" readOnly />
+            </div>
+            <div className="field">
+              <label htmlFor="me-phone">Telefone</label>
+              <input id="me-phone" type="tel" value={me?.phoneNumber || ''} placeholder="Não informado" readOnly />
+            </div>
             <div className="field">
               <label htmlFor="me-email">E-mail</label>
               <input id="me-email" type="email" value={me?.email || ''} readOnly />
@@ -200,21 +238,28 @@ export function Settings() {
                 <label htmlFor="profile-handle">Identificador (endereço)</label>
                 <input
                   id="profile-handle"
+                  type="text"
                   required
                   maxLength={30}
                   pattern="[a-z0-9_-]{3,30}"
-                  placeholder="ex.: alex_costa"
+                  autoComplete="off"
+                  aria-describedby="profile-handle-hint"
+                  placeholder={`ex.: ${handleFromName(me?.fullName)}`}
                   value={profile.handle}
                   onChange={e => setProfile({ ...profile, handle: e.target.value.toLowerCase() })}
                 />
+                <span id="profile-handle-hint" className="tiny muted">
+                  3 a 30 caracteres: letras minúsculas, números, _ ou -.
+                </span>
               </div>
               <div className="field">
                 <label htmlFor="profile-name">Nome público</label>
                 <input
                   id="profile-name"
+                  type="text"
                   required
                   maxLength={60}
-                  value={profile.displayName}
+                  value={publicName}
                   onChange={e => setProfile({ ...profile, displayName: e.target.value })}
                 />
               </div>

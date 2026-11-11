@@ -8,6 +8,10 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
+  const [showTags, setShowTags] = useState(false);
+  const [showCategory, setShowCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
+  const [busy, setBusy] = useState(false);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -24,15 +28,21 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
     };
   }, []);
 
-  const createCategory = async () => {
-    const name = window.prompt('Nome da nova categoria');
-    if (!name?.trim()) return;
+  const createCategory = async e => {
+    e.preventDefault();
+    const name = newCategory.trim();
+    if (!name || busy) return;
+    setBusy(true);
     try {
       const created = await taxonomyApi.create('categories', name.trim());
       setCategories(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       onCategoryChange(created.id);
+      setNewCategory('');
+      setShowCategory(false);
     } catch (err) {
       addToast(err.message || 'Não foi possível criar a categoria.', 'warning');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -63,7 +73,7 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
         value={categoryId || ''}
         disabled={disabled}
         onChange={e => onCategoryChange(e.target.value || null)}
-        style={{ padding: '6px', borderRadius: '6px', width: 'auto', minWidth: 180 }}
+        className="organizer-category-select"
       >
         <option value="">Sem categoria</option>
         {categories.map(c => (
@@ -72,21 +82,33 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
           </option>
         ))}
       </select>
-      <button type="button" className="btn compact ghost" onClick={createCategory} disabled={disabled}>
+      <div className="organizer-category-picker" onKeyDown={e => { if (e.key === 'Escape') setShowCategory(false); }}>
+      <button type="button" className="btn compact ghost" onClick={() => setShowCategory(!showCategory)} disabled={disabled} aria-expanded={showCategory} aria-controls="new-category-card">
         <Icon name="plus" className="sm" /> Categoria
       </button>
+      {showCategory && !disabled && (
+        <form id="new-category-card" className="organizer-category-form" onSubmit={createCategory}>
+          <label htmlFor="new-category">Nova categoria</label>
+          <p>Organize suas notas por assunto.</p>
+          <input id="new-category" value={newCategory} onChange={e => setNewCategory(e.target.value)} placeholder="Nome da categoria" maxLength={60} autoFocus />
+          <div className="organizer-category-actions">
+          <button type="submit" className="btn primary compact" disabled={busy || !newCategory.trim()}>Criar</button>
+          <button type="button" className="btn compact" onClick={() => setShowCategory(false)}>Cancelar</button>
+          </div>
+        </form>
+      )}
+      </div>
 
       <span className="small muted" style={{ marginLeft: 12 }}>
         Tags
       </span>
       {selectedTags.map(tag => (
-        <span key={tag.id} className="tag row gap8">
+        <span key={tag.id} className="tag organizer-tag">
           {tag.name}
           {!disabled && (
             <button
               type="button"
-              className="icon-btn"
-              style={{ width: 18, height: 18 }}
+              className="organizer-tag-remove"
               aria-label={`Remover tag ${tag.name}`}
               onClick={() => onTagsChange(tagIds.filter(id => id !== tag.id))}
             >
@@ -96,22 +118,33 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
         </span>
       ))}
       {!disabled && (
-        <form onSubmit={addTag} className="row gap8">
+        <div className="organizer-tag-picker" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setShowTags(false); }}>
+        <form onSubmit={addTag} className="organizer-tag-form">
           <input
-            list="note-tag-options"
+            onFocus={() => setShowTags(true)}
+            onKeyDown={e => { if (e.key === 'Escape') setShowTags(false); }}
+            aria-expanded={showTags}
+            aria-controls="note-tag-options"
             value={newTag}
             maxLength={60}
             onChange={e => setNewTag(e.target.value)}
             placeholder="Adicionar tag"
             aria-label="Adicionar tag"
-            style={{ padding: '6px', borderRadius: '6px', width: 140 }}
           />
-          <datalist id="note-tag-options">
-            {tags.map(t => (
-              <option key={t.id} value={t.name} />
-            ))}
-          </datalist>
+          <button type="submit" disabled={!newTag.trim()} aria-label="Adicionar tag">
+            <Icon name="plus" className="sm" /> Adicionar
+          </button>
         </form>
+        {showTags && (
+          <div id="note-tag-options" className="organizer-tag-options" aria-label="Tags existentes">
+            <div className="organizer-tag-options-title">Tags existentes</div>
+            {tags.filter(t => !tagIds.includes(t.id) && t.name.toLowerCase().includes(newTag.trim().toLowerCase())).length ?
+              tags.filter(t => !tagIds.includes(t.id) && t.name.toLowerCase().includes(newTag.trim().toLowerCase())).map(t => (
+                <button type="button" key={t.id} onClick={() => { onTagsChange([...tagIds, t.id]); setNewTag(''); setShowTags(false); }}>{t.name}<span>Adicionar</span></button>
+              )) : <p>Nenhuma tag disponível. Digite um nome para criar.</p>}
+          </div>
+        )}
+        </div>
       )}
     </div>
   );

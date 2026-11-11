@@ -2,13 +2,23 @@
 import { call, ok, summary } from './lib.mjs';
 
 const email = `auth${Date.now()}@test.local`;
-ok((await call(null, 'POST', '/auth/register', { email, password: 'Senha!Forte123' })).status === 200, 'registro');
-ok((await call(null, 'POST', '/auth/register', { email, password: 'Senha!Forte123' })).status === 400, 'e-mail duplicado -> 400');
+const account = { email, password: 'Senha!Forte123', fullName: '  Ana   Souza ', phoneNumber: '(11) 98765-4321' };
+
+const bare = await call(null, 'POST', '/auth/register', { email: `sem${email}`, password: 'Senha!Forte123' });
+ok(bare.status === 400 && bare.json?.some(e => e.code === 'InvalidFullName'), 'registro sem nome -> 400 InvalidFullName');
+ok(bare.status === 400 && bare.json?.some(e => e.code === 'InvalidPhoneNumber'), 'registro sem telefone -> 400 InvalidPhoneNumber');
+const badPhone = await call(null, 'POST', '/auth/register', { ...account, email: `tel${email}`, phoneNumber: '123' });
+ok(badPhone.status === 400 && badPhone.json?.some(e => e.code === 'InvalidPhoneNumber'), 'telefone inválido -> 400 InvalidPhoneNumber');
+
+ok((await call(null, 'POST', '/auth/register', account)).status === 200, 'registro');
+ok((await call(null, 'POST', '/auth/register', account)).status === 400, 'e-mail duplicado -> 400');
 ok((await call(null, 'POST', '/auth/login', { email, password: 'errada' })).status === 401, 'senha errada -> 401');
 
 const login = (await call(null, 'POST', '/auth/login', { email, password: 'Senha!Forte123' })).json;
 ok(login.token && login.refreshToken && new Date(login.expiresAt) > new Date(), 'login devolve access e refresh token');
-ok((await call(login.token, 'GET', '/me')).status === 200, 'access token autentica');
+const me = await call(login.token, 'GET', '/me');
+ok(me.status === 200, 'access token autentica');
+ok(me.json?.fullName === 'Ana Souza' && me.json?.phoneNumber === '11987654321', '/me devolve nome e telefone normalizados');
 
 const r1 = await call(null, 'POST', '/auth/refresh', { refreshToken: login.refreshToken });
 ok(r1.status === 200 && r1.json.refreshToken !== login.refreshToken, 'refresh rotaciona o token');

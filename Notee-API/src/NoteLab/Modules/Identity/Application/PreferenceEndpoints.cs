@@ -23,7 +23,7 @@ public record PreferencesResponse(
 /// <summary>Campos nulos não são alterados. Conceder consentimento exige ConsentVersion vigente.</summary>
 public record UpdatePreferencesRequest(bool? ResearchEnabled, bool? ExternalAiConsent, int? ConsentVersion, long ExpectedVersion, bool? AutoResearch = null);
 
-public record MeResponse(string Id, string? Email);
+public record MeResponse(string Id, string? Email, string? FullName, string? PhoneNumber);
 
 public sealed class PreferencesService
 {
@@ -110,11 +110,11 @@ public static class PreferenceEndpoints
     {
         var group = app.MapGroup("/me").RequireAuthorization().WithTags("Me");
 
-        group.MapGet("/", async (ClaimsPrincipal user, UserManager<IdentityUser> users) =>
+        group.MapGet("/", async (ClaimsPrincipal user, UserManager<ApplicationUser> users) =>
         {
             string id = BoardEndpoints.OwnerId(user);
-            IdentityUser? identity = await users.FindByIdAsync(id);
-            return identity is null ? Results.Unauthorized() : Results.Ok(new MeResponse(identity.Id, identity.Email));
+            ApplicationUser? identity = await users.FindByIdAsync(id);
+            return identity is null ? Results.Unauthorized() : Results.Ok(new MeResponse(identity.Id, identity.Email, identity.FullName, identity.PhoneNumber));
         });
 
         group.MapGet("/preferences", async (ClaimsPrincipal user, PreferencesService service, CancellationToken ct) =>

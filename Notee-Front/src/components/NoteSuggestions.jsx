@@ -63,7 +63,11 @@ export function NoteSuggestions({ noteId, isDirty, disabled, onNoteChanged }) {
       <div className="row between wrap gap8">
         <div>
           <strong>Sugestões para esta nota</strong>
-          <div className="tiny muted">Análise local: nada é enviado para fora. Cada sugestão só é aplicada se você aceitar.</div>
+          <div id="note-analysis-description" className="tiny muted">
+            Analisa localmente a versão salva da nota e pode sugerir tags, categoria e dúvidas. Nada é enviado para fora durante esta análise.
+          </div>
+          <div className="tiny"><strong>Você decide:</strong> aceite ou descarte cada sugestão individualmente.</div>
+          {isDirty && <div className="tiny muted">Salve as alterações para analisar a versão atual da nota.</div>}
         </div>
         <div className="row gap8 wrap">
           {settings && (
@@ -82,7 +86,7 @@ export function NoteSuggestions({ noteId, isDirty, disabled, onNoteChanged }) {
               ))}
             </select>
           )}
-          <button className="btn compact" onClick={analyze} disabled={busy || disabled || isDirty} title={isDirty ? 'Salve a nota antes' : undefined}>
+          <button className="btn compact" onClick={analyze} disabled={busy || disabled || isDirty} aria-describedby="note-analysis-description" title={isDirty ? 'Salve a nota antes' : undefined}>
             <Icon name="spark" className="sm" /> Analisar nota
           </button>
         </div>

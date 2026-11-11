@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { PrivateRoute } from './components/PrivateRoute';
 import { Login } from './pages/Login';
+import { Landing } from './pages/Landing';
+import { Register } from './pages/Register';
 import { Notes } from './pages/Notes';
 import { Note } from './pages/Note';
 import { Home } from './pages/Home';
@@ -24,7 +26,9 @@ function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           {/* Leitura pública: sem login */}
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/p/:handle/:slug" element={<PublicNotePage />} />
@@ -36,7 +40,7 @@ function App() {
 
           <Route element={<PrivateRoute />}>
             <Route element={<AppShell />}>
-              <Route path="/" element={<Home />} />
+              <Route path="/home" element={<Home />} />
               <Route path="/notes" element={<Notes />} />
               <Route path="/note/:id" element={<Note />} />
               <Route path="/research/:id" element={<ResearchDetail />} />
