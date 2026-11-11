@@ -239,7 +239,7 @@ export function Note() {
       setBlocks(
         Array.isArray(parsedBlocks) && parsedBlocks.length > 0
           ? parsedBlocks
-          : [{ id: generateId(), type: 'paragraph', text: noteData.content || '' }],
+          : [{ id: generateId(), type: 'paragraph', text: Array.isArray(parsedBlocks) ? '' : noteData.content || '' }],
       );
     } catch {
       setBlocks([{ id: generateId(), type: 'paragraph', text: noteData.content || '' }]);

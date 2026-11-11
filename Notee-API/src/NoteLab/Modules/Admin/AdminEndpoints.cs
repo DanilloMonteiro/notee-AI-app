@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using NoteLab.Domain;
 using NoteLab.Infrastructure;
 
 namespace NoteLab.Application;
@@ -28,9 +29,9 @@ public static class AdminEndpoints
 
     public static void MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/auth/admin/login", async (LoginrRequest request, UserManager<IdentityUser> users, JwtSettings jwt, ILogger<Program> logger) =>
+        app.MapPost("/auth/admin/login", async (LoginrRequest request, UserManager<ApplicationUser> users, JwtSettings jwt, ILogger<Program> logger) =>
         {
-            IdentityUser? user = await users.FindByEmailAsync(request.Email);
+            ApplicationUser? user = await users.FindByEmailAsync(request.Email);
             bool isAdmin = user is not null
                            && await users.CheckPasswordAsync(user, request.Password)
                            && (await users.GetClaimsAsync(user)).Any(c => c.Type == RoleClaim && c.Value == AdminRole);
@@ -172,11 +173,11 @@ public static class AdminEndpoints
         }
 
         await using AsyncServiceScope scope = services.CreateAsyncScope();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-        IdentityUser? user = await users.FindByEmailAsync(email);
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        ApplicationUser? user = await users.FindByEmailAsync(email);
         if (user is null)
         {
-            user = new IdentityUser { UserName = email, Email = email };
+            user = new ApplicationUser { UserName = email, Email = email };
             IdentityResult created = await users.CreateAsync(user, password);
             if (!created.Succeeded)
             {

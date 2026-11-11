@@ -38,6 +38,7 @@ const paths = {
   shield: '<path d="M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6z"/><path d="m8 12 3 3 5-6"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   map: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7 15.6 7.6M7 8.3l1.4 7.3M16.5 10 10.8 16.2"/>',
+  logout: '<path d="M9 3H3v18h6M14 8l5 4-5 4M7 12h12"/>',
   // Pode adicionar os restantes do seu protótipo HTML aqui conforme for precisando
 };
 
