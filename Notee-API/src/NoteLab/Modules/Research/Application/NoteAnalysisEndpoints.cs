@@ -270,8 +270,10 @@ public static partial class NoteAnalysisEndpoints
             {
                 foreach (JsonElement block in doc.RootElement.EnumerateArray())
                 {
-                    if (block.TryGetProperty("text", out JsonElement t) && t.GetString() is { } text
-                        && block.TryGetProperty("id", out JsonElement idEl) && idEl.GetString() is { } blockId)
+                    // Blocos sem texto (ex.: gráficos) não têm âncora textual.
+                    if (block.ValueKind == JsonValueKind.Object
+                        && block.TryGetProperty("text", out JsonElement t) && t.ValueKind == JsonValueKind.String && t.GetString() is { } text
+                        && block.TryGetProperty("id", out JsonElement idEl) && idEl.ValueKind == JsonValueKind.String && idEl.GetString() is { } blockId)
                     {
                         int index = text.IndexOf(sentence, StringComparison.Ordinal);
                         if (index >= 0)

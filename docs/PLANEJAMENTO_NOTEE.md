@@ -79,3 +79,19 @@ Não é necessário atrasar o CRUD de mapas até implementar toda infraestrutura
 ## Critério transversal de conclusão
 
 Cada tarefa concluída tem **código real, comandos e evidência de execução**, critérios de aceite satisfeitos, segurança preservada e `ESTADO_DO_PROJETO.md` atualizado. O HTML demonstra UI, mas não é comprovação do backend ou de uso real de IA.
+
+## Sugestões exploratórias (não aprovadas)
+
+### Importar conversa compartilhada de um serviço de IA
+
+Ideia sugerida pelo usuário: permitir colar no Notee um link compartilhado de uma conversa de IA e usar o conteúdo para criar uma nota. Uma evolução poderia organizar a conversa em um rascunho (por exemplo, resumo, tópicos, decisões e tarefas), mantendo a conversa original e o link como referência.
+
+- Tratar como sugestão de produto, não como requisito aprovado, contrato de API ou funcionalidade existente.
+- Antes de salvar, mostrar uma prévia e pedir confirmação; permitir importar a conversa inteira ou selecionar trechos.
+- A leitura pelo link depende de o provedor permitir acesso ao conteúdo compartilhado. Oferecer colar texto ou importar arquivo como alternativa; não pedir senha ou token da conta do provedor.
+- Preservar o conteúdo original como fonte e deixar a pessoa revisar qualquer nota organizada por IA.
+- Definir consentimento, privacidade, retenção e limites de acesso antes de implementar. Links compartilhados podem tornar o conteúdo visível a quem tiver o link.
+
+### Gráficos estruturados em notas
+
+Ideia sugerida pelo usuário: criar blocos de gráfico editáveis, com dados, unidades, descrição e fontes, para visualizar tendências e comparações dentro das notas. A proposta inicial está em [PLANO_GRAFICOS_EM_NOTAS.md](PLANO_GRAFICOS_EM_NOTAS.md); continua exploratória e não aprovada como requisito.

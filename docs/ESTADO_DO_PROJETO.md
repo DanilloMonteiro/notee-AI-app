@@ -139,3 +139,33 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Filtros em painel lateral; criação de comunidade com foco no nome; estados de carregamento, vazio e erro com nova tentativa; formulários de conversa com foco ao responder. Navegação com grupos e nomes de páginas reais. Paginação da comunidade utiliza o endpoint já existente.
 - Validação executada: build frontend aprovado; lint concluído com avisos, incluindo set-state-in-effect nos fluxos de fetch; diff conferido. Navegador com respostas simuladas (sem API/banco): catálogo, descoberta, moderação, conversa, foco na resposta/criação, erro e recuperação, feed vazio e reação ativa. Sem rolagem horizontal no feed em 1120 px e nas telas inspecionadas em 1440 px.
 - Esta rodada não revalidou persistência ou permissões da API; testes HTTP anteriores não foram repetidos. Não houve alteração de backend, migration ou deploy.
+
+## Atualização 12/11/2026 — gráficos estruturados em notas (v1, ADR-036)
+
+- Branch `feature/editor-organizacao-deploy`, base `ad87423`; alterações **não commitadas**. Escopo autorizado: somente gráficos (a importação de conversa de IA continua sugestão pendente).
+- Backend: `NoteContent.Validate` (create/update; 400 para gráfico inválido), `NoteText.Extract` inclui metadados do gráfico na busca/contexto, `FindSentence` ignora blocos sem texto. Sem migration.
+- Frontend: bloco “Gráfico” no editor (`ChartEditor`: metadados, tabela rótulos × séries, fontes, pré-visualização), `ChartView` em SVG + tabela acessível + fontes declaradas, renderização nas páginas públicas, parser único `features/notes/noteBlocks.js`. Sem dependência nova.
+- Comandos executados (12/11/2026, Windows, .NET SDK 10, Node):
+  - `dotnet test` (Notee-API) → **138 aprovados, 0 falhas** (inclui `NoteContentTests`).
+  - Postgres 16 descartável (porta 5499, removido ao final) + `dotnet ef database update` + API em `:5099` com a configuração do CI (modo `inprocess`) → `node tests/http/run-all.mjs`: **17 suítes, 326 verificações, 0 falhas**, incluindo a nova `charts` (16/16). Modo SQS não executado nesta rodada.
+  - `npm run lint` → sem avisos nos arquivos novos (avisos preexistentes permanecem); `npm run build` → ok.
+  - Chrome (localhost, contra a API de teste): renderização de linha e barras com ausente/negativo, edição de valor refletida em gráfico e tabela, salvar (v2) e persistência, adicionar/cancelar gráfico novo, validação no editor, link compartilhado mostrando o snapshot publicado; sem erros no console.
+- Não verificado: largura estreita (o redimensionamento da janela não teve efeito e o app define `min-width: 1120px` no `body`), leitor de tela real, restauração de revisão pela interface (coberta pela suíte HTTP).
+
+## Atualização 12/11/2026 — colar texto com tabela vira gráfico
+
+- Novo `Notee-Front/src/features/charts/detectTables.js` + integração no `onPaste` do editor (`Note.jsx`), com aviso “Desfazer/OK”. Sem mudança no backend. Alterações **não commitadas**.
+- Comandos executados: `npm test` (novo script, runner nativo `node --test`, sem dependência) → **8/8**, incluindo o texto exato fornecido pelo usuário (Produção industrial 2014–2018 → barras `[-3, -8,3, -6,4, 2,5, 1,1]` %); `npm run lint` → sem avisos novos; `npm run build` → ok.
+- Chrome (localhost:5174 contra API de teste em Postgres descartável, removido ao final): colagem do texto completo → parágrafo + gráfico + parágrafo; Desfazer → texto original intacto; colar sobre seleção + salvar → v2 aceita pela API (200), persistida após recarregar; colagem de prosa com percentuais não é interceptada; sem erros no console. Evento de colagem simulado via `ClipboardEvent` (não pela área de transferência do sistema).
+- Não coberto: colagem real com Ctrl+V do sistema operacional, planilhas coladas com colunas vazias no meio, tabelas com mais de 120 linhas (dividem-se em mais de um gráfico).
+
+## Atualização 12/11/2026 — gráfico interativo/compacto, organizar em tópicos (local e IA) e remoção de faixas vazias
+
+- Front: `ChartView` reescrito (hover/foco com destaque e tooltip, teclado, modo compacto + “Ver dados”); `organizeText.js` + botão “Organizar em tópicos”; `OrganizeAiModal` (estimativa → envio confirmado → prévia → aplicar/descartar); títulos com nível no editor e na página pública; Backspace remove bloco vazio; remover gráfico leva junto parágrafos vazios vizinhos; altura mínima de 80 px dos blocos removida. Back: `IAiService.CompleteAsync` nos adaptadores, `NoteAiOrganizer` (validação de preservação de texto), endpoints `organize-ai`, cota por usuário. Alterações **não commitadas**.
+- Comandos executados (12/11/2026):
+  - `npm test` (node --test) → **14/14** (inclui o texto de referência completo: 11 seções, destaques, 3 gráficos com fonte adjacente, nenhuma palavra perdida/inventada); `npm run lint` → sem avisos novos; `npm run build` → ok.
+  - `dotnet test` (build em pasta separada porque a API de desenvolvimento do usuário na porta 5000 mantinha o binário em uso) → **151 aprovados, 0 falhas**.
+  - Postgres descartável + API em :5099 com a configuração do CI → `run-all.mjs`: **18 suítes, 338 verificações, 0 falhas** (nova `organize`: 12).
+  - Verificação ad hoc (fora do repositório) do caminho externo contra servidor OpenAI-compatível **falso** local: consentimento → provedor externo, tokens reportados, requisição sem ferramentas; resposta que inventa conteúdo → 422. **Nenhuma chamada a provedor real.**
+  - Chrome (localhost:5174): colar texto de referência → 3 gráficos; “Organizar em tópicos” → título da nota, 28 títulos, listas e destaques; hover em barras e linhas (6 séries) com destaque e tooltip; teclado; Ver dados/Ocultar; remover gráfico sem blocos vazios; Backspace; modal de IA em simulação (prévia + descartar); Desfazer; salvar (v2) e recarregar; página pública com títulos, gráficos e listas; sem erros no console.
+- Não coberto: `CompleteAsync` do adaptador OpenAI-compatível por teste unitário (depende de `SystemSettings`; coberto apenas pela verificação ad hoc), Claude/Gemini reais, tela estreita, leitor de tela real.

@@ -1,21 +1,11 @@
 // Utilitários e chamadas compartilhadas de notas (lista, organização e ciclo de vida).
 import { apiFetch } from './api';
+import { contentExcerpt } from './features/notes/noteBlocks';
 
 export const STATUS_LABEL = { Draft: 'Rascunho', Active: 'Ativa', Archived: 'Arquivada', Trashed: 'Na lixeira' };
 
 /** Texto simples a partir do conteúdo em blocos JSON (ou texto puro). */
-export function noteExcerpt(content, max = 140) {
-  if (!content) return '';
-  let text = content;
-  try {
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed)) text = parsed.map(b => b?.text || '').filter(Boolean).join(' ');
-  } catch {
-    // texto puro
-  }
-  text = text.replace(/\s+/g, ' ').trim();
-  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
-}
+export const noteExcerpt = (content, max = 140) => contentExcerpt(content, max);
 
 export const formatShortDate = iso =>
   iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '';

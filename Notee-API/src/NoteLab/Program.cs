@@ -99,6 +99,8 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = authPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Cota por usuário do "Organizar com IA" (ADR-037).
+    options.AddOrganizeAiRateLimit(builder.Configuration);
 });
 
 builder.Services
@@ -168,6 +170,7 @@ app.MapNoteeHealth();
 app.MapIdentityEndpoints();
 app.MapPreferenceEndpoints();
 app.MapNoteEndpoints();
+app.MapOrganizeAiEndpoints();
 app.MapResearchEndpoints();
 app.MapNoteReferenceEndpoints();
 app.MapBoardEndpoints();

@@ -42,6 +42,27 @@ public sealed class ClaudeAiService : IAiService
         return ToAnswer(message);
     }
 
+    /// <summary>Tarefa genérica (ADR-037): sem ferramentas nem busca na web.</summary>
+    public async Task<AiCompletion> CompleteAsync(string system, string user, int maxOutputTokens, CancellationToken ct)
+    {
+        string apiKey = _settings.ApiKeyFor(_provider) is { } key && AiProviders.IsRealKey(key)
+            ? key
+            : throw new InvalidOperationException("Claude sem chave configurada.");
+
+        AnthropicClient client = new() { ApiKey = apiKey, BaseUrl = _settings.BaseUrlFor(_provider) };
+
+        Message message = await client.Messages.Create(new MessageCreateParams
+        {
+            Model = _settings.ModelFor(_provider),
+            MaxTokens = maxOutputTokens,
+            System = system,
+            Messages = [new UserMessageParam { Content = user }],
+        }, cancellationToken: ct);
+
+        AiAnswer parsed = ToAnswer(message);
+        return new AiCompletion(parsed.Text, parsed.InputTokens, parsed.OutputTokens);
+    }
+
     /// <summary>Texto final + fontes dos resultados de busca (somente http/https, sem duplicatas).</summary>
     public static AiAnswer ToAnswer(Message message)
     {

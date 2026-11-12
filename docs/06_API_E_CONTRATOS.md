@@ -63,3 +63,26 @@ Content-Type: application/json
 - `400/422` validação (política consistente), `401` não autenticado, `403` sem privilégio global, `404` inexistente **ou recurso privado de outro dono**, `409` conflito/Idempotency-Key incompatível, `429` cota.
 - Problem Details com `code` estável, `traceId` sem dados secretos; nunca stack trace, prompts, tokens, corpo de outra conta.
 - Paginação por cursor com ordem estável; validação no servidor; ETags/versions e transação nos comandos concorrentes.
+
+## Atualização 12/11/2026 — bloco de gráfico no conteúdo da nota (ADR-036)
+
+`POST /notes` e `PUT /notes/{id}` aceitam, dentro do array JSON de `content`, blocos:
+
+```json
+{ "id": "c1", "type": "chart", "schemaVersion": 1, "chartType": "line",
+  "title": "Inflação anual", "description": "IPCA por ano", "xAxisLabel": "Ano", "yAxisLabel": "Variação", "unit": "%",
+  "labels": ["2019", "2020", "2021"],
+  "series": [{ "name": "IPCA", "values": [4.31, null, 10.06] }],
+  "sources": [{ "label": "IBGE", "url": "https://www.ibge.gov.br" }] }
+```
+
+- `chartType`, `labels` e `series` obrigatórios; demais textos opcionais. `null` = sem dado.
+- Limites e regras no ADR-036. Conteúdo inválido → `400` Problem Details (“Regra de negócio violada”, com o motivo em `detail`) e a nota não é alterada.
+- Revisões e publicações copiam o conteúdo como antes; o snapshot publicado mantém os dados da versão publicada.
+
+## Atualização 12/11/2026 — organizar com IA (ADR-037)
+
+- `POST /notes/{id}/organize-ai/estimate` `{ text }` → `200 { provider, providerName, external, consentGiven, externalConfigured, estimatedInputTokens, estimatedOutputTokens, estimatedCostUsd|null, maxPerHour }`. Não envia nada.
+- `POST /notes/{id}/organize-ai` `{ text, confirm: true }` → `200 { provider, external, title|null, blocks: [{ type: heading|paragraph|list|quote|code|table|chart, text?, level?, ref? }], inputTokens, outputTokens, costUsd|null }`. Gráficos existentes vão no texto como `[[grafico:N]]` e voltam como `{type:"chart", ref:N}`. A nota não é alterada.
+- Erros: `400` sem `confirm`, texto vazio, > 50.000 caracteres ou nota na lixeira; `404` nota alheia; `422` resposta que omite/inventa conteúdo (Problem Details com tokens e custo); `429` cota; `502` falha do provedor.
+- Bloco `heading` aceita `level` opcional (1–3) no conteúdo da nota.

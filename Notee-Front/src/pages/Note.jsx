@@ -9,6 +9,12 @@ import { RevisionHistory } from '../components/RevisionHistory';
 import { PublishPanel } from '../features/publishing/PublishPanel';
 import { NoteSuggestions } from '../components/NoteSuggestions';
 import { STATUS_LABEL } from '../notes';
+import { ChartView } from '../features/charts/ChartView';
+import { ChartEditor } from '../features/charts/ChartEditor';
+import { CHART_LIMITS, createEmptyChart, isChartBlock } from '../features/charts/chartModel';
+import { splitPastedText } from '../features/charts/detectTables';
+import { cleanBlock, hasStructure, organizeText } from '../features/notes/organizeText';
+import { OrganizeAiModal } from '../features/notes/OrganizeAiModal';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
 
@@ -78,7 +84,7 @@ const PLAINTEXT_SUPPORTED = (() => {
 })();
 
 // --- COMPONENTE DO EDITOR (contentEditable) -------------------------------
-function ContentEditableBlock({ block, doubts, onChange, onSelect }) {
+function ContentEditableBlock({ block, doubts, onChange, onSelect, onPasteTables, onPasteStructured, onRemoveEmpty }) {
   const divRef = useRef(null);
 
   const blockDoubts = useMemo(
@@ -103,9 +109,34 @@ function ContentEditableBlock({ block, doubts, onChange, onSelect }) {
   const handleBlur = () => paint();
 
   const handlePaste = e => {
+    const pasted = e.clipboardData?.getData('text/plain') || '';
+    // Tabelas numéricas no texto colado viram gráficos (exceto em blocos de código).
+    if (onPasteTables && block.type !== 'code') {
+      const segments = splitPastedText(pasted);
+      if (segments.some(s => s.type === 'chart')) {
+        e.preventDefault();
+        const el = divRef.current;
+        const sel = window.getSelection();
+        let start = (block.text || '').length;
+        let end = start;
+        if (el && sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).startContainer)) {
+          const range = sel.getRangeAt(0);
+          const pre = document.createRange();
+          pre.selectNodeContents(el);
+          pre.setEnd(range.startContainer, range.startOffset);
+          start = pre.toString().length;
+          end = start + range.toString().length;
+        }
+        onPasteTables({ start, end, pasted, segments });
+        el?.blur();
+        return;
+      }
+      // Sem tabelas, mas com títulos/listas/negritos: cola normalmente e oferece "Organizar em tópicos".
+      if (onPasteStructured && hasStructure(pasted)) onPasteStructured();
+    }
     if (PLAINTEXT_SUPPORTED) return;
     e.preventDefault();
-    document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+    document.execCommand('insertText', false, pasted);
   };
 
   const handleSelect = () => {
@@ -133,22 +164,33 @@ function ContentEditableBlock({ block, doubts, onChange, onSelect }) {
     onSelect({ quote, startIndex, endIndex: startIndex + quote.length });
   };
 
+  // Backspace num bloco vazio remove o bloco (evita faixas em branco na nota).
+  const handleKeyDown = e => {
+    if (e.key !== 'Backspace' || !onRemoveEmpty) return;
+    const text = (divRef.current?.innerText || '').replace(/\n/g, '');
+    if (text === '') {
+      e.preventDefault();
+      onRemoveEmpty();
+    }
+  };
+
   return (
     <div
       ref={divRef}
+      data-block-id={block.id}
       contentEditable={PLAINTEXT_SUPPORTED ? 'plaintext-only' : true}
       suppressContentEditableWarning
-      className={`editor-block ${block.type}`}
+      className={`editor-block ${block.type}${block.type === 'heading' ? ` level-${block.level || 2}` : ''}`}
       onInput={handleInput}
       onBlur={handleBlur}
       onPaste={handlePaste}
+      onKeyDown={handleKeyDown}
       onMouseUp={handleSelect}
       onKeyUp={handleSelect}
       style={{
         width: '100%',
         border: 'none',
         outline: 'none',
-        minHeight: block.type === 'heading' ? '40px' : '80px',
         fontFamily: block.type === 'code' ? 'monospace' : 'inherit',
         padding: block.type === 'code' || block.type === 'quote' ? '12px' : '4px',
         backgroundColor: block.type === 'code' ? '#f1f4ed' : 'transparent',
@@ -189,6 +231,11 @@ export function Note() {
   const closePublish = useCallback(() => setShowPublish(false), []);
   const [blocks, setBlocks] = useState([]);
   const [newBlockType, setNewBlockType] = useState('paragraph');
+  // Gráfico em edição: { id, isNew } — cancelar um gráfico recém-criado o remove.
+  const [editingChart, setEditingChart] = useState(null);
+  // Aviso com "Desfazer": { message, restore: { blocks, title } | null, offerOrganize } (colagem, organizar, IA).
+  const [notice, setNotice] = useState(null);
+  const [showOrganizeAi, setShowOrganizeAi] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -234,6 +281,8 @@ export function Note() {
     setTitle(noteData.title || '');
     setCategoryId(noteData.categoryId ?? null);
     setTagIds((noteData.tags || []).map(t => t.id));
+    setEditingChart(null);
+    setNotice(null);
     try {
       const parsedBlocks = JSON.parse(noteData.content || '[]');
       setBlocks(
@@ -306,6 +355,10 @@ export function Note() {
   }, [isResizing]);
 
   const handleSave = async () => {
+    if (editingChart) {
+      addToast('Conclua ou cancele a edição do gráfico antes de salvar.', 'info');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -318,6 +371,7 @@ export function Note() {
       // A API devolve a nota salva (com a nova versão e a categoria resolvida).
       const saved = await apiFetch(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
       setNote(saved);
+      setNotice(null);
       addToast('Alterações salvas.', 'check');
     } catch (err) {
       addToast(
@@ -329,7 +383,208 @@ export function Note() {
     }
   };
 
-  const handleAddBlock = () => setBlocks(prev => [...prev, { id: generateId(), type: newBlockType, text: '' }]);
+  const handleAddBlock = () => {
+    if (newBlockType !== 'chart') {
+      setBlocks(prev => [...prev, { id: generateId(), type: newBlockType, text: '' }]);
+      return;
+    }
+    if (editingChart) return addToast('Conclua o gráfico em edição antes de adicionar outro.', 'info');
+    if (blocks.filter(isChartBlock).length >= CHART_LIMITS.maxCharts)
+      return addToast(`Uma nota pode ter no máximo ${CHART_LIMITS.maxCharts} gráficos.`, 'warning');
+    const chart = createEmptyChart();
+    setBlocks(prev => [...prev, chart]);
+    setEditingChart({ id: chart.id, isNew: true });
+  };
+  const handleChartDone = updated => {
+    setBlocks(prev => prev.map(b => (b.id === updated.id ? updated : b)));
+    setEditingChart(null);
+  };
+  const handleChartCancel = () => {
+    if (editingChart?.isNew) setBlocks(prev => prev.filter(b => b.id !== editingChart.id));
+    setEditingChart(null);
+  };
+  // Colagem com tabelas: o bloco atual fica com "texto antes + 1º trecho"; gráficos e demais trechos
+  // entram logo depois; o último trecho recebe o texto que estava após o cursor. O id do bloco é mantido.
+  const handlePasteTables = (blockId, { start, end, pasted, segments }) => {
+    const index = blocks.findIndex(b => b.id === blockId);
+    if (index < 0) return;
+    const current = blocks[index];
+    const original = current.text || '';
+    const before = original.slice(0, start);
+    const after = original.slice(end);
+
+    let available = CHART_LIMITS.maxCharts - blocks.filter(isChartBlock).length;
+    let skipped = 0;
+    // Gráficos acima do limite voltam a ser o texto original da tabela.
+    const merged = [];
+    for (const seg of segments) {
+      const piece =
+        seg.type === 'chart' && available-- <= 0 ? (skipped++, { type: 'text', text: seg.source }) : seg;
+      const last = merged[merged.length - 1];
+      if (piece.type === 'text' && last?.type === 'text') last.text = `${last.text}\n${piece.text}`;
+      else merged.push(piece.type === 'text' ? { ...piece } : piece);
+    }
+
+    if (merged[0]?.type === 'text') merged[0].text = before + merged[0].text;
+    else merged.unshift({ type: 'text', text: before });
+    if (merged[merged.length - 1].type === 'text') merged[merged.length - 1].text += after;
+    else if (after) merged.push({ type: 'text', text: after });
+
+    const created = merged
+      .map((seg, i) => {
+        if (seg.type === 'chart') return { ...seg.chart, id: createEmptyChart().id };
+        if (i === 0) return { ...current, text: seg.text };
+        return { id: generateId(), type: 'paragraph', text: seg.text };
+      })
+      // O bloco onde se colou some se ficou vazio (sem texto, sem dúvidas possíveis).
+      .filter((b, i) => !(i === 0 && !b.text && merged.length > 1));
+
+    const count = created.filter(isChartBlock).length;
+    const rawBlocks = blocks.map(b => (b.id === blockId ? { ...b, text: before + pasted + after } : b));
+    setBlocks([...blocks.slice(0, index), ...created, ...blocks.slice(index + 1)]);
+    setNotice({
+      message:
+        (count === 1 ? '1 tabela do texto colado virou gráfico.' : `${count} tabelas do texto colado viraram gráficos.`) +
+        ' Revise os dados e a fonte em “Editar dados”.' +
+        (skipped > 0 ? ` ${skipped} tabela(s) ficaram como texto (limite de ${CHART_LIMITS.maxCharts} gráficos).` : ''),
+      restore: { blocks: rawBlocks, title },
+      undoLabel: 'Conversão desfeita: o texto colado ficou como estava.',
+      offerOrganize: hasStructure(pasted),
+    });
+  };
+
+  const handleUndo = () => {
+    if (!notice?.restore) return;
+    setBlocks(notice.restore.blocks);
+    setTitle(notice.restore.title);
+    setEditingChart(null);
+    addToast(notice.undoLabel || 'Alteração desfeita.', 'info');
+    setNotice(null);
+  };
+
+  // Converte itens do organizador (local ou IA) em blocos do editor, respeitando o limite de gráficos.
+  const itemsToBlocks = (items, firstId, budget) => {
+    const out = [];
+    items.forEach(item => {
+      let block;
+      if (item.type === 'chart') {
+        if (budget.available-- > 0) block = { ...item.chart, id: createEmptyChart().id };
+        else {
+          budget.skipped++;
+          block = { id: generateId(), type: 'paragraph', text: item.source || '' };
+        }
+      } else {
+        block = { ...cleanBlock(item), id: generateId() };
+      }
+      if (out.length === 0 && firstId && !isChartBlock(block)) block.id = firstId;
+      out.push(block);
+    });
+    return out;
+  };
+
+  // "Organizar em tópicos" (regras locais): reestrutura cada parágrafo; demais blocos ficam como estão.
+  const handleOrganize = () => {
+    if (editingChart) return addToast('Conclua a edição do gráfico antes de organizar.', 'info');
+    const budget = { available: CHART_LIMITS.maxCharts - blocks.filter(isChartBlock).length, skipped: 0 };
+    let newTitle;
+    let changed = false;
+    const next = [];
+    for (const block of blocks) {
+      if (block.type !== 'paragraph' || !block.text?.trim()) {
+        next.push(block);
+        continue;
+      }
+      const result = organizeText(block.text, { currentTitle: newTitle ?? title });
+      const same =
+        !result.title && result.blocks.length === 1 && result.blocks[0].type === 'paragraph' && result.blocks[0].text === block.text;
+      if (same) {
+        next.push(block);
+        continue;
+      }
+      changed = true;
+      if (result.title && newTitle === undefined) newTitle = result.title;
+      next.push(...itemsToBlocks(result.blocks, block.id, budget));
+    }
+    // Gráficos sem título (ex.: tabelas de várias séries vindas da colagem) recebem o título da seção anterior.
+    let lastHeading = null;
+    for (let i = 0; i < next.length; i++) {
+      if (next[i].type === 'heading') lastHeading = next[i].text;
+      else if (isChartBlock(next[i]) && !next[i].title?.trim() && lastHeading) {
+        next[i] = { ...next[i], title: lastHeading.slice(0, CHART_LIMITS.title) };
+        changed = true;
+      }
+    }
+    if (!changed) return addToast('A nota já está organizada.', 'info');
+    if (next.length === 0) next.push({ id: generateId(), type: 'paragraph', text: '' });
+
+    const charts = next.filter(isChartBlock).length - blocks.filter(isChartBlock).length;
+    setNotice({
+      message:
+        `Nota organizada em ${next.filter(b => b.type === 'heading').length} títulos` +
+        (charts > 0 ? ` e ${charts} gráfico(s)` : '') +
+        '. Confira e salve.' +
+        (budget.skipped ? ` ${budget.skipped} tabela(s) ficaram como texto (limite de gráficos).` : ''),
+      restore: { blocks, title },
+      undoLabel: 'Organização desfeita.',
+    });
+    setBlocks(next);
+    if (newTitle) setTitle(newTitle);
+  };
+
+  // Resultado aceito do "Organizar com IA": substitui os blocos (gráficos existentes voltam pelas referências).
+  const handleApplyAi = ({ items, title: aiTitle, costLabel }) => {
+    const budget = { available: CHART_LIMITS.maxCharts, skipped: 0 };
+    const next = itemsToBlocks(items, null, budget);
+    setNotice({
+      message: `Organização por IA aplicada${costLabel ? ` (${costLabel})` : ''}. Confira e salve.`,
+      restore: { blocks, title },
+      undoLabel: 'Organização por IA desfeita.',
+    });
+    setBlocks(next.length ? next : [{ id: generateId(), type: 'paragraph', text: '' }]);
+    if (aiTitle) setTitle(aiTitle);
+    setShowOrganizeAi(false);
+  };
+
+  // Remove o bloco e parágrafos vazios que fiquem colados a ele (sem faixas em branco).
+  const handleRemoveBlock = blockId => {
+    setBlocks(prev => {
+      const index = prev.findIndex(b => b.id === blockId);
+      if (index < 0) return prev;
+      const isEmptyText = b => b && !isChartBlock(b) && b.type === 'paragraph' && !(b.text || '').trim();
+      let start = index;
+      let end = index;
+      while (isEmptyText(prev[start - 1])) start--;
+      while (isEmptyText(prev[end + 1])) end++;
+      const next = [...prev.slice(0, start), ...prev.slice(end + 1)];
+      return next.length ? next : [{ id: generateId(), type: 'paragraph', text: '' }];
+    });
+    if (editingChart?.id === blockId) setEditingChart(null);
+    addToast('Gráfico removido. Salve para confirmar.', 'info');
+  };
+
+  // Backspace em bloco vazio: remove e põe o cursor no fim do bloco de texto anterior.
+  const handleRemoveEmpty = blockId => {
+    const index = blocks.findIndex(b => b.id === blockId);
+    if (index < 0 || blocks.length <= 1) return;
+    const previous = blocks
+      .slice(0, index)
+      .reverse()
+      .find(b => !isChartBlock(b));
+    setBlocks(prev => prev.filter(b => b.id !== blockId));
+    if (previous) {
+      setTimeout(() => {
+        const el = document.querySelector(`[data-block-id="${previous.id}"]`);
+        if (!el) return;
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }, 0);
+    }
+  };
   const handleUpdateBlock = (blockId, newText) =>
     setBlocks(prev => prev.map(b => (b.id === blockId ? { ...b, text: newText } : b)));
 
@@ -513,16 +768,45 @@ export function Note() {
                 <option value="list">Lista</option>
                 <option value="quote">Citação</option>
                 <option value="code">Código</option>
+                <option value="chart">Gráfico</option>
               </select>
-              <button className="icon-btn" onClick={handleAddBlock}>
+              <button className="icon-btn" onClick={handleAddBlock} disabled={isTrashed} aria-label="Adicionar bloco" title="Adicionar bloco">
                 <Icon name="plus" />
               </button>
             </div>
-            {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
-            <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={handleMarkDoubt}>
-              <Icon name="question" className="sm" /> Marcar dúvida no texto
-            </button>
+            <div className="editor-toolbar-group">
+              <button
+                className="btn compact"
+                onClick={handleOrganize}
+                disabled={isTrashed}
+                title="Organiza títulos, listas, destaques e tabelas com regras locais (nada sai do Notee)"
+              >
+                <Icon name="grid" className="sm" /> Organizar em tópicos
+              </button>
+              <button
+                className="btn compact"
+                onClick={() => setShowOrganizeAi(true)}
+                disabled={isTrashed || !!editingChart}
+                title="Envia o texto para o provedor de IA configurado, com custo e confirmação"
+              >
+                <Icon name="spark" className="sm" /> Organizar com IA
+              </button>
+              {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
+              <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={handleMarkDoubt}>
+                <Icon name="question" className="sm" /> Marcar dúvida no texto
+              </button>
+            </div>
           </div>
+
+          {showOrganizeAi && (
+            <OrganizeAiModal
+              noteId={id}
+              blocks={blocks}
+              title={title}
+              onApply={handleApplyAi}
+              onClose={() => setShowOrganizeAi(false)}
+            />
+          )}
 
           <div className="editor-body">
             <input
@@ -540,16 +824,69 @@ export function Note() {
                 ))}
             </div>
 
-            <div id="editor-blocks" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {blocks.map(block => (
+            {notice && (
+              <div className="callout neutral mb16 paste-chart-notice" role="status">
+                <Icon name="spark" />
+                <span>{notice.message}</span>
+                <div className="row gap8">
+                  {notice.offerOrganize && (
+                    <button className="btn compact primary" onClick={handleOrganize}>
+                      <Icon name="spark" className="sm" /> Organizar em tópicos
+                    </button>
+                  )}
+                  {notice.restore && (
+                    <button className="btn compact" onClick={handleUndo}>
+                      <Icon name="back" className="sm" /> Desfazer
+                    </button>
+                  )}
+                  <button className="btn compact ghost" onClick={() => setNotice(null)}>
+                    OK
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div id="editor-blocks" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {blocks.map(block =>
+                isChartBlock(block) ? (
+                  <div key={block.id} className="editor-chart-block">
+                    {editingChart?.id === block.id ? (
+                      <ChartEditor chart={block} onDone={handleChartDone} onCancel={handleChartCancel} />
+                    ) : (
+                      <>
+                        <ChartView chart={block} />
+                        {!isTrashed && (
+                          <div className="row gap8 editor-chart-actions">
+                            <button
+                              className="btn compact"
+                              onClick={() => setEditingChart({ id: block.id, isNew: false })}
+                              disabled={!!editingChart}
+                            >
+                              <Icon name="grid" className="sm" /> Editar dados
+                            </button>
+                            <button className="btn compact ghost" onClick={() => handleRemoveBlock(block.id)}>
+                              <Icon name="trash" className="sm" /> Remover gráfico
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : (
                 <ContentEditableBlock
                   key={block.id}
                   block={block}
                   doubts={doubts}
                   onChange={newText => handleUpdateBlock(block.id, newText)}
                   onSelect={sel => handleTextSelect(block.id, sel)}
+                  onPasteTables={isTrashed ? undefined : payload => handlePasteTables(block.id, payload)}
+                  onPasteStructured={() =>
+                    setNotice({ message: 'Texto com títulos, listas ou negritos colado.', restore: null, offerOrganize: true })
+                  }
+                  onRemoveEmpty={isTrashed ? undefined : () => handleRemoveEmpty(block.id)}
                 />
-              ))}
+                ),
+              )}
             </div>
           </div>
         </section>

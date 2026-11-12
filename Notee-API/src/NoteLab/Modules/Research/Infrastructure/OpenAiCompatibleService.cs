@@ -26,13 +26,8 @@ public abstract class OpenAiCompatibleService : IAiService
     public async Task<string> GetAnswerAsync(string question, string exactQuote, CancellationToken ct) =>
         (await AnswerAsync(question, exactQuote, ct)).Text;
 
-    public async Task<AiAnswer> AnswerAsync(string question, string exactQuote, CancellationToken ct)
-    {
-        string apiKey = _settings.ApiKeyFor(_provider) is { } key && AiProviders.IsRealKey(key)
-            ? key
-            : throw new InvalidOperationException($"{_provider.Name} sem chave configurada.");
-
-        var body = new
+    public async Task<AiAnswer> AnswerAsync(string question, string exactQuote, CancellationToken ct) =>
+        Parse(await SendAsync(new
         {
             model = _settings.ModelFor(_provider),
             messages = new object[]
@@ -40,7 +35,28 @@ public abstract class OpenAiCompatibleService : IAiService
                 new { role = "system", content = AiPrompts.System },
                 new { role = "user", content = AiPrompts.User(question, exactQuote) },
             },
-        };
+        }, ct));
+
+    public async Task<AiCompletion> CompleteAsync(string system, string user, int maxOutputTokens, CancellationToken ct)
+    {
+        AiAnswer parsed = Parse(await SendAsync(new
+        {
+            model = _settings.ModelFor(_provider),
+            max_tokens = maxOutputTokens,
+            messages = new object[]
+            {
+                new { role = "system", content = system },
+                new { role = "user", content = user },
+            },
+        }, ct));
+        return new AiCompletion(parsed.Text, parsed.InputTokens, parsed.OutputTokens);
+    }
+
+    private async Task<JsonNode?> SendAsync(object body, CancellationToken ct)
+    {
+        string apiKey = _settings.ApiKeyFor(_provider) is { } key && AiProviders.IsRealKey(key)
+            ? key
+            : throw new InvalidOperationException($"{_provider.Name} sem chave configurada.");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrlFor(_provider)}/chat/completions")
         {
@@ -55,7 +71,7 @@ public abstract class OpenAiCompatibleService : IAiService
             throw new HttpRequestException($"Falha no {_provider.Name} ({(int)response.StatusCode})");
         }
 
-        return Parse(JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)));
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
     }
 
     public static AiAnswer Parse(JsonNode? json)

@@ -5,21 +5,19 @@ import { Link, useParams } from 'react-router-dom';
 import { ReadingActions } from '../social/ReadingActions';
 import { FollowButton } from '../social/Social';
 import { publicApi } from './publishingApi';
-
-function blocksOf(content) {
-  try {
-    const parsed = JSON.parse(content || '[]');
-    if (Array.isArray(parsed)) return parsed.filter(b => b && typeof b.text === 'string');
-  } catch {
-    // texto puro
-  }
-  return content ? [{ id: 'p', type: 'paragraph', text: content }] : [];
-}
+import { ChartView } from '../charts/ChartView';
+import { parseBlocks as blocksOf } from '../notes/noteBlocks';
 
 function Block({ block }) {
   switch (block.type) {
+    case 'chart':
+      // Dados do snapshot publicado; nada é buscado fora da publicação.
+      return <ChartView chart={block} />;
     case 'heading':
-      return <h2 style={{ fontSize: 22, margin: '26px 0 10px' }}>{block.text}</h2>;
+      // level: 1 = seção principal, 2 = padrão, 3 = subtítulo (organizador de tópicos).
+      if (block.level === 1) return <h2 style={{ fontSize: 24, margin: '30px 0 10px' }}>{block.text}</h2>;
+      if (block.level === 3) return <h4 style={{ fontSize: 16, margin: '18px 0 6px' }}>{block.text}</h4>;
+      return <h3 style={{ fontSize: 20, margin: '26px 0 10px' }}>{block.text}</h3>;
     case 'quote':
       return <blockquote className="quote-selection">{block.text}</blockquote>;
     case 'code':

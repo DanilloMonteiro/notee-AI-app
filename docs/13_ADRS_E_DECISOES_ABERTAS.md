@@ -187,3 +187,33 @@ Leituras sociais contam usuarios autenticados distintos por publicacao e dia UTC
 Comentarios aceitam um nivel de resposta, sempre na mesma publicacao. Exclusao pelo autor apaga o texto e preserva o marcador e as respostas. Cada comentario registra a revisao publica consultada.
 
 O criador nomeia moderadores e suspende/restaura membros. Moderadores removem somente vinculos da comunidade, sem alterar notas de terceiros ou discussoes globais. Suspensao permanece registrada mesmo ao tentar sair da comunidade; nao impede leitura publica ou comentarios na discussao global. Moderacao global, denuncias e bloqueios ainda nao implementados.
+
+## ADR-036 — Gráficos estruturados em notas (12/11/2026)
+
+Status: Proposto (implementado, v1) · Plano: [PLANO_GRAFICOS_EM_NOTAS.md](PLANO_GRAFICOS_EM_NOTAS.md)
+
+Decisão: o gráfico é um bloco do próprio conteúdo da nota (`type: "chart"`, `schemaVersion: 1`) que guarda **dados**, não imagem: `chartType` (`line` | `bar`), `title`, `description`, `xAxisLabel`, `yAxisLabel`, `unit`, `labels[]`, `series[{name, values[]}]` e `sources[{label, url?}]`. Valor ausente é `null` e nunca vira zero. Sem migration: `Content` continua sendo o array JSON de blocos e notas antigas (texto puro ou blocos sem gráfico) seguem aceitas sem mudança.
+
+Validação no servidor (`NoteContent.Validate`, chamada no create e no update; restauração de revisão reaplica conteúdo já aceito): até 20 gráficos por nota, 1–8 séries, 1–120 rótulos, título ≤ 200, descrição ≤ 2000, eixos/unidade/rótulo/nome de série ≤ 80, até 10 fontes com rótulo obrigatório (≤ 200) e URL opcional absoluta http(s) (≤ 2048), cada série com um valor por rótulo, valores numéricos finitos ou `null`. Violação → 400 (`DomainException`). Blocos de outros tipos não são validados (compatibilidade).
+
+Texto pesquisável: `NoteText.Extract` inclui título, descrição, eixos, unidade, rótulos, nomes de séries e rótulos de fontes (sem valores) — alimenta busca, excerpt dos mapas, contexto e analisador. `FindSentence` passou a ignorar blocos sem `text` string.
+
+Renderização: SVG próprio no front (sem biblioteca nova), gerado da mesma estrutura que a tabela acessível exibida junto ao gráfico. Séries distinguidas por cor e por traço/marcador/padrão; ausente aparece como lacuna (linha), retângulo tracejado (barras) e “sem dado” (tabela). Fontes exibidas como “Fontes declaradas (não verificadas pelo Notee)”; links só http(s) com `rel="noopener noreferrer nofollow"`. Publicações renderizam o snapshot publicado sem buscar dados externos nem executar conteúdo do autor.
+
+Pendências: fonte por série, importação de CSV, gráficos empilhados/outros tipos, edição simultânea, sugestão de dados vinda de conversa de IA (sempre com prévia e aceite humano), testes automatizados de interface e verificação em tela estreita.
+
+Atualização (12/11/2026) — colagem: ao colar texto num bloco do editor (exceto código), tabelas numéricas (≥ 2 linhas `rótulo + 1..8 valores`, separadas por tab, `;`, `|` ou 2+ espaços; cabeçalho opcional) são convertidas automaticamente em blocos de gráfico, substituindo as linhas da tabela; o texto em volta continua como parágrafos. Detecção local e determinística (`features/charts/detectTables.js`), aceita formatos pt-BR (`−3,0%`, `+2,5%`, `1.234,5`) e ausentes (`—`, `n/d` → `null`). Barras quando há valores com sinal/negativos, linha para séries de anos. Fontes **nunca** são inferidas do texto em volta. Um aviso permite **Desfazer** (volta ao texto colado sem conversão); nada é salvo sem a pessoa salvar.
+
+Atualização (12/11/2026) — visualização: o gráfico é interativo (destaque por hover/foco, tooltip, setas ←/→ percorrem os períodos com anúncio para leitor de tela) e aparece **compacto** por padrão; “Ver dados” expande descrição, tabela e fontes. `Fonte:` imediatamente abaixo de uma tabela (até 1 linha em branco) passa a ser a fonte declarada do gráfico; fontes distantes continuam não inferidas. Linhas separadoras markdown (`| --- |`) são aceitas.
+
+## ADR-037 — Organizar em tópicos: regras locais e IA com custo (12/11/2026)
+
+Status: Proposto (implementado).
+
+**Regras locais (padrão).** Botão “Organizar em tópicos” reestrutura os parágrafos da nota sem reescrever palavras (`features/notes/organizeText.js`): `#`/`##`/`###` → títulos com `level` 1–3 (o primeiro `#` vira o título da nota se ele ainda for o padrão), listas, citações, código, `---` descartado, linhas só em negrito → subtítulo (negritos seguidos unidos com “·”), cartões “rótulo / # valor / legenda” → lista de destaques, tabelas → gráficos (título da seção quando a tabela não tiver um). Teste automatizado garante, no texto de referência, que nenhuma palavra é perdida nem inventada. Desfazer disponível.
+
+**IA (opcional, com custo).** `POST /notes/{id}/organize-ai/estimate` (sem envio) e `POST /notes/{id}/organize-ai` (`confirm: true` obrigatório). Usa o provedor ativo só com consentimento v2 vigente (ADR-019); sem consentimento ou sem chave, usa a simulação local sem custo. Novo `IAiService.CompleteAsync` (sem ferramentas/busca) em Gemini, Claude, OpenAI-compatíveis e Fake. A resposta deve ser JSON de blocos; é **recusada (422)** se omitir > 2% ou acrescentar > 1% das palavras, ou perder/duplicar gráficos (enviados como `[[grafico:N]]`). A nota nunca é alterada no servidor: o editor mostra prévia e a pessoa aplica (com Desfazer). Cota em memória por usuário (`Ai:OrganizeMaxPerHour`, padrão 10/h → 429), timeout de 60 s, métricas `notee.ai.organize*` sem texto.
+
+**Custo.** Preços opcionais em `Ai:Pricing:{provider}:InputPerMillionUsd|OutputPerMillionUsd`; nenhum preço é embutido no código. Sem configuração, a interface mostra tokens e “preço não configurado”.
+
+**Pendências.** Revisar o texto do consentimento (v3) para citar a organização de notas — não feito agora para não invalidar consentimentos existentes; registrar o consumo por usuário em banco (hoje só métricas); cota em memória não é compartilhada entre instâncias; validação real contra provedores pagos não realizada.

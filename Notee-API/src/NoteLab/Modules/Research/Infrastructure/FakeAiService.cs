@@ -17,4 +17,13 @@ public class FakeAiService : IAiService
             "Sem fonte. Para respostas reais, autorize o uso de IA externa em Configurações.";
         return Task.FromResult(answer);
     }
+
+    /// <summary>Simulação local e sem custo do "Organizar com IA" (ADR-037); nada sai do servidor.</summary>
+    public Task<AiCompletion> CompleteAsync(string system, string user, int maxOutputTokens, CancellationToken ct)
+    {
+        string? note = NoteAiOrganizer.ExtractNote(user);
+        return note is null
+            ? Task.FromException<AiCompletion>(new NotSupportedException("Tarefa não suportada pelo provedor simulado."))
+            : Task.FromResult(new AiCompletion(NoteAiOrganizer.FakeOrganize(note)));
+    }
 }

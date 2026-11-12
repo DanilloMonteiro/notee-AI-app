@@ -69,6 +69,32 @@ public class GeminiAiService : IAiService
         return Parse(json);
     }
 
+    /// <summary>Tarefa genérica sem busca (ADR-037): instruções de sistema + conteúdo, resposta em JSON.</summary>
+    public async Task<AiCompletion> CompleteAsync(string system, string user, int maxOutputTokens, CancellationToken ct)
+    {
+        var requestBody = new
+        {
+            systemInstruction = new { parts = new[] { new { text = system } } },
+            contents = new[] { new { role = "user", parts = new[] { new { text = user } } } },
+            generationConfig = new { maxOutputTokens, responseMimeType = "application/json" },
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1beta/models/{Model}:generateContent")
+        {
+            Content = JsonContent.Create(requestBody),
+        };
+        request.Headers.Add("x-goog-api-key", _apiKey);
+
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"Falha no Gemini ({(int)response.StatusCode})");
+        }
+
+        AiAnswer parsed = Parse(JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)));
+        return new AiCompletion(parsed.Text, parsed.InputTokens, parsed.OutputTokens);
+    }
+
     /// <summary>Extrai texto, fontes (somente URLs http/https, sem duplicatas) e uso de tokens.</summary>
     public static AiAnswer Parse(JsonNode? json)
     {

@@ -78,6 +78,7 @@ public class NoteRepository : INoteRepository
 
     public async Task<Note> AddNoteAsync(string ownerId, Note data, CancellationToken ct)
     {
+        NoteContent.Validate(data.Content);
         data.SetPlainText(NoteText.Extract(data.Content, PlainTextMaxLength));
         _db.Notes.Add(data);
         _db.NoteRevisions.Add(NoteRevision.Capture(data, RevisionReason.Created));
@@ -91,6 +92,8 @@ public class NoteRepository : INoteRepository
         {
             return null;
         }
+
+        NoteContent.Validate(content);
 
         Note? note = await _db.Notes.Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == ownerId, ct);
         if (note == null)
