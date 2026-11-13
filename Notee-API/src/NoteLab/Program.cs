@@ -171,6 +171,7 @@ app.MapNoteeHealth();
 app.MapIdentityEndpoints();
 app.MapPreferenceEndpoints();
 app.MapNoteEndpoints();
+app.MapNoteCommentEndpoints();
 app.MapOrganizeAiEndpoints();
 app.MapTaxonomyAiEndpoints();
 app.MapResearchEndpoints();

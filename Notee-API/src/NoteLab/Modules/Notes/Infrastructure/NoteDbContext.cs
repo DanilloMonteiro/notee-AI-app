@@ -14,6 +14,7 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SocialFollow> SocialFollows { get; set; }
     public DbSet<SocialReaction> SocialReactions { get; set; }
     public DbSet<Note> Notes { get; set; }
+    public DbSet<NoteComment> NoteComments { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<Tag> Tags { get; set; }
     public DbSet<Doubt> Doubts { get; set; }
@@ -55,6 +56,16 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Note>().Navigation(n => n.Tags).UsePropertyAccessMode(PropertyAccessMode.Field);
         modelBuilder.Entity<Note>().HasMany(n => n.Tags).WithMany().UsingEntity("NoteTags");
         modelBuilder.Entity<Note>().Metadata.FindNavigation(nameof(Note.Tags))?.SetPropertyAccessMode(PropertyAccessMode.Field);
+        modelBuilder.Entity<NoteComment>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.OwnerId).IsRequired();
+            e.Property(c => c.BlockId).HasMaxLength(100).IsRequired();
+            e.Property(c => c.ExactQuote).HasMaxLength(500).IsRequired();
+            e.Property(c => c.Text).HasMaxLength(2000).IsRequired();
+            e.HasOne<Note>().WithMany().HasForeignKey(c => c.NoteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.NoteId, c.OwnerId });
+        });
 
         modelBuilder.Entity<Doubt>().OwnsOne(d => d.Anchor, a =>
         {
