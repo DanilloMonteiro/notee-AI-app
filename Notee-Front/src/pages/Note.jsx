@@ -15,6 +15,7 @@ import { CHART_LIMITS, createEmptyChart, isChartBlock } from '../features/charts
 import { splitPastedText } from '../features/charts/detectTables';
 import { cleanBlock, hasStructure, organizeText } from '../features/notes/organizeText';
 import { OrganizeAiModal } from '../features/notes/OrganizeAiModal';
+import { locateQuote } from '../features/notes/anchors';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
 
@@ -36,16 +37,13 @@ const findQuote = (text, quote, hint = 0) => {
   return best;
 };
 
-// Fonte única da verdade para "a citação ainda existe no bloco?"
-const isQuotePresent = (text, quote) => !!quote && (text || '').includes(quote);
-
 // Constrói o HTML a partir do texto CRU + intervalos (nunca faz replace sobre HTML já gerado,
 // o que evitaria marcar texto dentro de atributos como style="...").
-const buildHighlightedHtml = (text, blockDoubts) => {
-  const ranges = blockDoubts
+const buildHighlightedHtml = (text, anchors, markClass = 'doubt-mark') => {
+  const ranges = anchors
     .map(d => {
       const start = findQuote(text, d.exactQuote, d.startIndex || 0);
-      return start === -1 ? null : { start, end: start + d.exactQuote.length };
+      return start === -1 ? null : { start, end: start + d.exactQuote.length, id: d.id };
     })
     .filter(Boolean)
     .sort((a, b) => a.start - b.start);
@@ -54,15 +52,15 @@ const buildHighlightedHtml = (text, blockDoubts) => {
   const merged = [];
   for (const r of ranges) {
     const last = merged[merged.length - 1];
-    if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
-    else merged.push({ ...r });
+    if (last && r.start <= last.end) { last.end = Math.max(last.end, r.end); last.count++; }
+    else merged.push({ ...r, count: 1 });
   }
 
   let html = '';
   let cursor = 0;
   for (const r of merged) {
     html += escapeHtml(text.slice(cursor, r.start));
-    html += `<mark class="doubt-mark" style="${MARK_STYLE}">${escapeHtml(text.slice(r.start, r.end))}</mark>`;
+    html += `<mark class="${markClass}" data-comment-id="${r.id || ''}" data-count="${r.count}" style="${markClass === 'comment-mark' ? COMMENT_MARK_STYLE : MARK_STYLE}">${escapeHtml(text.slice(r.start, r.end))}</mark>`;
     cursor = r.end;
   }
   return html + escapeHtml(text.slice(cursor));
@@ -70,6 +68,7 @@ const buildHighlightedHtml = (text, blockDoubts) => {
 
 // Sem padding: padding no <mark> faz o texto "saltar" quando o highlight é removido/reposto.
 const MARK_STYLE = 'background-color:#dbeafe;color:#1e40af;border-radius:3px;';
+const COMMENT_MARK_STYLE = 'background-color:#fef08a;color:#713f12;border-radius:3px;';
 
 // "plaintext-only" impede HTML colado e <div>/<b> gerados pelo browser.
 // Fallback para browsers antigos que não o suportam.
@@ -84,7 +83,7 @@ const PLAINTEXT_SUPPORTED = (() => {
 })();
 
 // --- COMPONENTE DO EDITOR (contentEditable) -------------------------------
-function ContentEditableBlock({ block, doubts, onChange, onSelect, onPasteTables, onPasteStructured, onRemoveEmpty }) {
+function ContentEditableBlock({ block, doubts, markClass, onMarkClick, onChange, onSelect, onPasteTables, onPasteStructured, onRemoveEmpty }) {
   const divRef = useRef(null);
 
   const blockDoubts = useMemo(
@@ -93,14 +92,14 @@ function ContentEditableBlock({ block, doubts, onChange, onSelect, onPasteTables
   );
 
   const paint = () => {
-    if (divRef.current) divRef.current.innerHTML = buildHighlightedHtml(block.text || '', blockDoubts);
+    if (divRef.current) divRef.current.innerHTML = buildHighlightedHtml(block.text || '', blockDoubts, markClass);
   };
 
   // Só reescreve o DOM quando o bloco NÃO está em foco -> nunca mexe no cursor durante a digitação.
   useEffect(() => {
     if (divRef.current && document.activeElement !== divRef.current) paint();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.text, blockDoubts]);
+  }, [block.text, blockDoubts, markClass]);
 
   // Durante a digitação: apenas o texto cru (sem <mark>) sobe para o estado React.
   const handleInput = e => onChange(e.currentTarget.innerText);
@@ -186,6 +185,7 @@ function ContentEditableBlock({ block, doubts, onChange, onSelect, onPasteTables
       onPaste={handlePaste}
       onKeyDown={handleKeyDown}
       onMouseUp={handleSelect}
+      onClick={e => { const mark = e.target.closest('mark[data-comment-id]'); if (mark?.dataset.commentId) onMarkClick?.(mark.dataset.commentId); }}
       onKeyUp={handleSelect}
       style={{
         width: '100%',
@@ -221,6 +221,15 @@ export function Note() {
 
   const [note, setNote] = useState(null);
   const [doubts, setDoubts] = useState([]);
+  const [privateComments, setPrivateComments] = useState([]);
+  const [publicComments, setPublicComments] = useState([]);
+  const [publications, setPublications] = useState([]);
+  const [commentVisibility, setCommentVisibility] = useState('private');
+  const [activeAside, setActiveAside] = useState(() => { try { return localStorage.getItem('notee-editor-aside') === 'comments' ? 'comments' : 'doubts'; } catch { return 'doubts'; } });
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [selectedCommentId, setSelectedCommentId] = useState(null);
 
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState(null);
@@ -229,6 +238,7 @@ export function Note() {
   const closeHistory = useCallback(() => setShowHistory(false), []);
   const [showPublish, setShowPublish] = useState(false);
   const closePublish = useCallback(() => setShowPublish(false), []);
+  const wasPublishOpen = useRef(false);
   const [blocks, setBlocks] = useState([]);
   const [newBlockType, setNewBlockType] = useState('paragraph');
   // Gráfico em edição: { id, isNew } — cancelar um gráfico recém-criado o remove.
@@ -274,6 +284,15 @@ export function Note() {
     const doubtsData = await apiFetch(`/doubts/note/${id}`);
     setDoubts(doubtsData || []);
   };
+  const loadPrivateComments = async () => setPrivateComments(await apiFetch(`/notes/${id}/comments`) || []);
+  const loadPublicComments = useCallback(async () => {
+    const [comments, pubs] = await Promise.all([apiFetch(`/notes/${id}/public-comments`), apiFetch(`/notes/${id}/publications`)]);
+    setPublicComments(comments || []); setPublications(pubs || []);
+  }, [id]);
+  useEffect(() => {
+    if (wasPublishOpen.current && !showPublish) loadPublicComments().catch(() => {});
+    wasPublishOpen.current = showPublish;
+  }, [showPublish, loadPublicComments]);
 
   // Aplica uma nota vinda da API ao estado do editor (carga inicial e restauração de revisão).
   const applyLoadedNote = noteData => {
@@ -299,6 +318,8 @@ export function Note() {
     try {
       applyLoadedNote(await apiFetch(`/notes/${id}`));
       await loadDoubts();
+      await loadPrivateComments();
+      await loadPublicComments();
     } catch (err) {
       setError('Não foi possível carregar os dados da nota.');
     } finally {
@@ -596,6 +617,37 @@ export function Note() {
     setShowModal(true);
   };
 
+  const handleComment = () => {
+    if (!selection) return addToast('Selecione um trecho do texto.', 'info');
+    if (isDirty) return addToast('Salve a nota antes de comentar o trecho.', 'info');
+    setCommentText(''); setCommentVisibility('private'); setShowCommentModal(true);
+  };
+
+  const handleSubmitComment = async e => {
+    e.preventDefault();
+    if (!selection) return;
+    setCommentBusy(true);
+    try {
+      if (commentVisibility === 'public') {
+        const pub = publications.find(p => p.status === 'Published' && p.visibility === 'public' && p.commentsEnabled);
+        if (!pub) throw new Error('Publique a nota com comentários ligados para comentar publicamente.');
+        await apiFetch(`/discussion/${pub.id}`, { method: 'POST', body: JSON.stringify({ text: commentText, anchor: { blockId: selection.blockId, exactQuote: selection.quote, startIndex: selection.startIndex } }) });
+        await loadPublicComments();
+      } else {
+        await apiFetch(`/notes/${id}/comments`, { method: 'POST', body: JSON.stringify({ blockId: selection.blockId, exactQuote: selection.quote, startIndex: selection.startIndex, endIndex: selection.endIndex, text: commentText }) });
+        await loadPrivateComments();
+      }
+      setShowCommentModal(false); setSelection(null);
+      addToast('Comentário salvo.');
+    } catch (err) { addToast(err.message || 'Falha ao comentar.', 'warning'); }
+    finally { setCommentBusy(false); }
+  };
+
+  const deletePrivateComment = async commentId => {
+    try { await apiFetch(`/note-comments/${commentId}`, { method: 'DELETE' }); setPrivateComments(prev => prev.filter(c => c.id !== commentId)); }
+    catch (err) { addToast(err.message || 'Falha ao excluir comentário.', 'warning'); }
+  };
+
   const handleSubmitDoubt = async e => {
     e.preventDefault();
     if (!selection) return;
@@ -746,6 +798,7 @@ export function Note() {
 
       <NoteOrganizer
         noteId={id}
+        noteVersion={note.version}
         title={title}
         blocks={blocks}
         categoryId={categoryId}
@@ -753,6 +806,7 @@ export function Note() {
         onCategoryChange={setCategoryId}
         onTagsChange={setTagIds}
         disabled={isTrashed}
+        isDirty={isDirty}
       />
 
       <NoteSuggestions noteId={id} isDirty={isDirty} disabled={isTrashed} onNoteChanged={loadNoteAndDoubts} />
@@ -795,8 +849,8 @@ export function Note() {
                 <Icon name="spark" className="sm" /> Organizar com IA
               </button>
               {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
-              <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={handleMarkDoubt}>
-                <Icon name="question" className="sm" /> Marcar dúvida no texto
+              <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={activeAside === 'comments' ? handleComment : handleMarkDoubt} disabled={isTrashed}>
+                <Icon name="question" className="sm" /> {activeAside === 'comments' ? 'Comentar trecho' : 'Marcar dúvida no texto'}
               </button>
             </div>
           </div>
@@ -879,7 +933,9 @@ export function Note() {
                 <ContentEditableBlock
                   key={block.id}
                   block={block}
-                  doubts={doubts}
+                  doubts={activeAside === 'comments' ? [...privateComments, ...publicComments.filter(c => c.anchorQuote && !c.isHidden && !c.isDeleted).map(c => ({ ...c, exactQuote: c.anchorQuote, blockId: c.anchorBlockId, startIndex: c.anchorStart }))].map(c => { const found = locateQuote(blocks, c); return found ? { ...c, blockId: found.blockId, startIndex: found.startIndex } : c; }) : doubts.map(d => { const found = locateQuote(blocks, d); return found ? { ...d, blockId: found.blockId, startIndex: found.startIndex } : d; })}
+                  markClass={activeAside === 'comments' ? 'comment-mark' : 'doubt-mark'}
+                  onMarkClick={setSelectedCommentId}
                   onChange={newText => handleUpdateBlock(block.id, newText)}
                   onSelect={sel => handleTextSelect(block.id, sel)}
                   onPasteTables={isTrashed ? undefined : payload => handlePasteTables(block.id, payload)}
@@ -900,7 +956,21 @@ export function Note() {
         ></div>
 
         <aside className="stack editor-side">
-          {doubts.length > 0 ? (
+          <div className="row gap8" role="tablist" aria-label="Painel da nota">
+            {['doubts', 'comments'].map(tab => <button key={tab} type="button" role="tab" aria-selected={activeAside === tab} className={`btn compact ${activeAside === tab ? 'primary' : ''}`} onClick={() => { setActiveAside(tab); try { localStorage.setItem('notee-editor-aside', tab); } catch { /* armazenamento indisponível */ } }}>{tab === 'doubts' ? 'Dúvidas' : 'Comentários'}</button>)}
+          </div>
+          {activeAside === 'comments' ? <div className="result-panel">
+            <h4>Comentários desta nota</h4>
+            {privateComments.length + publicComments.length === 0 && <p className="small muted">Selecione um trecho e clique em Comentar trecho.</p>}
+            {privateComments.map(c => <div key={c.id} className="card research-card" style={{ marginBottom: 12, border: c.id === selectedCommentId ? '2px solid #eab308' : undefined }}>
+              <span className="pill">🔒 Só eu</span>
+              <blockquote className="quote-selection">{c.exactQuote}</blockquote>
+              {!locateQuote(blocks, c) && <p className="small muted">Trecho alterado</p>}
+              <p>{c.text}</p>
+              <button type="button" className="btn compact ghost" onClick={() => deletePrivateComment(c.id)}>Excluir</button>
+            </div>)}
+            {publicComments.map(c => <div key={c.id} className="card research-card" style={{ marginBottom: 12, border: c.id === selectedCommentId ? '2px solid #eab308' : undefined }}><span className="pill blue">Público</span>{c.isHidden && <span className="pill">Oculto</span>}{c.anchorQuote && <blockquote className="quote-selection">{c.anchorQuote}</blockquote>}{c.anchorQuote && !locateQuote(blocks, c) && <p className="small muted">Comentário sobre versão anterior</p>}<p>{c.isDeleted ? 'Comentário removido.' : c.text}</p></div>)}
+          </div> : (doubts.length > 0 ? (
             <div className="result-panel">
               <div className="row between mb16">
                 <h4>Dúvidas desta nota</h4>
@@ -909,8 +979,7 @@ export function Note() {
 
               {doubts.map(d => {
                 // Monitorização em tempo real: recalculada a cada tecla, porque `blocks` muda no onInput.
-                const block = blocks.find(b => b.id === d.blockId);
-                const isReferenceMissing = !!d.exactQuote && !isQuotePresent(block?.text, d.exactQuote);
+                const isReferenceMissing = !!d.exactQuote && !locateQuote(blocks, d);
                 const showWarning = isReferenceMissing && !keptDoubts.includes(d.id);
 
                 return (
@@ -997,7 +1066,7 @@ export function Note() {
                 Nenhuma dúvida. Selecione texto e marque uma dúvida.
               </p>
             </div>
-          )}
+          ))}
         </aside>
       </div>
 
@@ -1033,6 +1102,18 @@ export function Note() {
           </section>
         </div>
       )}
+      {showCommentModal && selection && <div className="modal-overlay"><section className="modal" role="dialog" aria-modal="true" aria-label="Comentar trecho">
+        <div className="modal-title"><h2>Comentar trecho</h2><button type="button" className="icon-btn" onClick={() => setShowCommentModal(false)} aria-label="Fechar"><Icon name="close" /></button></div>
+        <form onSubmit={handleSubmitComment}>
+          <blockquote className="quote-selection">{selection.quote}</blockquote>
+          <label htmlFor="private-comment-text">Comentário</label>
+          <textarea id="private-comment-text" required maxLength={2000} value={commentText} onChange={e => setCommentText(e.target.value)} />
+          <label htmlFor="comment-visibility">Visibilidade</label>
+          <select id="comment-visibility" value={commentVisibility} onChange={e => setCommentVisibility(e.target.value)}><option value="private">Só eu</option><option value="public" disabled={!publications.some(p => p.status === 'Published' && p.visibility === 'public' && p.commentsEnabled)}>Público na publicação</option></select>
+          {!publications.some(p => p.status === 'Published' && p.visibility === 'public' && p.commentsEnabled) && <p className="small muted">Publique a nota como Pública e ligue os comentários para usar a opção pública.</p>}
+          <div className="modal-actions mt24"><button type="button" className="btn" onClick={() => setShowCommentModal(false)}>Cancelar</button><button type="submit" className="btn primary" disabled={commentBusy || !commentText.trim()}>Salvar comentário</button></div>
+        </form>
+      </section></div>}
     </div>
   );
 }

@@ -86,3 +86,11 @@ Content-Type: application/json
 - `POST /notes/{id}/organize-ai` `{ text, confirm: true }` → `200 { provider, external, title|null, blocks: [{ type: heading|paragraph|list|quote|code|table|chart, text?, level?, ref? }], inputTokens, outputTokens, costUsd|null }`. Gráficos existentes vão no texto como `[[grafico:N]]` e voltam como `{type:"chart", ref:N}`. A nota não é alterada.
 - Erros: `400` sem `confirm`, texto vazio, > 50.000 caracteres ou nota na lixeira; `404` nota alheia; `422` resposta que omite/inventa conteúdo (Problem Details com tokens e custo); `429` cota; `502` falha do provedor.
 - Bloco `heading` aceita `level` opcional (1–3) no conteúdo da nota.
+## Sugestões de taxonomia e comentários (ADR-038/039)
+
+- `POST /notes/{id}/taxonomy-ai/estimate`: estima provedor, tokens e custo sem enviar texto. `POST /notes/{id}/taxonomy-ai` exige `{confirm:true}` e devolve prévia `{category,tags}`; não altera a nota.
+- `GET|POST /notes/{id}/comments`, `PATCH|DELETE /note-comments/{id}`: comentários privados em trecho da versão salva, acessíveis só ao dono.
+- `POST /discussion/{pubId}` aceita `text`, `parentId?` e `anchor? {blockId,exactQuote,startIndex}`. O trecho deve existir no snapshot publicado atual. `GET /discussion/{pubId}?view=top|all&page=N` devolve âncora, curtidas, respostas, ocultação e contagem de restantes.
+- `PUT|DELETE /discussion/comments/{id}/like`; `POST /discussion/comments/{id}/hide|unhide` (autor da publicação).
+- `PATCH /publications/{id}` aceita `commentsEnabled` junto com `visibility` e `expectedVersion`. `GET /notes/{id}/public-comments` é restrito ao dono.
+- `GET /me/notifications` e `POST /me/notifications/read` (`{ids?}`) listam e marcam avisos.

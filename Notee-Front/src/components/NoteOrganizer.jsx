@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { apiFetch } from '../api';
 import { suggestTaxonomy } from '../features/notes/suggestTaxonomy';
 
-export function NoteOrganizer({ noteId, title, blocks, categoryId, tagIds, onCategoryChange, onTagsChange, disabled }) {
+export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, tagIds, onCategoryChange, onTagsChange, disabled, isDirty }) {
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
@@ -89,15 +89,24 @@ export function NoteOrganizer({ noteId, title, blocks, categoryId, tagIds, onCat
   };
 
   const suggestWithAi = async () => {
+    if (isDirty) {
+      addToast('Salve a nota antes de pedir sugestões à IA.', 'info');
+      return;
+    }
     setBusy(true);
     try {
-      setEstimate(await apiFetch(`/notes/${noteId}/taxonomy-ai/estimate`, { method: 'POST' }));
+      const result = await apiFetch(`/notes/${noteId}/taxonomy-ai/estimate`, { method: 'POST' });
+      setEstimate({ ...result, noteVersion });
     } catch (err) {
       addToast(err.message || 'Não foi possível estimar o custo.', 'warning');
     } finally { setBusy(false); }
   };
 
   const confirmAi = async () => {
+    if (isDirty || estimate?.noteVersion !== noteVersion) {
+      addToast('Salve a nota antes de pedir sugestões à IA.', 'info');
+      return;
+    }
     setBusy(true);
     try {
       const result = await apiFetch(`/notes/${noteId}/taxonomy-ai`, { method: 'POST', body: JSON.stringify({ confirm: true }) });
@@ -201,9 +210,10 @@ export function NoteOrganizer({ noteId, title, blocks, categoryId, tagIds, onCat
         <div className="row gap8 wrap">
           <button type="button" className="btn primary compact" disabled={busy || (!suggestions.category && !suggestions.tags.length)} onClick={async () => { if (suggestions.category) await applySuggestion(suggestions.category, 'categories'); for (const tag of suggestions.tags) await applySuggestion(tag, 'tags'); }}>Aplicar todas</button>
           <button type="button" className="btn compact" onClick={() => setSuggestions(null)}>Ignorar</button>
-          <button type="button" className="btn compact" disabled={busy} onClick={suggestWithAi}>Sugerir com IA</button>
+          <button type="button" className="btn compact" disabled={busy || isDirty} onClick={suggestWithAi}>Sugerir com IA</button>
         </div>
-        {estimate && <div className="small">{estimate.providerName} · ~{estimate.estimatedInputTokens + estimate.estimatedOutputTokens} tokens · {estimate.estimatedCostUsd == null ? 'custo indisponível' : `US$ ${estimate.estimatedCostUsd}`}
+        {isDirty && <p className="tiny muted">Salve a nota para usar sugestões de IA.</p>}
+        {estimate && estimate.noteVersion === noteVersion && !isDirty && <div className="small">{estimate.providerName} · ~{estimate.estimatedInputTokens + estimate.estimatedOutputTokens} tokens · {estimate.estimatedCostUsd == null ? 'custo indisponível' : `US$ ${estimate.estimatedCostUsd}`}
           <div className="row gap8"><button type="button" className="btn primary compact" disabled={busy} onClick={confirmAi}>Confirmar e sugerir</button><button type="button" className="btn compact" onClick={() => setEstimate(null)}>Cancelar</button></div>
         </div>}
         <p className="tiny muted">A nota só recebe as alterações ao salvar.</p>

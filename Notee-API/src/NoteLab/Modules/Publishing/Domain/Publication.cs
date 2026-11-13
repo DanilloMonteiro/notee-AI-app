@@ -36,6 +36,7 @@ public sealed partial class Publication
     public PublicationVisibility Visibility { get; private set; }
     public PublicationStatus Status { get; private set; }
     public Guid? CurrentRevisionId { get; private set; }
+    public bool CommentsEnabled { get; private set; } = true;
     public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -67,6 +68,13 @@ public sealed partial class Publication
     }
 
     public bool IsLive => Status == PublicationStatus.Published && CurrentRevisionId.HasValue;
+
+    public void SetCommentsEnabled(bool enabled)
+    {
+        EnsureNotRevoked();
+        CommentsEnabled = enabled;
+        Touch();
+    }
 
     public void SetRevision(Guid revisionId)
     {

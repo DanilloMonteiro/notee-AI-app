@@ -7,23 +7,43 @@ import { FollowButton } from '../social/Social';
 import { publicApi } from './publishingApi';
 import { ChartView } from '../charts/ChartView';
 import { parseBlocks as blocksOf } from '../notes/noteBlocks';
+import { apiFetch } from '../../api';
+import { locateQuote } from '../notes/anchors';
 
-function Block({ block }) {
+function MarkedText({ block, comments, onCommentClick }) {
+  const text = block.text || '';
+  const ranges = comments.filter(c => !c.parentId && c.anchorQuote && !c.isHidden && !c.isDeleted)
+    .map(c => ({ comment: c, location: locateQuote([block], c) })).filter(x => x.location)
+    .sort((a, b) => a.location.startIndex - b.location.startIndex);
+  const parts = [];
+  let cursor = 0;
+  for (const { comment, location } of ranges) {
+    if (location.startIndex < cursor) continue;
+    parts.push(text.slice(cursor, location.startIndex));
+    parts.push(<mark key={comment.id} className="comment-mark" style={{ background: '#fef08a', color: '#713f12', cursor: 'pointer' }} onClick={() => onCommentClick?.(comment.id)}>{text.slice(location.startIndex, location.endIndex)}</mark>);
+    cursor = location.endIndex;
+  }
+  parts.push(text.slice(cursor));
+  return parts;
+}
+
+function Block({ block, comments = [], onCommentClick }) {
+  const content = <MarkedText block={block} comments={comments} onCommentClick={onCommentClick} />;
   switch (block.type) {
     case 'chart':
       // Dados do snapshot publicado; nada é buscado fora da publicação.
       return <ChartView chart={block} />;
     case 'heading':
       // level: 1 = seção principal, 2 = padrão, 3 = subtítulo (organizador de tópicos).
-      if (block.level === 1) return <h2 style={{ fontSize: 24, margin: '30px 0 10px' }}>{block.text}</h2>;
-      if (block.level === 3) return <h4 style={{ fontSize: 16, margin: '18px 0 6px' }}>{block.text}</h4>;
-      return <h3 style={{ fontSize: 20, margin: '26px 0 10px' }}>{block.text}</h3>;
+      if (block.level === 1) return <h2 style={{ fontSize: 24, margin: '30px 0 10px' }}>{content}</h2>;
+      if (block.level === 3) return <h4 style={{ fontSize: 16, margin: '18px 0 6px' }}>{content}</h4>;
+      return <h3 style={{ fontSize: 20, margin: '26px 0 10px' }}>{content}</h3>;
     case 'quote':
-      return <blockquote className="quote-selection">{block.text}</blockquote>;
+      return <blockquote className="quote-selection">{content}</blockquote>;
     case 'code':
       return (
         <pre style={{ background: '#f4f6f1', padding: 14, borderRadius: 8, overflow: 'auto' }}>
-          <code>{block.text}</code>
+          <code>{content}</code>
         </pre>
       );
     case 'list':
@@ -35,7 +55,7 @@ function Block({ block }) {
         </ul>
       );
     default:
-      return <p style={{ lineHeight: 1.8, margin: '0 0 14px', whiteSpace: 'pre-wrap' }}>{block.text}</p>;
+      return <p style={{ lineHeight: 1.8, margin: '0 0 14px', whiteSpace: 'pre-wrap' }}>{content}</p>;
   }
 }
 
@@ -69,7 +89,7 @@ function useLoad(fn, deps) {
   return state;
 }
 
-function Article({ state }) {
+function Article({ state, comments = [], onAnchor, onCommentClick, canComment = false }) {
   if (state.loading) return <p className="muted">A carregar...</p>;
   if (state.error || !state.data)
     return (
@@ -91,7 +111,15 @@ function Article({ state }) {
         publicado em {new Date(note.publishedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
       </p>
       {blocksOf(note.content).map((b, i) => (
-        <Block key={b.id || i} block={b} />
+        <div key={b.id || i} data-block-id={b.id} onMouseUp={e => {
+          if (!canComment || !b.id || !['paragraph', 'heading', 'quote', 'code'].includes(b.type)) return;
+          const selection = window.getSelection();
+          if (!selection || selection.isCollapsed || !selection.toString().trim() || selection.toString().length > 500) return;
+          const range = selection.getRangeAt(0);
+          if (!e.currentTarget.contains(range.startContainer) || !e.currentTarget.contains(range.endContainer)) return;
+          const before = range.cloneRange(); before.selectNodeContents(e.currentTarget); before.setEnd(range.startContainer, range.startOffset);
+          onAnchor({ blockId: b.id, exactQuote: selection.toString(), startIndex: before.toString().length });
+        }}><Block block={b} comments={comments} onCommentClick={onCommentClick} /></div>
       ))}
     </article>
   );
@@ -100,10 +128,37 @@ function Article({ state }) {
 export function PublicNotePage() {
   const { handle, slug } = useParams();
   const state = useLoad(() => publicApi.note(handle, slug), [handle, slug]);
+  const [comments, setComments] = useState({ publicationId: null, items: [] });
+  const [anchor, setAnchor] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentVersion, setCommentVersion] = useState(0);
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [canComment, setCanComment] = useState(false);
+  const [showAnchorModal, setShowAnchorModal] = useState(false);
+  useEffect(() => {
+    if (!state.data?.commentsEnabled) return;
+    let alive = true;
+    apiFetch('/me/profile').then(profile => { if (alive) setCanComment(!!profile); }).catch(() => { if (alive) setCanComment(false); });
+    return () => { alive = false; };
+  }, [state.data]);
+  useEffect(() => {
+    if (!state.data?.id || !state.data.commentsEnabled) return;
+    let alive = true;
+    apiFetch(`/discussion/${state.data.id}?view=all`).then(rows => { if (alive) setComments({ publicationId: state.data.id, items: rows || [] }); }).catch(() => {});
+    return () => { alive = false; };
+  }, [state.data, commentVersion]);
+  const submitAnchor = async e => {
+    e.preventDefault(); setCommentBusy(true);
+    try { await apiFetch(`/discussion/${state.data.id}`, { method: 'POST', body: JSON.stringify({ text: commentText, anchor }) }); setAnchor(null); setShowAnchorModal(false); setCommentText(''); setCommentVersion(v => v + 1); }
+    catch (err) { alert(err.message || 'Não foi possível comentar.'); }
+    finally { setCommentBusy(false); }
+  };
   return (
     <PublicShell>
-      <Article state={state} />
-      {state.data && !state.error && <ReadingActions key={handle + slug} handle={handle} slug={slug} />}
+      <Article state={state} comments={comments.publicationId === state.data?.id ? comments.items : []} onAnchor={setAnchor} canComment={canComment && !!state.data?.commentsEnabled} onCommentClick={id => { window.location.hash = `comment-${id}`; document.getElementById(`comment-${id}`)?.scrollIntoView({ behavior: 'smooth' }); }} />
+      {anchor && canComment && !showAnchorModal && <button type="button" className="btn primary" style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 12 }} onClick={() => setShowAnchorModal(true)}>Comentar trecho</button>}
+      {anchor && showAnchorModal && <div className="modal-overlay"><section className="modal" role="dialog" aria-modal="true" aria-label="Comentar trecho"><div className="modal-title"><h2>Comentar trecho</h2><button type="button" className="icon-btn" onClick={() => { setAnchor(null); setShowAnchorModal(false); }}>×</button></div><form onSubmit={submitAnchor}><blockquote className="quote-selection">{anchor.exactQuote}</blockquote><label htmlFor="public-comment-text">Seu comentário</label><textarea id="public-comment-text" value={commentText} onChange={e => setCommentText(e.target.value)} maxLength={2000} required /><div className="modal-actions mt24"><button type="button" className="btn" onClick={() => { setAnchor(null); setShowAnchorModal(false); }}>Cancelar</button><button className="btn primary" disabled={commentBusy || !commentText.trim()}>Comentar</button></div></form></section></div>}
+      {state.data && !state.error && <ReadingActions key={handle + slug} handle={handle} slug={slug} blocks={blocksOf(state.data.content)} commentVersion={commentVersion} commentsEnabled={state.data.commentsEnabled} />}
     </PublicShell>
   );
 }

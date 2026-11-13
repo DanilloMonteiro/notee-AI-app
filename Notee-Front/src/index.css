@@ -3426,3 +3426,15 @@ body.pane-is-resizing * {
 .chart-tooltip.side-left::after {
   display: none;
 }
+.editor-block .comment-mark[data-count]:not([data-count="1"])::after {
+  content: attr(data-count);
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #facc15;
+  color: #713f12;
+  font-size: 10px;
+  line-height: 1.4;
+  vertical-align: super;
+}

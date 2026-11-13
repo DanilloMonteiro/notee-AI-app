@@ -80,7 +80,7 @@ public static class TaxonomyAiEndpoints
     private static Task<Note?> FindNote(NoteDbContext db, ClaimsPrincipal user, Guid id, CancellationToken ct)
     {
         string owner = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
-        return db.Notes.AsNoTracking().SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == owner, ct);
+        return db.Notes.AsNoTracking().Include(n => n.Tags).SingleOrDefaultAsync(n => n.Id == id && n.OwnerId == owner, ct);
     }
 
     private static async Task<UserPreferences> Preferences(NoteDbContext db, string owner, CancellationToken ct) =>

@@ -224,3 +224,12 @@ Status: Proposto (implementado).
 - A opção de IA usa a versão salva da nota, mostra provedor, estimativa e custo antes da confirmação. Só usa provedor externo quando a conta permitiu; sem isso, executa regras locais no servidor.
 - O servidor normaliza nomes da resposta, vincula nomes existentes por comparação sem acentos, limita a cinco tags e não altera taxonomia nem nota. A pessoa aplica cada item; novas entradas são criadas pelos endpoints de taxonomia. A nota só muda ao salvar.
 - Limite da execução: `Ai:TaxonomyMaxPerHour` por usuário, padrão 20.
+
+## ADR-039 — Comentários em trechos e avisos (13/11/2026)
+
+- `NoteComments` guarda observações privadas do dono em trechos da nota salva. O editor tenta reencontrar a citação no mesmo bloco e depois em outros blocos; trechos ausentes são mostrados separadamente. A seleção de Dúvidas ou Comentários é local ao navegador.
+- `PublicationComments` continua preso ao snapshot da revisão publicada; novos campos opcionais registram o trecho. Respostas de um nível herdam a âncora. O servidor valida o trecho no snapshot atual antes de criar o comentário.
+- Discussão pública exige publicação Pública ativa e perfil público. `CommentsEnabled` permite ao autor impedir novos comentários. Links não listados continuam sem discussão. Comentários ocultos só aparecem ao autor, que pode restaurá-los.
+- `PublicationCommentLikes` usa chave composta para uma curtida por pessoa, sem curtida própria. A visão `top` mostra três raízes por trecho (cinco comentários gerais se houver mais de dez), ordenadas por curtidas e recência; `all` pagina cinquenta raízes por página.
+- `Notifications` são gravadas na mesma operação do comentário ou resposta, para o autor da publicação ou do comentário pai. O sino consulta periodicamente e marca avisos como lidos ao abrir.
+- Cota de novas mensagens: `Social:CommentsPerHour` por usuário, padrão 60. A implementação usa limitador em memória, portanto a cota não é compartilhada entre instâncias.

@@ -38,9 +38,31 @@ public sealed class PublicationComment
     public string UserId { get; set; } = "";
     public string Text { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string? AnchorBlockId { get; set; }
+    public string? AnchorQuote { get; set; }
+    public int? AnchorStart { get; set; }
+    public int? AnchorEnd { get; set; }
+    public bool IsHidden { get; set; }
+    public DateTimeOffset? HiddenAt { get; set; }
+}
+public sealed class PublicationCommentLike
+{
+    public Guid CommentId { get; set; }
+    public string UserId { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+public sealed class Notification
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string UserId { get; set; } = "";
+    public string Kind { get; set; } = "comment";
+    public Guid PublicationId { get; set; }
+    public Guid CommentId { get; set; }
+    public string ActorUserId { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ReadAt { get; set; }
 }
 public record CommunityInput(string Name, string Description);
-public record CommentInput(string Text, Guid? ParentId = null);
 public record MemberInput(bool IsModerator, bool IsSuspended);
 
 public static class CommunityEndpoints
@@ -159,7 +181,7 @@ public static class CommunityEndpoints
                 join r in db.PublicationRevisions on p.CurrentRevisionId equals r.Id
                 join profile in db.PublicProfiles on p.OwnerId equals profile.UserId
                 where link.CommunityId == id
-                select new { p.Id, r.Title, p.Slug, profile.Handle, profile.DisplayName, p.CreatedAt,
+                select new { p.Id, r.Title, p.Slug, p.CommentsEnabled, profile.Handle, profile.DisplayName, p.CreatedAt,
                     likes = db.SocialReactions.Count(x => x.PublicationId == p.Id && x.Kind == "like"),
                     reposts = db.SocialReactions.Count(x => x.PublicationId == p.Id && x.Kind == "repost") };
             var ordered = sort == "likes" ? query.OrderByDescending(x => x.likes).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
@@ -167,34 +189,6 @@ public static class CommunityEndpoints
                 : sort == "combined" ? query.OrderByDescending(x => x.likes + x.reposts).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
                 : query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id);
             return Results.Ok(await ordered.Skip((Math.Clamp(page, 1, 10000) - 1) * 20).Take(20).ToListAsync(ct));
-        });
-        var comments = app.MapGroup("/discussion").RequireAuthorization();
-        comments.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, NoteDbContext db, CancellationToken ct) =>
-        {
-            if (!await Public(db).AnyAsync(p => p.Id == id, ct)) return Results.NotFound();
-            return Results.Ok(await (from c in db.PublicationComments
-                join u in db.PublicProfiles on c.UserId equals u.UserId
-                where c.PublicationId == id orderby c.CreatedAt, c.Id
-                select new { c.Id, c.Text, c.ParentId, c.IsDeleted, c.RevisionId, c.CreatedAt, u.Handle, u.DisplayName, canDelete = c.UserId == User(user) && !c.IsDeleted }).Take(100).ToListAsync(ct));
-        });
-        comments.MapPost("/{id:guid}", async (Guid id, CommentInput input, ClaimsPrincipal user, NoteDbContext db, CancellationToken ct) =>
-        {
-            string text = input.Text?.Trim() ?? "", me = User(user);
-            if (text.Length is < 1 or > 2000) return Results.BadRequest(new { detail = "Comentario: 1 a 2000 caracteres." });
-            var p = await Public(db).SingleOrDefaultAsync(p => p.Id == id, ct);
-            if (p is null) return Results.NotFound();
-            if (!await db.PublicProfiles.AnyAsync(x => x.UserId == me, ct)) return Results.BadRequest(new { detail = "Configure seu perfil publico para comentar." });
-            if (input.ParentId is Guid parent && !await db.PublicationComments.AnyAsync(c => c.Id == parent && c.PublicationId == id && c.ParentId == null && !c.IsDeleted, ct)) return Results.BadRequest(new { detail = "Responda a um comentario principal desta publicacao." });
-            var comment = new PublicationComment { ParentId = input.ParentId, PublicationId = id, RevisionId = p.CurrentRevisionId!.Value, UserId = me, Text = text };
-            db.PublicationComments.Add(comment); await db.SaveChangesAsync(ct);
-            return Results.Created($"/discussion/{id}", new { comment.Id });
-        });
-        comments.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal user, NoteDbContext db, CancellationToken ct) =>
-        {
-            string me = User(user);
-            var c = await db.PublicationComments.SingleOrDefaultAsync(c => c.Id == id && c.UserId == me, ct);
-            if (c is null) return Results.NotFound();
-            c.IsDeleted = true; c.Text = ""; await db.SaveChangesAsync(ct); return Results.NoContent();
         });
     }
 }

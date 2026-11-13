@@ -8,7 +8,7 @@ namespace NoteLab.Application;
 public record ProfileRequest(string Handle, string DisplayName);
 public record ProfileResponse(string Handle, string DisplayName);
 public record CreatePublicationRequest(string Visibility, string? Slug);
-public record UpdatePublicationRequest(string Visibility, long ExpectedVersion);
+public record UpdatePublicationRequest(string Visibility, long ExpectedVersion, bool? CommentsEnabled = null);
 
 public record PublicationResponse(
     Guid Id,
@@ -23,10 +23,11 @@ public record PublicationResponse(
     DateTimeOffset? PublishedAt,
     string? ShareToken,
     string? PublicPath,
-    string? SharedPath);
+    string? SharedPath,
+    bool CommentsEnabled);
 
 public record PublicAuthor(string Handle, string DisplayName);
-public record PublicNoteResponse(string Title, string Content, DateTimeOffset PublishedAt, string Slug, PublicAuthor? Author);
+public record PublicNoteResponse(string Title, string Content, DateTimeOffset PublishedAt, string Slug, PublicAuthor? Author, Guid Id, bool CommentsEnabled);
 public record PublicNoteSummary(string Title, string Slug, DateTimeOffset PublishedAt, PublicAuthor Author);
 public record PublicProfileResponse(PublicAuthor Author, List<PublicNoteSummary> Notes);
 
@@ -186,6 +187,7 @@ public static class PublishingEndpoints
             }
 
             publication.ChangeVisibility(visibility);
+            if (request.CommentsEnabled.HasValue) publication.SetCommentsEnabled(request.CommentsEnabled.Value);
             await db.SaveChangesAsync(ct);
             return Results.Ok((await ListAsync(db, owner, null, ct, id)).Single());
         });
@@ -295,7 +297,8 @@ public static class PublishingEndpoints
 
         PublicProfile? profile = await db.PublicProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == publication.OwnerId, ct);
         return Results.Ok(new PublicNoteResponse(revision.Title, revision.Content ?? string.Empty, revision.PublishedAt, publication.Slug,
-            profile is null ? null : new PublicAuthor(profile.Handle, profile.DisplayName)));
+            profile is null ? null : new PublicAuthor(profile.Handle, profile.DisplayName), publication.Id,
+            publication.Visibility == PublicationVisibility.Public && publication.CommentsEnabled));
     }
 
     private static async Task<List<PublicationResponse>> ListAsync(NoteDbContext db, string owner, Guid? noteId, CancellationToken ct, Guid? publicationId = null)
@@ -319,7 +322,8 @@ public static class PublishingEndpoints
                 x.p.Status.ToString(), x.p.Version, x.RevVersion, x.Version, x.PublishedAt,
                 live && x.p.Visibility != PublicationVisibility.Private ? x.p.ShareToken : null,
                 live && x.p.Visibility == PublicationVisibility.Public && handle is not null ? $"/p/{handle}/{x.p.Slug}" : null,
-                live && x.p.Visibility != PublicationVisibility.Private ? $"/s/{x.p.ShareToken}" : null);
+                live && x.p.Visibility != PublicationVisibility.Private ? $"/s/{x.p.ShareToken}" : null,
+                x.p.CommentsEnabled);
         }).ToList();
     }
 

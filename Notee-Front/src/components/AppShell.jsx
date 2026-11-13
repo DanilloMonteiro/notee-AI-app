@@ -1,9 +1,9 @@
 // src/components/AppShell.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { UserAvatar } from './UserAvatar';
-import { logout } from '../api';
+import { apiFetch, logout } from '../api';
 import { CurrentUserProvider, useCurrentUser } from '../contexts/CurrentUserContext';
 
 export function AppShell() {
@@ -16,6 +16,23 @@ export function AppShell() {
 
 function AppShellLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const load = () => apiFetch('/me/notifications').then(rows => { if (alive) setNotifications(rows || []); }).catch(() => {});
+    load();
+    const interval = setInterval(load, 60000);
+    window.addEventListener('focus', load);
+    return () => { alive = false; clearInterval(interval); window.removeEventListener('focus', load); };
+  }, []);
+  const openNotifications = async () => {
+    setShowNotifications(open => !open);
+    if (notifications.some(n => !n.readAt)) {
+      try { await apiFetch('/me/notifications/read', { method: 'POST', body: JSON.stringify({ ids: notifications.filter(n => !n.readAt).map(n => n.id) }) }); setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() }))); }
+      catch { /* mantém avisos não lidos */ }
+    }
+  };
   const { user, loading } = useCurrentUser();
   const displayName = user?.fullName || user?.email || (loading ? 'Carregando…' : 'Sua conta');
   const { pathname } = useLocation();
@@ -116,9 +133,11 @@ function AppShellLayout() {
             Meu espaço <span>/</span> <strong>{pageName}</strong>
           </div>
           <div className="row">
-            <button className="icon-btn">
+            <button className="icon-btn" aria-label={`Avisos: ${notifications.filter(n => !n.readAt).length} não lidos`} aria-expanded={showNotifications} onClick={openNotifications}>
               <Icon name="bell" />
+              {notifications.some(n => !n.readAt) && <span className="badge-count">{notifications.filter(n => !n.readAt).length}</span>}
             </button>
+            {showNotifications && <div className="card pad" style={{ position: 'absolute', right: 24, top: 58, width: 320, zIndex: 20, maxHeight: 420, overflowY: 'auto' }}><strong>Avisos</strong>{notifications.length ? notifications.map(n => <Link key={n.id} className="row gap8 mt16 small" to={`${n.path}#comment-${n.commentId}`} onClick={() => setShowNotifications(false)}>{n.kind === 'reply' ? 'Nova resposta' : 'Novo comentário'} · {new Date(n.createdAt).toLocaleString('pt-BR')}</Link>) : <p className="small muted mt16">Nenhum aviso.</p>}</div>}
           </div>
         </header>
 

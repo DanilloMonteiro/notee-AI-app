@@ -99,6 +99,7 @@ export function PublishPanel({ noteId, noteTitle, isDirty, disabled, onClose }) 
                 </select>
               </div>
               <p className="tiny muted mt16">{VISIBILITY[p.visibility]?.help}</p>
+              <label className="row gap8 small mt16"><input type="checkbox" checked={p.commentsEnabled} disabled={busy} onChange={e => run(() => publishingApi.setCommentsEnabled(p.id, p.visibility, p.version, e.target.checked), 'Preferência de comentários atualizada.')} /> Permitir comentários nesta publicação pública</label>
               <div className="row gap8 wrap mt16">
                 {p.publicPath && (
                   <button className="btn compact" onClick={() => copy(absoluteUrl(p.publicPath))}>

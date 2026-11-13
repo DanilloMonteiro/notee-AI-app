@@ -11,6 +11,8 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<CommunityMember> CommunityMembers { get; set; }
     public DbSet<CommunityPublication> CommunityPublications { get; set; }
     public DbSet<PublicationComment> PublicationComments { get; set; }
+    public DbSet<PublicationCommentLike> PublicationCommentLikes { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
     public DbSet<SocialFollow> SocialFollows { get; set; }
     public DbSet<SocialReaction> SocialReactions { get; set; }
     public DbSet<Note> Notes { get; set; }
@@ -282,12 +284,28 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<PublicationComment>(e => {
+            e.Property(c => c.AnchorBlockId).HasMaxLength(100);
+            e.Property(c => c.AnchorQuote).HasMaxLength(500);
             e.HasOne<PublicationComment>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
             e.HasKey(x => x.Id); e.Property(x => x.Text).HasMaxLength(2000);
             e.HasOne<Publication>().WithMany().HasForeignKey(x => x.PublicationId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<PublicationRevision>().WithMany().HasForeignKey(x => x.RevisionId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.PublicationId, x.CreatedAt });
+        });
+        modelBuilder.Entity<PublicationCommentLike>(e =>
+        {
+            e.HasKey(x => new { x.CommentId, x.UserId });
+            e.HasOne<PublicationComment>().WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Publication>().Property(p => p.CommentsEnabled).HasDefaultValue(true);
+        modelBuilder.Entity<Notification>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Kind).HasMaxLength(16).IsRequired();
+            e.HasIndex(x => new { x.UserId, x.ReadAt, x.CreatedAt });
+            e.HasOne<Publication>().WithMany().HasForeignKey(x => x.PublicationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<PublicationComment>().WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
         });
         ConfigureKnowledgeMaps(modelBuilder);
     }

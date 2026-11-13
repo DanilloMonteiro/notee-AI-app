@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon';
 import { UserAvatar } from '../../components/UserAvatar';
 import { useToast } from '../../contexts/ToastContext';
 import { PublicationCard, SocialHeading, SocialPagination, SocialState } from './SocialUI';
+import { Discussion as AnchoredDiscussion } from './Discussion';
 
 export function CommunitiesPage() {
   const [items, setItems] = useState([]);
@@ -70,32 +71,9 @@ export function CommunityPage() {
     {community.isOwner && <MemberManagement communityId={id} />}
     {community.joined && <form className="card social-share" onSubmit={e => { e.preventDefault(); run(async () => { await apiFetch('/communities/' + id + '/publications/' + selected, { method: 'PUT' }); setNotes(await apiFetch(notesPath)); setSelected(''); addToast('Nota compartilhada na comunidade.'); }); }}><div><strong>Compartilhe uma descoberta</strong><p className="social-hint">Escolha uma das suas notas publicadas para trazer à conversa.</p></div>{publications.length ? <div className="social-share-controls"><select aria-label="Nota para compartilhar" value={selected} onChange={e => setSelected(e.target.value)}><option value="">Selecione uma publicação pública</option>{publications.map(p => <option key={p.id} value={p.id}>{p.noteTitle}</option>)}</select><button className="btn primary" disabled={busy || !selected}><Icon name="plus" className="sm" />Compartilhar nota</button></div> : <Link className="btn compact" to="/publications">Ver minhas publicações<Icon name="arrow" className="sm" /></Link>}</form>}
     <div className="social-sort"><h2>Notas da comunidade</h2><label>Ordenar por<select value={sort} onChange={e => { setSort(e.target.value); setPage(1); }}><option value="recent">Mais recentes</option><option value="likes">Mais úteis</option><option value="reposts">Mais repostadas</option><option value="combined">Curtidas + reposts</option></select></label></div>
-    {loading || noteError || !notes.length ? <SocialState loading={loading} error={noteError} retry={() => setReload(r => r + 1)} title="A próxima descoberta pode ser sua" description="Ainda não há notas nesta página. Compartilhe uma publicação para começar a conversa." /> : <div className="stack">{notes.map(n => <PublicationCard note={n} key={n.id}><Discussion publicationId={n.id} />{community.canModerate && <button className="btn compact ghost mt16" disabled={busy} onClick={() => run(async () => { await apiFetch('/communities/' + id + '/publications/' + n.id, { method: 'DELETE' }); setNotes(prev => prev.filter(x => x.id !== n.id)); addToast('Nota removida da comunidade.'); })}><Icon name="shield" className="sm" />Remover da comunidade</button>}</PublicationCard>)}</div>}
+    {loading || noteError || !notes.length ? <SocialState loading={loading} error={noteError} retry={() => setReload(r => r + 1)} title="A próxima descoberta pode ser sua" description="Ainda não há notas nesta página. Compartilhe uma publicação para começar a conversa." /> : <div className="stack">{notes.map(n => <PublicationCard note={n} key={n.id}><AnchoredDiscussion publicationId={n.id} commentsEnabled={n.commentsEnabled} />{community.canModerate && <button className="btn compact ghost mt16" disabled={busy} onClick={() => run(async () => { await apiFetch('/communities/' + id + '/publications/' + n.id, { method: 'DELETE' }); setNotes(prev => prev.filter(x => x.id !== n.id)); addToast('Nota removida da comunidade.'); })}><Icon name="shield" className="sm" />Remover da comunidade</button>}</PublicationCard>)}</div>}
     {!noteError && <SocialPagination page={page} loading={loading} hasNext={notes.length === 20} onChange={setPage} />}
   </div>;
-}
-
-export function Discussion({ publicationId }) {
-  const [open, setOpen] = useState(false);
-  const [items, setItems] = useState([]);
-  const [text, setText] = useState('');
-  const [reply, setReply] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [reload, setReload] = useState(0);
-  const input = useRef(null);
-  const { addToast } = useToast();
-  useEffect(() => {
-    if (!open) return;
-    let alive = true; setLoading(true);
-    apiFetch('/discussion/' + publicationId).then(rows => { if (alive) { setItems(rows); setError(''); } }).catch(e => { if (alive) setError(e.message); }).finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [open, publicationId, reload]);
-  const send = async e => { e.preventDefault(); setBusy(true); try { await apiFetch('/discussion/' + publicationId, { method: 'POST', body: JSON.stringify({ text, parentId: reply?.id || null }) }); setText(''); setReply(null); setItems(await apiFetch('/discussion/' + publicationId)); } catch (err) { addToast(err.message, 'warning'); } finally { setBusy(false); } };
-  const remove = async c => { setBusy(true); try { await apiFetch('/discussion/' + c.id, { method: 'DELETE' }); setItems(prev => prev.map(x => x.id === c.id ? { ...x, text: '', isDeleted: true, canDelete: false } : x)); if (reply?.id === c.id) setReply(null); } catch (err) { addToast(err.message, 'warning'); } finally { setBusy(false); } };
-  const comment = c => <div key={c.id} className="social-comment"><Link className="social-author" to={'/u/' + c.handle}><UserAvatar name={c.displayName} /><span><strong>{c.displayName}</strong><span className="tiny muted">{new Date(c.createdAt).toLocaleDateString('pt-BR')}</span></span></Link><p className={c.isDeleted ? 'muted' : ''}>{c.isDeleted ? 'Comentário removido.' : c.text}</p><div className="row gap8">{!c.parentId && !c.isDeleted && <button className="btn ghost compact" disabled={busy} onClick={() => { setReply(c); input.current?.focus(); }}>Responder</button>}{c.canDelete && <button className="btn ghost compact" disabled={busy} onClick={() => remove(c)}><Icon name="trash" className="sm" />Excluir</button>}</div></div>;
-  return <div className="social-discussion"><button className="btn compact ghost social-discussion-toggle" aria-expanded={open} aria-controls={'discussion-' + publicationId} onClick={() => setOpen(!open)}><Icon name="question" className="sm" />{open ? 'Fechar conversa' : 'Abrir conversa'}<Icon name="down" className="sm" /></button>{open && <div id={'discussion-' + publicationId} className="social-discussion-panel">{loading || error ? <SocialState loading={loading} error={error} retry={() => setReload(r => r + 1)} /> : <>{!items.length && <p className="small muted">Seja a primeira pessoa a trazer uma ideia para esta conversa.</p>}{items.filter(c => !c.parentId).map(c => <div key={c.id}>{comment(c)}<div className="social-replies">{items.filter(r => r.parentId === c.id).map(comment)}</div></div>)}</>}<form className="social-comment-form" onSubmit={send}>{reply && <div className="social-reply-banner"><span>Respondendo a {reply.displayName}</span><button type="button" className="icon-btn" aria-label="Cancelar resposta" onClick={() => setReply(null)}><Icon name="close" className="sm" /></button></div>}<label className="field">{reply ? 'Sua resposta' : 'Seu comentário'}<textarea ref={input} value={text} onChange={e => setText(e.target.value)} maxLength={2000} required placeholder="Compartilhe uma ideia ou faça uma pergunta…" /></label><div className="social-form-actions"><button className="btn primary compact" disabled={busy || loading || !!error || !text.trim()}>{busy ? 'Enviando…' : reply ? 'Enviar resposta' : 'Comentar'}<Icon name="arrow" className="sm" /></button></div></form></div>}</div>;
 }
 
 function MemberManagement({ communityId }) {

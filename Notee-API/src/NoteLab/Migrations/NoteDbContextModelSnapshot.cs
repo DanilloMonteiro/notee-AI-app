@@ -217,16 +217,78 @@ namespace NoteLab.Migrations
                     b.ToTable("CommunityPublications");
                 });
 
+            modelBuilder.Entity("NoteLab.Application.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("PublicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommentId");
+
+                    b.HasIndex("PublicationId");
+
+                    b.HasIndex("UserId", "ReadAt", "CreatedAt");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("NoteLab.Application.PublicationComment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AnchorBlockId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("AnchorEnd")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AnchorQuote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("AnchorStart")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("HiddenAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsHidden")
                         .HasColumnType("boolean");
 
                     b.Property<Guid?>("ParentId")
@@ -258,6 +320,22 @@ namespace NoteLab.Migrations
                     b.HasIndex("PublicationId", "CreatedAt");
 
                     b.ToTable("PublicationComments");
+                });
+
+            modelBuilder.Entity("NoteLab.Application.PublicationCommentLike", b =>
+                {
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CommentId", "UserId");
+
+                    b.ToTable("PublicationCommentLikes");
                 });
 
             modelBuilder.Entity("NoteLab.Application.PublicationView", b =>
@@ -726,6 +804,53 @@ namespace NoteLab.Migrations
                     b.ToTable("Notes");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.NoteComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BlockId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EndIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ExactQuote")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StartIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NoteId", "OwnerId");
+
+                    b.ToTable("NoteComments");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.NoteReference", b =>
                 {
                     b.Property<Guid>("Id")
@@ -972,6 +1097,10 @@ namespace NoteLab.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("CommentsEnabled")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1406,6 +1535,21 @@ namespace NoteLab.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("NoteLab.Application.Notification", b =>
+                {
+                    b.HasOne("NoteLab.Application.PublicationComment", null)
+                        .WithMany()
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NoteLab.Domain.Publication", null)
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("NoteLab.Application.PublicationComment", b =>
                 {
                     b.HasOne("NoteLab.Application.PublicationComment", null)
@@ -1428,6 +1572,15 @@ namespace NoteLab.Migrations
                     b.HasOne("NoteLab.Domain.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Application.PublicationCommentLike", b =>
+                {
+                    b.HasOne("NoteLab.Application.PublicationComment", null)
+                        .WithMany()
+                        .HasForeignKey("CommentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1566,6 +1719,15 @@ namespace NoteLab.Migrations
                     b.HasOne("NoteLab.Domain.Note", null)
                         .WithMany()
                         .HasForeignKey("ToNoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.NoteComment", b =>
+                {
+                    b.HasOne("NoteLab.Domain.Note", null)
+                        .WithMany()
+                        .HasForeignKey("NoteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

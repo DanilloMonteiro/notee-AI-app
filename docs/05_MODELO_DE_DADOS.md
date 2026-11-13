@@ -93,3 +93,9 @@ O protótipo v1.2 chama `ensureGraphPlacements` e inclui **todas as notas ativas
 - Não criar índices adicionais sem plano de consultas/`EXPLAIN ANALYZE`.
 
 **Lembrete:** esses DDLs de mapas são hipóteses de engenharia, não migrations já existentes.
+## Comentários em trechos (ADR-039)
+
+- `NoteComments`: `Id`, `NoteId` (cascade), `OwnerId`, `BlockId`, `ExactQuote` (até 500), posições, `Text` (até 2000), datas. Índice `(NoteId, OwnerId)`.
+- `PublicationComments`: âncora opcional (`AnchorBlockId`, `AnchorQuote`, `AnchorStart`, `AnchorEnd`), `IsHidden` e `HiddenAt`. Âncora nula representa comentário geral.
+- `Publications.CommentsEnabled`: padrão verdadeiro, inclusive em publicações existentes após a migration.
+- `PublicationCommentLikes`: chave `(CommentId, UserId)`. `Notifications`: destinatário, tipo, publicação, comentário, ator, data e leitura; índice para não lidas.

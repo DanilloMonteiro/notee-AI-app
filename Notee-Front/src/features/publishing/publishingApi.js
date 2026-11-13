@@ -13,6 +13,8 @@ export const publishingApi = {
   republish: id => apiFetch(`/publications/${id}/revisions`, { method: 'POST' }),
   setVisibility: (id, visibility, expectedVersion) =>
     apiFetch(`/publications/${id}`, { method: 'PATCH', body: json({ visibility, expectedVersion }) }),
+  setCommentsEnabled: (id, visibility, expectedVersion, commentsEnabled) =>
+    apiFetch(`/publications/${id}`, { method: 'PATCH', body: json({ visibility, expectedVersion, commentsEnabled }) }),
   rotateToken: id => apiFetch(`/publications/${id}/rotate-token`, { method: 'POST' }),
   revoke: id => apiFetch(`/publications/${id}`, { method: 'DELETE' }),
 };
