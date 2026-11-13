@@ -217,3 +217,10 @@ Status: Proposto (implementado).
 **Custo.** Preços opcionais em `Ai:Pricing:{provider}:InputPerMillionUsd|OutputPerMillionUsd`; nenhum preço é embutido no código. Sem configuração, a interface mostra tokens e “preço não configurado”.
 
 **Pendências.** Revisar o texto do consentimento (v3) para citar a organização de notas — não feito agora para não invalidar consentimentos existentes; registrar o consumo por usuário em banco (hoje só métricas); cota em memória não é compartilhada entre instâncias; validação real contra provedores pagos não realizada.
+
+## ADR-038 — Sugestões de categoria e tags (13/11/2026)
+
+- O editor propõe categorias e tags existentes a partir de nomes presentes na nota, e tags novas a partir de termos repetidos. A proposta local usa apenas dados carregados no navegador.
+- A opção de IA usa a versão salva da nota, mostra provedor, estimativa e custo antes da confirmação. Só usa provedor externo quando a conta permitiu; sem isso, executa regras locais no servidor.
+- O servidor normaliza nomes da resposta, vincula nomes existentes por comparação sem acentos, limita a cinco tags e não altera taxonomia nem nota. A pessoa aplica cada item; novas entradas são criadas pelos endpoints de taxonomia. A nota só muda ao salvar.
+- Limite da execução: `Ai:TaxonomyMaxPerHour` por usuário, padrão 20.

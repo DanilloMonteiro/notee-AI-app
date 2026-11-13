@@ -745,6 +745,9 @@ export function Note() {
       )}
 
       <NoteOrganizer
+        noteId={id}
+        title={title}
+        blocks={blocks}
         categoryId={categoryId}
         tagIds={tagIds}
         onCategoryChange={setCategoryId}

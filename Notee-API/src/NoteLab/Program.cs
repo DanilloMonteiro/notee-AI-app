@@ -101,6 +101,7 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = authPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     // Cota por usuário do "Organizar com IA" (ADR-037).
     options.AddOrganizeAiRateLimit(builder.Configuration);
+    options.AddTaxonomyAiRateLimit(builder.Configuration);
 });
 
 builder.Services
@@ -171,6 +172,7 @@ app.MapIdentityEndpoints();
 app.MapPreferenceEndpoints();
 app.MapNoteEndpoints();
 app.MapOrganizeAiEndpoints();
+app.MapTaxonomyAiEndpoints();
 app.MapResearchEndpoints();
 app.MapNoteReferenceEndpoints();
 app.MapBoardEndpoints();

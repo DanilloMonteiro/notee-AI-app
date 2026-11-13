@@ -3,8 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { Icon } from './Icon';
 import { taxonomyApi } from '../notes';
 import { useToast } from '../contexts/ToastContext';
+import { apiFetch } from '../api';
+import { suggestTaxonomy } from '../features/notes/suggestTaxonomy';
 
-export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChange, disabled }) {
+export function NoteOrganizer({ noteId, title, blocks, categoryId, tagIds, onCategoryChange, onTagsChange, disabled }) {
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
@@ -12,6 +14,8 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
   const [showCategory, setShowCategory] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [busy, setBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState(null);
+  const [estimate, setEstimate] = useState(null);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -62,6 +66,47 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
   };
 
   const selectedTags = tagIds.map(id => tags.find(t => t.id === id)).filter(Boolean);
+
+  const applySuggestion = async (item, kind) => {
+    if (!item) return;
+    setBusy(true);
+    try {
+      const created = item.existingId ? { id: item.existingId } : await taxonomyApi.create(kind, item.name);
+      if (kind === 'categories') {
+        if (!item.existingId) setCategories(prev => [...prev, created]);
+        onCategoryChange(created.id);
+        setSuggestions(prev => ({ ...prev, category: null }));
+      } else {
+        if (!item.existingId) setTags(prev => [...prev, created]);
+        onTagsChange(prev => [...new Set([...prev, created.id])]);
+        setSuggestions(prev => ({ ...prev, tags: prev.tags.filter(t => t.name !== item.name) }));
+      }
+    } catch (err) {
+      addToast(err.message || 'Não foi possível aplicar a sugestão.', 'warning');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const suggestWithAi = async () => {
+    setBusy(true);
+    try {
+      setEstimate(await apiFetch(`/notes/${noteId}/taxonomy-ai/estimate`, { method: 'POST' }));
+    } catch (err) {
+      addToast(err.message || 'Não foi possível estimar o custo.', 'warning');
+    } finally { setBusy(false); }
+  };
+
+  const confirmAi = async () => {
+    setBusy(true);
+    try {
+      const result = await apiFetch(`/notes/${noteId}/taxonomy-ai`, { method: 'POST', body: JSON.stringify({ confirm: true }) });
+      setSuggestions({ category: result.category, tags: result.tags || [] });
+      setEstimate(null);
+    } catch (err) {
+      addToast(err.message || 'Não foi possível obter sugestões.', 'warning');
+    } finally { setBusy(false); }
+  };
 
   return (
     <div className="card pad mb24 row gap8 wrap" style={{ alignItems: 'center' }}>
@@ -146,6 +191,23 @@ export function NoteOrganizer({ categoryId, tagIds, onCategoryChange, onTagsChan
         )}
         </div>
       )}
+      {!disabled && <button type="button" className="btn compact" onClick={() => { setEstimate(null); setSuggestions(suggestTaxonomy({ title, blocks, categories, tags, currentCategoryId: categoryId, currentTagIds: tagIds })); }}>Sugerir categoria e tags</button>}
+      {suggestions && <div className="stack" style={{ width: '100%', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+        <strong>Sugestões para esta nota</strong>
+        {[...(suggestions.category ? [{ ...suggestions.category, kind: 'categories' }] : []), ...suggestions.tags.map(t => ({ ...t, kind: 'tags' }))].map(item => <div key={`${item.kind}-${item.name}`} className="row between wrap gap8">
+          <div><strong>{item.name}</strong> <span className="pill blue">{item.isNew ? 'nova' : 'existente'}</span><div className="tiny muted">{item.reason}</div></div>
+          <button type="button" className="btn compact" disabled={busy} onClick={() => applySuggestion(item, item.kind)}>Aplicar</button>
+        </div>)}
+        <div className="row gap8 wrap">
+          <button type="button" className="btn primary compact" disabled={busy || (!suggestions.category && !suggestions.tags.length)} onClick={async () => { if (suggestions.category) await applySuggestion(suggestions.category, 'categories'); for (const tag of suggestions.tags) await applySuggestion(tag, 'tags'); }}>Aplicar todas</button>
+          <button type="button" className="btn compact" onClick={() => setSuggestions(null)}>Ignorar</button>
+          <button type="button" className="btn compact" disabled={busy} onClick={suggestWithAi}>Sugerir com IA</button>
+        </div>
+        {estimate && <div className="small">{estimate.providerName} · ~{estimate.estimatedInputTokens + estimate.estimatedOutputTokens} tokens · {estimate.estimatedCostUsd == null ? 'custo indisponível' : `US$ ${estimate.estimatedCostUsd}`}
+          <div className="row gap8"><button type="button" className="btn primary compact" disabled={busy} onClick={confirmAi}>Confirmar e sugerir</button><button type="button" className="btn compact" onClick={() => setEstimate(null)}>Cancelar</button></div>
+        </div>}
+        <p className="tiny muted">A nota só recebe as alterações ao salvar.</p>
+      </div>}
     </div>
   );
 }
