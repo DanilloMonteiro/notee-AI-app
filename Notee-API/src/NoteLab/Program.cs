@@ -12,6 +12,9 @@ using Microsoft.Extensions.Logging.Console;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using Amazon.Runtime;
+using Amazon;
+using Amazon.S3;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,6 +69,21 @@ builder.Services.AddScoped<IDoubtRepository, DoubtRepository>();
 builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<ResearchService>();
 builder.Services.AddScoped<GraphContextService>();
+builder.Services.AddSingleton<SafeHttpClient>();
+builder.Services.AddHostedService<SourceCheckWorker>();
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    IConfiguration config = sp.GetRequiredService<IConfiguration>();
+    var options = new AmazonS3Config { ForcePathStyle = true, RegionEndpoint = RegionEndpoint.GetBySystemName(config["Sources:S3:Region"] ?? "us-east-1") };
+    string? serviceUrl = config["Sources:S3:ServiceUrl"];
+    if (!string.IsNullOrWhiteSpace(serviceUrl))
+    {
+        options.ServiceURL = serviceUrl;
+        return new AmazonS3Client(new BasicAWSCredentials(config["Sources:S3:AccessKey"] ?? "test", config["Sources:S3:SecretKey"] ?? "test"), options);
+    }
+    return new AmazonS3Client(options);
+});
+builder.Services.AddSingleton<SourceArchiveStorage>();
 builder.Services.AddDbContext<NoteDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddIdentityCore<ApplicationUser>().AddEntityFrameworkStores<NoteDbContext>().AddDefaultTokenProviders();
 builder.Services.AddNoteeObservability(builder.Configuration); // OpenTelemetry, health checks, ProblemDetails com traceId
@@ -176,7 +194,11 @@ app.MapNoteCommentEndpoints();
 app.MapOrganizeAiEndpoints();
 app.MapTaxonomyAiEndpoints();
 app.MapResearchEndpoints();
-app.MapNoteReferenceEndpoints();
+app.MapLegacyNoteReferenceAdapterEndpoints();
+app.MapSourceEndpoints();
+app.MapSourceResolutionEndpoints();
+app.MapSourceFileEndpoints();
+app.MapSourceVerificationEndpoints();
 app.MapBoardEndpoints();
 app.MapGraphAiEndpoints();
 app.MapPublishingEndpoints();

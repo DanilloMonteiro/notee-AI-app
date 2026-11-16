@@ -26,7 +26,24 @@ provider "aws" {
 
   endpoints {
     sqs = var.localstack_endpoint
+    s3  = var.localstack_endpoint
   }
+}
+
+resource "aws_s3_bucket" "source_archives" {
+  bucket = "notee-source-archives"
+}
+
+resource "aws_s3_bucket_public_access_block" "source_archives" {
+  bucket                  = aws_s3_bucket.source_archives.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+output "source_archive_bucket" {
+  value = aws_s3_bucket.source_archives.bucket
 }
 
 # Mensagens que falharem 5 vezes vão para a DLQ para inspeção manual.

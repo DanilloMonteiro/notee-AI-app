@@ -51,6 +51,11 @@ services:
       # Conta do painel administrativo (defina no .env; vazio = painel desativado)
       Admin__Email: ${NOTEE_ADMIN_EMAIL:-}
       Admin__Password: ${NOTEE_ADMIN_PASSWORD:-}
+      Sources__S3__ServiceUrl: http://localstack:4566
+      Sources__S3__Bucket: notee-source-archives
+      Sources__S3__Region: us-east-1
+      Sources__S3__AccessKey: test
+      Sources__S3__SecretKey: test
     volumes:
       # Chaves de API ficam fora da imagem. Crie a partir do appsettings.Example.json.
       - ./Notee-API/src/NoteLab/appsettings.json:/app/appsettings.json:ro
@@ -79,7 +84,7 @@ services:
     container_name: notee-localstack
     profiles: ["aws"]
     environment:
-      SERVICES: sqs
+      SERVICES: sqs,s3
     ports:
       - "4566:4566"
 

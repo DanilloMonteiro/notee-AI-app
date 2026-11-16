@@ -8,6 +8,7 @@ import { NoteOrganizer } from '../components/NoteOrganizer';
 import { RevisionHistory } from '../components/RevisionHistory';
 import { PublishPanel } from '../features/publishing/PublishPanel';
 import { NoteSuggestions } from '../components/NoteSuggestions';
+import { SourcesPanel } from '../features/sources/SourcesPanel';
 import { STATUS_LABEL } from '../notes';
 import { ChartView } from '../features/charts/ChartView';
 import { ChartEditor } from '../features/charts/ChartEditor';
@@ -43,7 +44,7 @@ const buildHighlightedHtml = (text, anchors, markClass = 'doubt-mark') => {
   const ranges = anchors
     .map(d => {
       const start = findQuote(text, d.exactQuote, d.startIndex || 0);
-      return start === -1 ? null : { start, end: start + d.exactQuote.length, id: d.id };
+      return start === -1 ? null : { start, end: start + d.exactQuote.length, id: d.id, number: d.referenceNumber };
     })
     .filter(Boolean)
     .sort((a, b) => a.start - b.start);
@@ -60,7 +61,8 @@ const buildHighlightedHtml = (text, anchors, markClass = 'doubt-mark') => {
   let cursor = 0;
   for (const r of merged) {
     html += escapeHtml(text.slice(cursor, r.start));
-    html += `<mark class="${markClass}" data-comment-id="${r.id || ''}" data-count="${r.count}" style="${markClass === 'comment-mark' ? COMMENT_MARK_STYLE : MARK_STYLE}">${escapeHtml(text.slice(r.start, r.end))}</mark>`;
+    const style = markClass === 'comment-mark' ? COMMENT_MARK_STYLE : markClass === 'source-mark' ? SOURCE_MARK_STYLE : MARK_STYLE;
+    html += `<mark class="${markClass}" data-comment-id="${r.id || ''}" data-count="${r.count}" data-reference-number="${r.number || ''}" style="${style}">${escapeHtml(text.slice(r.start, r.end))}</mark>`;
     cursor = r.end;
   }
   return html + escapeHtml(text.slice(cursor));
@@ -69,6 +71,7 @@ const buildHighlightedHtml = (text, anchors, markClass = 'doubt-mark') => {
 // Sem padding: padding no <mark> faz o texto "saltar" quando o highlight é removido/reposto.
 const MARK_STYLE = 'background-color:#dbeafe;color:#1e40af;border-radius:3px;';
 const COMMENT_MARK_STYLE = 'background-color:#fef08a;color:#713f12;border-radius:3px;';
+const SOURCE_MARK_STYLE = 'background-color:#dcefe0;color:#1e5429;border-radius:3px;';
 
 // "plaintext-only" impede HTML colado e <div>/<b> gerados pelo browser.
 // Fallback para browsers antigos que não o suportam.
@@ -223,9 +226,10 @@ export function Note() {
   const [doubts, setDoubts] = useState([]);
   const [privateComments, setPrivateComments] = useState([]);
   const [publicComments, setPublicComments] = useState([]);
+  const [sourceCitations, setSourceCitations] = useState([]);
   const [publications, setPublications] = useState([]);
   const [commentVisibility, setCommentVisibility] = useState('private');
-  const [activeAside, setActiveAside] = useState(() => { try { return localStorage.getItem('notee-editor-aside') === 'comments' ? 'comments' : 'doubts'; } catch { return 'doubts'; } });
+  const [activeAside, setActiveAside] = useState(() => { try { const tab = localStorage.getItem('notee-editor-aside'); return ['comments', 'sources'].includes(tab) ? tab : 'doubts'; } catch { return 'doubts'; } });
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentBusy, setCommentBusy] = useState(false);
@@ -285,6 +289,7 @@ export function Note() {
     setDoubts(doubtsData || []);
   };
   const loadPrivateComments = async () => setPrivateComments(await apiFetch(`/notes/${id}/comments`) || []);
+  const loadSourceCitations = async () => setSourceCitations(await apiFetch(`/notes/${id}/citations`) || []);
   const loadPublicComments = useCallback(async () => {
     const [comments, pubs] = await Promise.all([apiFetch(`/notes/${id}/public-comments`), apiFetch(`/notes/${id}/publications`)]);
     setPublicComments(comments || []); setPublications(pubs || []);
@@ -320,6 +325,7 @@ export function Note() {
       await loadDoubts();
       await loadPrivateComments();
       await loadPublicComments();
+      await loadSourceCitations();
     } catch (err) {
       setError('Não foi possível carregar os dados da nota.');
     } finally {
@@ -623,6 +629,12 @@ export function Note() {
     setCommentText(''); setCommentVisibility('private'); setShowCommentModal(true);
   };
 
+  const handleCite = () => {
+    setActiveAside('sources');
+    try { localStorage.setItem('notee-editor-aside', 'sources'); } catch { /* armazenamento indisponível */ }
+    if (selection && isDirty) addToast('Salve a nota antes de citar o trecho selecionado.', 'info');
+  };
+
   const handleSubmitComment = async e => {
     e.preventDefault();
     if (!selection) return;
@@ -713,6 +725,16 @@ export function Note() {
     tagIds.length !== savedTagIds.length ||
     tagIds.some(t => !savedTagIds.includes(t));
   const isTrashed = note.status === 'Trashed';
+  const sourceMarks = sourceCitations.map((c, index) => {
+    const found = locateQuote(blocks, c);
+    return found ? { ...c, referenceNumber: index + 1, blockId: found.blockId, startIndex: found.startIndex } : { ...c, referenceNumber: index + 1 };
+  });
+  const commentMarks = [...privateComments, ...publicComments
+    .filter(c => c.anchorQuote && !c.isHidden && !c.isDeleted)
+    .map(c => ({ ...c, exactQuote: c.anchorQuote, blockId: c.anchorBlockId, startIndex: c.anchorStart }))]
+    .map(c => { const found = locateQuote(blocks, c); return found ? { ...c, blockId: found.blockId, startIndex: found.startIndex } : c; });
+  const doubtMarks = doubts.map(d => { const found = locateQuote(blocks, d); return found ? { ...d, blockId: found.blockId, startIndex: found.startIndex } : d; });
+  const activeMarks = activeAside === 'sources' ? sourceMarks : activeAside === 'comments' ? commentMarks : doubtMarks;
 
   const handleLifecycle = async action => {
     if (isDirty) {
@@ -849,8 +871,8 @@ export function Note() {
                 <Icon name="spark" className="sm" /> Organizar com IA
               </button>
               {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
-              <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={activeAside === 'comments' ? handleComment : handleMarkDoubt} disabled={isTrashed}>
-                <Icon name="question" className="sm" /> {activeAside === 'comments' ? 'Comentar trecho' : 'Marcar dúvida no texto'}
+              <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={activeAside === 'sources' ? handleCite : activeAside === 'comments' ? handleComment : handleMarkDoubt} disabled={isTrashed}>
+                <Icon name="question" className="sm" /> {activeAside === 'sources' ? 'Citar trecho' : activeAside === 'comments' ? 'Comentar trecho' : 'Marcar dúvida no texto'}
               </button>
             </div>
           </div>
@@ -933,8 +955,8 @@ export function Note() {
                 <ContentEditableBlock
                   key={block.id}
                   block={block}
-                  doubts={activeAside === 'comments' ? [...privateComments, ...publicComments.filter(c => c.anchorQuote && !c.isHidden && !c.isDeleted).map(c => ({ ...c, exactQuote: c.anchorQuote, blockId: c.anchorBlockId, startIndex: c.anchorStart }))].map(c => { const found = locateQuote(blocks, c); return found ? { ...c, blockId: found.blockId, startIndex: found.startIndex } : c; }) : doubts.map(d => { const found = locateQuote(blocks, d); return found ? { ...d, blockId: found.blockId, startIndex: found.startIndex } : d; })}
-                  markClass={activeAside === 'comments' ? 'comment-mark' : 'doubt-mark'}
+                  doubts={activeMarks}
+                  markClass={activeAside === 'comments' ? 'comment-mark' : activeAside === 'sources' ? 'source-mark' : 'doubt-mark'}
                   onMarkClick={setSelectedCommentId}
                   onChange={newText => handleUpdateBlock(block.id, newText)}
                   onSelect={sel => handleTextSelect(block.id, sel)}
@@ -957,9 +979,9 @@ export function Note() {
 
         <aside className="stack editor-side">
           <div className="row gap8" role="tablist" aria-label="Painel da nota">
-            {['doubts', 'comments'].map(tab => <button key={tab} type="button" role="tab" aria-selected={activeAside === tab} className={`btn compact ${activeAside === tab ? 'primary' : ''}`} onClick={() => { setActiveAside(tab); try { localStorage.setItem('notee-editor-aside', tab); } catch { /* armazenamento indisponível */ } }}>{tab === 'doubts' ? 'Dúvidas' : 'Comentários'}</button>)}
+            {['doubts', 'comments', 'sources'].map(tab => <button key={tab} type="button" role="tab" aria-selected={activeAside === tab} className={`btn compact ${activeAside === tab ? 'primary' : ''}`} onClick={() => { setActiveAside(tab); try { localStorage.setItem('notee-editor-aside', tab); } catch { /* armazenamento indisponível */ } }}>{tab === 'doubts' ? 'Dúvidas' : tab === 'comments' ? 'Comentários' : 'Fontes'}</button>)}
           </div>
-          {activeAside === 'comments' ? <div className="result-panel">
+          {activeAside === 'sources' ? <SourcesPanel noteId={id} noteBlocks={blocks} isDirty={isDirty} selectedAnchor={selection} onClearAnchor={() => setSelection(null)} onCitationsChange={setSourceCitations} /> : activeAside === 'comments' ? <div className="result-panel">
             <h4>Comentários desta nota</h4>
             {privateComments.length + publicComments.length === 0 && <p className="small muted">Selecione um trecho e clique em Comentar trecho.</p>}
             {privateComments.map(c => <div key={c.id} className="card research-card" style={{ marginBottom: 12, border: c.id === selectedCommentId ? '2px solid #eab308' : undefined }}>

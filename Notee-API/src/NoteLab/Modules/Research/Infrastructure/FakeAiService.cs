@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace NoteLab.Application;
 
 /// <summary>
@@ -21,6 +23,14 @@ public class FakeAiService : IAiService
     /// <summary>Simulação local e sem custo do "Organizar com IA" (ADR-037); nada sai do servidor.</summary>
     public Task<AiCompletion> CompleteAsync(string system, string user, int maxOutputTokens, CancellationToken ct)
     {
+        if (system.Contains("SOURCE-CITATION-CHECK", StringComparison.Ordinal))
+        {
+            using JsonDocument request = JsonDocument.Parse(user);
+            string excerpt = request.RootElement.GetProperty("sourceExcerpt").GetString() ?? "";
+            string evidence = excerpt[..Math.Min(excerpt.Length, 120)];
+            string result = JsonSerializer.Serialize(new { verdict = "insufficient", arguments = new[] { new { point = "A simulação não avalia a afirmação.", sourceExcerpt = evidence } } });
+            return Task.FromResult(new AiCompletion(result, Math.Max(1, user.Length / 4), Math.Max(1, result.Length / 4)));
+        }
         string? note = NoteAiOrganizer.ExtractNote(user);
         return note is null
             ? Task.FromException<AiCompletion>(new NotSupportedException("Tarefa não suportada pelo provedor simulado."))

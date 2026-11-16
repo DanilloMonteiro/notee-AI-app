@@ -27,7 +27,7 @@ public record PublicationResponse(
     bool CommentsEnabled);
 
 public record PublicAuthor(string Handle, string DisplayName);
-public record PublicNoteResponse(string Title, string Content, DateTimeOffset PublishedAt, string Slug, PublicAuthor? Author, Guid Id, bool CommentsEnabled);
+public record PublicNoteResponse(string Title, string Content, DateTimeOffset PublishedAt, string Slug, PublicAuthor? Author, Guid Id, bool CommentsEnabled, List<PublishedCitation> Citations);
 public record PublicNoteSummary(string Title, string Slug, DateTimeOffset PublishedAt, PublicAuthor Author);
 public record PublicProfileResponse(PublicAuthor Author, List<PublicNoteSummary> Notes);
 
@@ -130,7 +130,8 @@ public static class PublishingEndpoints
                 return Problem(409, "Você já tem uma publicação ativa com este endereço.");
             }
 
-            var revision = new PublicationRevision(publication.Id, note);
+            string citationsJson = await SourceCitationSnapshot.CaptureAsync(db, note.Id, owner, ct);
+            var revision = new PublicationRevision(publication.Id, note, citationsJson);
             publication.SetRevision(revision.Id);
             db.Publications.Add(publication);
             db.PublicationRevisions.Add(revision);
@@ -155,7 +156,8 @@ public static class PublishingEndpoints
                 return Problem(400, "A nota não está disponível para publicação.");
             }
 
-            var revision = new PublicationRevision(publication.Id, note);
+            string citationsJson = await SourceCitationSnapshot.CaptureAsync(db, note.Id, owner, ct);
+            var revision = new PublicationRevision(publication.Id, note, citationsJson);
             publication.SetRevision(revision.Id);
             db.PublicationRevisions.Add(revision);
             await db.SaveChangesAsync(ct);
@@ -298,7 +300,8 @@ public static class PublishingEndpoints
         PublicProfile? profile = await db.PublicProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == publication.OwnerId, ct);
         return Results.Ok(new PublicNoteResponse(revision.Title, revision.Content ?? string.Empty, revision.PublishedAt, publication.Slug,
             profile is null ? null : new PublicAuthor(profile.Handle, profile.DisplayName), publication.Id,
-            publication.Visibility == PublicationVisibility.Public && publication.CommentsEnabled));
+            publication.Visibility == PublicationVisibility.Public && publication.CommentsEnabled,
+            SourceCitationSnapshot.Read(revision.CitationsJson)));
     }
 
     private static async Task<List<PublicationResponse>> ListAsync(NoteDbContext db, string owner, Guid? noteId, CancellationToken ct, Guid? publicationId = null)

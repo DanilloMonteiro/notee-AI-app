@@ -166,6 +166,7 @@ public sealed class PublicationRevision
     public long NoteVersion { get; private set; }
     public string Title { get; private set; }
     public string? Content { get; private set; }
+    public string CitationsJson { get; private set; } = "[]";
     public DateTimeOffset PublishedAt { get; private set; }
 
     private PublicationRevision()
@@ -173,13 +174,14 @@ public sealed class PublicationRevision
         Title = null!;
     }
 
-    public PublicationRevision(Guid publicationId, Note note)
+    public PublicationRevision(Guid publicationId, Note note, string citationsJson = "[]")
     {
         Id = Guid.NewGuid();
         PublicationId = publicationId;
         NoteVersion = note.Version;
         Title = note.Title.Value;
         Content = note.Content;
+        CitationsJson = string.IsNullOrWhiteSpace(citationsJson) ? "[]" : citationsJson;
         PublishedAt = DateTimeOffset.UtcNow;
     }
 }

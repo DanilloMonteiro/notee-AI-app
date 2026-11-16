@@ -77,9 +77,9 @@ Quando reconsiderar: introdução de membership seletivo ou de fluxo Draft→Act
 Status: Aberto. `Doubt.Anchor` é obrigatório hoje e o módulo Research tem alterações em andamento; a criação de dúvida sem âncora (`origin=BoardQuestion`) não foi implementada. O mapa só **exibe** dúvidas existentes e direciona para o editor.
 
 ### ADR-016 — Livros/fontes como `NoteReference` da nota
-Status: Proposto (implementado) · Data: 2026-11-09
-Decisão: tabela `NoteReferences` (FK para `Notes`, cascade), rotas `/notes/{id}/references`. URL aceita apenas http/https. Não altera `Note.Version` (para não gerar 409 em um editor aberto), pois ainda não existe tabela de revisões.
-Quando reconsiderar: quando `notes.revisions` existir.
+Status: Substituído parcialmente por ADR-040 · Data original: 2026-11-09
+Decisão original: tabela `NoteReferences` (FK para `Notes`, cascade), rotas `/notes/{id}/references`. URL aceita apenas http/https.
+Atualização (2026-11-16): a biblioteca reutilizável e as citações por nota agora são `Sources` e `SourceCitations`; a migration copia referências legadas. O adapter mantém as rotas antigas para o inspetor do mapa. `NoteReferences` permanece no banco por compatibilidade, sem ser a interface nova.
 
 ### ADR-017 — Regras de grafo e concorrência
 Status: Proposto (implementado) · Data: 2026-11-09
@@ -129,11 +129,11 @@ Pendente: "Perguntar com este contexto" a um provedor real exige definir onde a 
 ### ADR-025 — Observabilidade e endurecimento básico (M14/M15)
 Status: Proposto (implementado) · Data: 2026-11-09
 Decisão: OpenTelemetry (ASP.NET Core, HttpClient e fonte própria `Notee.Research`) com exportação OTLP **somente** se `OTEL_EXPORTER_OTLP_ENDPOINT` estiver definido. Span `research.job.process` e métricas `notee.research.jobs.enqueued|finished` e `notee.research.job.duration` carregam só IDs, tentativa, provider e estado — nunca texto. `/health/live` (sem dependências) e `/health/ready` (banco). Problem Details sempre com `traceId`; erros 500 não expõem mensagem interna. Cabeçalhos `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` e CSP restritiva. Limite global por usuário/IP (`RateLimit:ApiPerMinute`, padrão 600/min) e cota de pesquisa por conta (`Research:MaxJobsPerHour`, padrão 60; acima disso a dúvida fica pendente e o enfileiramento manual responde 429). Swagger apenas em Development ou com `Swagger:Enabled=true`; `Properties/launchSettings.json` sobe local em Development na porta 5000.
-Fora do escopo agora: SSRF não se aplica (a API não busca URLs de usuários); avaliação de qualidade de respostas com fontes depende de provider com citações (M13).
+Atualização (2026-11-16): a consulta de links de fontes introduz egress controlado. `SafeHttpClient` valida DNS/IP no socket, revalida redirects, limita método/protocolo/porta/tempo/tamanho e bloqueia redes locais/reservadas. Essa proteção não substitui controle de egress da infraestrutura.
 
 ### ADR-026 — Publicação como snapshot revisado (M08)
 Status: Proposto (implementado) · Data: 2026-11-09
-Decisão: módulo `Publishing` com `Publications` (slug único por autor entre ativas, `ShareToken` aleatório de 192 bits, visibilidade `Private|Unlisted|Public`, revogação), `PublicationRevisions` (cópia imutável de título+conteúdo de uma versão da nota) e `PublicProfiles` (handle único + nome público). Editar a nota não altera o publicado; o autor publica nova revisão explicitamente. Leitura anônima: `/public/notes/{handle}/{slug}` (só Public), `/shared/{token}` (Unlisted/Public), `/public/profiles/{handle}`, `/public/notes` (biblioteca). Privada só aparece na prévia do autor. Revogar e trocar o link valem imediatamente. Dúvidas, respostas de IA, referências e IDs internos não são publicados. Excluir a nota definitivamente remove as publicações (cascade). Sem comentários, curtidas ou seguidores (sem rede social, conforme escopo).
+Decisão: módulo `Publishing` com `Publications` (slug único por autor entre ativas, `ShareToken` aleatório de 192 bits, visibilidade `Private|Unlisted|Public`, revogação), `PublicationRevisions` (cópia imutável de título+conteúdo de uma versão da nota) e `PublicProfiles` (handle único + nome público). Editar a nota não altera o publicado; o autor publica nova revisão explicitamente. Leitura anônima: `/public/notes/{handle}/{slug}` (só Public), `/shared/{token}` (Unlisted/Public), `/public/profiles/{handle}`, `/public/notes` (biblioteca). Privada só aparece na prévia do autor. Revogar e trocar o link valem imediatamente. Dúvidas, respostas de IA, trechos privados da fonte, arquivos e IDs internos não são publicados. A partir do ADR-040, cada revisão inclui uma bibliografia allowlisted com status e link de snapshot Wayback disponível no momento da publicação. Excluir a nota definitivamente remove as publicações (cascade).
 O front renderiza o conteúdo publicado como texto pelo React (sem HTML do autor), evitando XSS.
 
 ### ADR-027 — Análise assistida e precedência de pesquisa automática (M10)
@@ -233,3 +233,27 @@ Status: Proposto (implementado).
 - `PublicationCommentLikes` usa chave composta para uma curtida por pessoa, sem curtida própria. A visão `top` mostra três raízes por trecho (cinco comentários gerais se houver mais de dez), ordenadas por curtidas e recência; `all` pagina cinquenta raízes por página.
 - `Notifications` são gravadas na mesma operação do comentário ou resposta, para o autor da publicação ou do comentário pai. O sino consulta periodicamente e marca avisos como lidos ao abrir.
 - Cota de novas mensagens: `Social:CommentsPerHour` por usuário, padrão 60. A implementação usa limitador em memória, portanto a cota não é compartilhada entre instâncias.
+
+## ADR-040 — Biblioteca de fontes e citações por nota (16/11/2026)
+
+- `Sources` é a biblioteca privada reutilizável por dono; `SourceCitations` liga uma fonte à nota e guarda âncora/localização. Uma fonte citada não pode ser excluída até remover seus vínculos. A migration copia `NoteReferences` existentes; as rotas e tabela antigas continuam temporariamente para o inspetor do mapa.
+- A aba Fontes pode resolver DOI, ISBN, YouTube ou URL para preencher um formulário, mas não salva sem ação da pessoa. A detecção local oferece citações candidatas para aceite individual; não altera a nota automaticamente.
+- Publicação grava snapshot da bibliografia e dos status conhecidos. O estilo é próximo da ABNT, sem alegar conformidade normativa. Um snapshot posterior exige publicar uma nova revisão.
+- O resumo e os argumentos da verificação são sinais de conferência, não prova de verdade. `SourceQuote`, arquivos e conteúdo extraído continuam privados.
+
+## ADR-041 — Arquivos privados, licenças e snapshots (16/11/2026)
+
+- Upload aceita PDF legível e TXT UTF-8; limite de 10 MB por arquivo e 200 MB por dono. Arquivos e texto extraído são guardados no S3 privado sob prefixo do dono/fonte; download usa URL assinada por cinco minutos. Publicação nunca inclui esses objetos.
+- Cópia automática de PDF exige licença reconhecida do Unpaywall (`public-domain`, `cc-by*`, `cc-zero` ou `cc-mark`). HTML só é copiado como texto extraído quando `rel=license` aponta para licença CC conhecida em `creativecommons.org`; o HTML original não é preservado. Licença ausente/desconhecida mantém somente o link e busca de snapshot.
+- Snapshot é apenas URL HTTPS de `web.archive.org/web/...`, guardada como metadado, sem cópia no S3. “Save Page Now” é opt-in pela configuração `Sources:Wayback:SaveEnabled` e começa desligado. Transcrição automática de vídeo não faz parte desta entrega.
+- Extração de PDF usa PdfPig `0.1.16`; o `.nuspec` instalado declara Apache-2.0. A infraestrutura LocalStack cria o bucket e bloqueia acesso público. Em produção, a política equivalente precisa ser configurada no provedor S3.
+- Limite atual: não há fluxo de exclusão de conta implementado; quando existir, deve chamar a limpeza dos objetos por dono.
+
+## ADR-042 — Verificação em camadas e análise de citação por IA (16/11/2026)
+
+- Camada de existência consulta Crossref para DOI, Open Library para ISBN e HTTP para URL. Compara título, ano e primeiro autor quando disponíveis; uma URL respondendo 200 confirma somente acessibilidade. Wayback é consultado em separado. A consulta automática persiste `SourceCheck` e evento Outbox; o worker usa `SKIP LOCKED`, lease de dois minutos, fencing, retry até cinco tentativas e backoff.
+- Camada de citação busca `SourceQuote` (ou trecho citado) no texto extraído, primeiro na página indicada e depois no documento. A busca normaliza acentos/pontuação; resultado semelhante usa heurística de cobertura de palavras de 75%, portanto é indicação para revisão, não comparação semântica.
+- Camada de IA é acionada sob demanda após estimativa e confirmação explícita. Envia afirmação/contexto curto e até 6.000 caracteres do arquivo apenas se houver consentimento externo vigente. Sem arquivo, retorna `Unverifiable` sem chamada. Fake é local e sem custo. Cota padrão: cinco análises por hora.
+- A saída só é persistida quando cada excerto citado existe literalmente no texto enviado; caso contrário retorna 422. Registra veredito, argumentos, provedor, tokens e custo informado. Não apresenta percentual nem declara fato verdadeiro/falso.
+- Limite: cota diária padrão de 200 verificações é conferida em banco por dono, mas a contagem e inserção ainda não são serializadas entre requisições concorrentes. A análise por IA tem a mesma limitação de corrida na cota horária.
+- Verificação executada nesta implementação: build API Release, testes unitários, testes Node do frontend e build frontend. As novas suítes HTTP usam provedores falsos locais; a execução requer Postgres e LocalStack S3, e o resultado desta rodada está registrado em `docs/ESTADO_DO_PROJETO.md`.

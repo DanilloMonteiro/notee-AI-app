@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # inprocess: tabela de jobs como fila; sqs: Outbox -> SQS no LocalStack provisionado via Terraform
+        # SQS e S3 são emulados no LocalStack; os provedores de fontes também são falsos.
         messaging: [inprocess, sqs]
     services:
       postgres:
@@ -35,6 +35,24 @@ jobs:
       Research__PollSeconds: "1"
       Research__MaxJobsPerHour: "5"
       Messaging__Provider: ${{ matrix.messaging }}
+      ASPNETCORE_ENVIRONMENT: Testing
+      Sources__SafeHttp__AllowLoopbackForTests: "true"
+      Sources__Providers__CrossrefBaseUrl: http://127.0.0.1:58081/crossref
+      Sources__Providers__OpenLibraryBaseUrl: http://127.0.0.1:58081/openlibrary
+      Sources__Providers__OEmbedBaseUrl: http://127.0.0.1:58081/oembed
+      Sources__Providers__UnpaywallBaseUrl: http://127.0.0.1:58081/unpaywall
+      Sources__Providers__WaybackBaseUrl: http://127.0.0.1:58081/wayback/available
+      Sources__Providers__WaybackSaveBaseUrl: http://127.0.0.1:58081/wayback/save/
+      Sources__ContactEmail: source-tests@notee.local
+      Sources__Wayback__SaveEnabled: "false"
+      Sources__ChecksPerDay: "200"
+      Ai__SourceCheckMaxPerHour: "5"
+      Sources__S3__ServiceUrl: http://localhost:4566
+      Sources__S3__Bucket: notee-source-archives
+      Sources__S3__Region: us-east-1
+      Sources__S3__AccessKey: test
+      Sources__S3__SecretKey: test
+      NOTEE_SOURCE_PROVIDER_MODE: fake
       # Provider externo apontado para o servidor FALSO da suíte provider.test.mjs (nenhuma chamada real)
       Gemini__ApiKey: fake-key
       Gemini__BaseUrl: http://localhost:5199
@@ -63,16 +81,14 @@ jobs:
         with:
           node-version: 22
       - uses: hashicorp/setup-terraform@v3
-        if: matrix.messaging == 'sqs'
         with:
           terraform_wrapper: false
 
-      - name: LocalStack + Terraform (SQS)
-        if: matrix.messaging == 'sqs'
+      - name: LocalStack (SQS + S3) + Terraform
         working-directory: infra/terraform/localstack
         run: |
-          docker run -d --name localstack -p 4566:4566 -e SERVICES=sqs localstack/localstack:4.4
-          for i in $(seq 1 60); do curl -s localhost:4566/_localstack/health | grep -Eq '"sqs": "(available|running)"' && break; sleep 2; done
+          docker run -d --name localstack -p 4566:4566 -e SERVICES=sqs,s3 localstack/localstack:4.4
+          for i in $(seq 1 60); do curl -s localhost:4566/_localstack/health | grep -Eq '"s3": "(available|running)"' && break; sleep 2; done
           terraform init -input=false
           terraform apply -auto-approve -input=false
 

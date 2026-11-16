@@ -73,6 +73,7 @@ export async function apiFetch(endpoint, options = {}) {
     'Content-Type': 'application/json',
     ...options.headers,
   };
+  if (options.body instanceof FormData && !options.headers?.['Content-Type']) delete headers['Content-Type'];
 
   // Se tivermos token, injetamos na requisição!
   if (token) {

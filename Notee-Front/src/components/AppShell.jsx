@@ -36,7 +36,7 @@ function AppShellLayout() {
   const { user, loading } = useCurrentUser();
   const displayName = user?.fullName || user?.email || (loading ? 'Carregando…' : 'Sua conta');
   const { pathname } = useLocation();
-  const pageName = pathname.startsWith('/communities/') ? 'Comunidade' : ({ '/discover': 'Descobrir notas', '/communities': 'Comunidades', '/feed': 'Seu feed', '/home': 'Visão geral', '/notes': 'Minhas notas', '/boards': 'Mapas de ideias', '/research': 'Dúvidas e pesquisas', '/publications': 'Publicações', '/search': 'Buscar nas notas', '/settings': 'Configurações' }[pathname] || 'Meu espaço');
+  const pageName = pathname.startsWith('/communities/') ? 'Comunidade' : ({ '/discover': 'Descobrir notas', '/communities': 'Comunidades', '/feed': 'Seu feed', '/home': 'Visão geral', '/notes': 'Minhas notas', '/sources': 'Fontes', '/boards': 'Mapas de ideias', '/research': 'Dúvidas e pesquisas', '/publications': 'Publicações', '/search': 'Buscar nas notas', '/settings': 'Configurações' }[pathname] || 'Meu espaço');
   const navigate = useNavigate(); // <-- Inicialize o hook
 
   // Função para limpar o token e sair
@@ -82,6 +82,10 @@ function AppShellLayout() {
           <NavLink to="/notes" className={navClass}>
             <Icon name="note" />
             <span>Minhas notas</span>
+          </NavLink>
+          <NavLink to="/sources" className={navClass}>
+            <Icon name="book" />
+            <span>Fontes</span>
           </NavLink>
           <NavLink to="/boards" className={navClass} title="Mapas de ideias">
             <Icon name="map" />

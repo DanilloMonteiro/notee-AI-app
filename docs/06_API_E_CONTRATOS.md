@@ -94,3 +94,17 @@ Content-Type: application/json
 - `PUT|DELETE /discussion/comments/{id}/like`; `POST /discussion/comments/{id}/hide|unhide` (autor da publicação).
 - `PATCH /publications/{id}` aceita `commentsEnabled` junto com `visibility` e `expectedVersion`. `GET /notes/{id}/public-comments` é restrito ao dono.
 - `GET /me/notifications` e `POST /me/notifications/read` (`{ids?}`) listam e marcam avisos.
+
+## Fontes, citações e verificação (ADR-040–042)
+
+Todas as rotas abaixo exigem autenticação e filtram pelo dono da sessão.
+
+- `GET /sources?query=&kind=&status=` lista até 500 fontes; `POST /sources` cria; `GET|PATCH|DELETE /sources/{id}` lê, altera ou remove. Fonte com citações retorna `409` ao tentar removê-la. DOI/ISBN duplicado na mesma biblioteca retorna `409`.
+- `POST /sources/resolve` recebe `{input}` com DOI, ISBN ou URL e devolve metadados sugeridos para revisão; não salva a fonte. Provedores e seus endereços vêm da configuração do servidor. Falha/URL recusada retorna Problem Details `502`; entrada inválida retorna `400`.
+- `GET|POST /notes/{noteId}/citations` lista/cria vínculo da nota com uma fonte. `PATCH|DELETE /citations/{id}` altera/remove. Citações aceitam trecho âncora e localização; o servidor confere a âncora contra o conteúdo salvo. Máximo de 100 por nota.
+- `GET|POST /sources/{id}/checks` consulta histórico ou agenda nova checagem da fonte. `GET|POST /citations/{id}/checks` consulta/agenda checagem do trecho. Novas checagens respondem `202`; limite diário padrão de 200 por conta retorna `429` nas solicitações manuais.
+- `GET|POST|DELETE /sources/{id}/files` lista, envia ou remove arquivo. O upload usa multipart `file`; aceita PDF legível e `.txt` UTF-8. Respostas têm URL pré-assinada válida por cinco minutos, visível somente ao dono. Limite: 10 MB por arquivo e 200 MB por conta; exceder retorna `413` ou `409`.
+- `GET /citations/{id}/checks` lista histórico da citação. `POST /citations/{id}/ai-check/estimate` mostra escopo, provedor, custo e cota sem chamar IA. `POST /citations/{id}/ai-check` exige `{confirm:true}`; sem arquivo extraído, grava `Unverifiable` sem enviar conteúdo.
+- A resposta de IA só é gravada se cada `sourceExcerpt` for uma substring literal do excerto enviado. O histórico guarda veredito, argumentos, provedor, tokens e custo reportado.
+
+O navegador detecta padrões locais de citação e apresenta sugestões para aceite individual. A bibliografia publicada usa formatação próxima da ABNT, sem declarar conformidade normativa; cada publicação congela status/link de snapshot disponível. Arquivos e trechos da fonte nunca são publicados.

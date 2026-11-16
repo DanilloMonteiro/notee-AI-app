@@ -8,6 +8,30 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+    "SourceTests": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5099",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Testing",
+        "Sources__SafeHttp__AllowLoopbackForTests": "true",
+        "Sources__Providers__CrossrefBaseUrl": "http://127.0.0.1:58081/crossref",
+        "Sources__Providers__OpenLibraryBaseUrl": "http://127.0.0.1:58081/openlibrary",
+        "Sources__Providers__OEmbedBaseUrl": "http://127.0.0.1:58081/oembed",
+        "Sources__Providers__UnpaywallBaseUrl": "http://127.0.0.1:58081/unpaywall",
+        "Sources__Providers__WaybackBaseUrl": "http://127.0.0.1:58081/wayback/available",
+        "Sources__Providers__WaybackSaveBaseUrl": "http://127.0.0.1:58081/wayback/save/",
+        "Sources__ContactEmail": "source-tests@notee.local",
+        "Sources__Wayback__SaveEnabled": "false",
+        "Sources__ChecksPerDay": "200",
+        "Ai__SourceCheckMaxPerHour": "5",
+        "Sources__S3__ServiceUrl": "http://localhost:4566",
+        "Sources__S3__Bucket": "notee-source-archives",
+        "Sources__S3__Region": "us-east-1",
+        "Sources__S3__AccessKey": "test",
+        "Sources__S3__SecretKey": "test"
+      }
     }
   }
 }

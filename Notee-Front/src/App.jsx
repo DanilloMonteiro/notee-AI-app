@@ -20,6 +20,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { BoardsPage } from './features/boards/BoardsPage';
 import { BoardPage } from './features/boards/BoardPage';
 import { MyPublicationsPage } from './features/publishing/MyPublicationsPage';
+import { SourcesPage } from './features/sources/SourcesPage';
 import { AdminAiPage, AdminLoginPage } from './features/admin/AdminPages';
 import { ADMIN_PATH } from './features/admin/adminApi';
 import { LibraryPage, PublicNotePage, PublicProfilePage, SharedNotePage } from './features/publishing/PublicPages';
@@ -49,6 +50,7 @@ function App() {
               <Route path="/feed" element={<FeedPage />} />
               <Route path="/home" element={<Home />} />
               <Route path="/notes" element={<Notes />} />
+              <Route path="/sources" element={<SourcesPage />} />
               <Route path="/note/:id" element={<Note />} />
               <Route path="/research/:id" element={<ResearchDetail />} />
               <Route path="/research" element={<Research />} />

@@ -69,9 +69,13 @@ namespace NoteLab.Domain
     public static class OutboxEvents
     {
         public const string ResearchJobEnqueued = "research.job.enqueued";
+        public const string SourceCheckRequestedType = "sources.check.requested";
 
         public static OutboxMessage JobEnqueued(ResearchJob job) =>
             new(ResearchJobEnqueued, new { jobId = job.Id, doubtId = job.DoubtId });
+
+        public static OutboxMessage SourceCheckRequested(SourceCheck check) =>
+            new(SourceCheckRequestedType, new { checkId = check.Id, sourceId = check.SourceId, ownerId = check.OwnerId });
     }
 }
 

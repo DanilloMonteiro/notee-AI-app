@@ -99,3 +99,16 @@ O protótipo v1.2 chama `ensureGraphPlacements` e inclui **todas as notas ativas
 - `PublicationComments`: âncora opcional (`AnchorBlockId`, `AnchorQuote`, `AnchorStart`, `AnchorEnd`), `IsHidden` e `HiddenAt`. Âncora nula representa comentário geral.
 - `Publications.CommentsEnabled`: padrão verdadeiro, inclusive em publicações existentes após a migration.
 - `PublicationCommentLikes`: chave `(CommentId, UserId)`. `Notifications`: destinatário, tipo, publicação, comentário, ator, data e leitura; índice para não lidas.
+
+## Fontes, citações e verificação (ADR-040–042)
+
+Implementado nas migrations `AddSourcesAndCitations`, `AddSourceVerificationAndArchives` e `AddSourceCheckFencing`. As tabelas usam o schema padrão do PostgreSQL.
+
+- `Sources`: biblioteca privada por `OwnerId`; tipo, título, autores em JSON, ano, venue, idioma, DOI, ISBN-13 normalizado, URL, licença, notas e timestamps. DOI/ISBN têm índices únicos por dono quando preenchidos.
+- `SourceCitations`: vínculo entre dono, nota e fonte; âncora opcional (`BlockId`, `ExactQuote`, índices), localização (`PageStart/End`, segundos, seção ou parágrafo) e `SourceQuote` privado. Nota apaga as citações por cascade; fonte citada não pode ser apagada.
+- `SourceArchives`: metadados e chaves privadas do S3. `Kind=file` representa upload, PDF de acesso aberto ou texto extraído de HTML com licença CC reconhecida. `Kind=snapshot` guarda somente o link HTTPS validado do Internet Archive; não existe objeto S3 para o snapshot. Texto extraído por página fica em JSON no S3.
+- `SourceChecks`: histórico por fonte/citação e camada `Existence`, `Citation` ou `Ai`; argumentos JSON, provedor, status, uso/custo da IA e campos de lease, tentativas, `NextAttemptAt`, `LeaseOwner` e `FencingToken`.
+- `PublicationRevisions.CitationsJson`: snapshot imutável dos metadados bibliográficos públicos, status e link Wayback disponível no momento da publicação. Não inclui `SourceQuote`, conteúdo de arquivo, chaves S3 nem URLs pré-assinadas.
+- `NoteReferences` continua no banco para compatibilidade com o inspetor dos mapas. As rotas legadas adaptam para a biblioteca/citação nova; a tabela antiga ainda não foi removida.
+
+Arquivos têm limite de 10 MB cada e cota de 200 MB por dono. O limite diário padrão é 200 checagens; a camada de IA tem cota horária padrão de cinco. O worker reivindica checagens com `FOR UPDATE SKIP LOCKED`, lease de dois minutos e fencing para descartar gravação obsoleta.

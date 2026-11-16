@@ -150,9 +150,9 @@ public sealed class BoardService
             .Select(d => new BoardDoubtResponse(d.Id, d.NoteId, d.Question, d.Status.ToString()))
             .ToListAsync(ct);
 
-        Dictionary<Guid, int> referenceCounts = await _db.NoteReferences.AsNoTracking()
-            .Where(r => r.OwnerId == ownerId && noteIds.Contains(r.NoteId))
-            .GroupBy(r => r.NoteId)
+        Dictionary<Guid, int> referenceCounts = await _db.SourceCitations.AsNoTracking()
+            .Where(c => c.OwnerId == ownerId && noteIds.Contains(c.NoteId))
+            .GroupBy(c => c.NoteId)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 

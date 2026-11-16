@@ -21,6 +21,10 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Tag> Tags { get; set; }
     public DbSet<Doubt> Doubts { get; set; }
     public DbSet<NoteReference> NoteReferences { get; set; }
+    public DbSet<Source> Sources { get; set; }
+    public DbSet<SourceCitation> SourceCitations { get; set; }
+    public DbSet<SourceCheck> SourceChecks { get; set; }
+    public DbSet<SourceArchive> SourceArchives { get; set; }
     public DbSet<UserPreferences> UserPreferences { get; set; }
     public DbSet<NoteRevision> NoteRevisions { get; set; }
     public DbSet<ResearchJob> ResearchJobs { get; set; }
@@ -90,6 +94,77 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
             e.Property(r => r.Url).HasMaxLength(NoteReference.UrlMaxLength);
             e.HasOne<Note>().WithMany().HasForeignKey(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => new { r.OwnerId, r.NoteId });
+        });
+
+        modelBuilder.Entity<Source>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.OwnerId).IsRequired();
+            e.Property(s => s.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(s => s.Title).HasMaxLength(Source.TitleMaxLength).IsRequired();
+            e.Property(s => s.AuthorsJson).HasColumnName("Authors").HasColumnType("jsonb").IsRequired();
+            e.Ignore(s => s.Authors);
+            e.Property(s => s.Venue).HasMaxLength(Source.VenueMaxLength);
+            e.Property(s => s.Language).HasMaxLength(Source.LanguageMaxLength);
+            e.Property(s => s.Doi).HasMaxLength(Source.DoiMaxLength);
+            e.Property(s => s.Isbn).HasMaxLength(Source.IsbnMaxLength);
+            e.Property(s => s.Url).HasMaxLength(Source.UrlMaxLength);
+            e.Property(s => s.License).HasMaxLength(Source.LicenseMaxLength).IsRequired();
+            e.Property(s => s.Notes).HasMaxLength(Source.NotesMaxLength);
+            e.HasIndex(s => new { s.OwnerId, s.Doi }).IsUnique().HasFilter("\"Doi\" IS NOT NULL");
+            e.HasIndex(s => new { s.OwnerId, s.Isbn }).IsUnique().HasFilter("\"Isbn\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<SourceCitation>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.OwnerId).IsRequired();
+            e.Property(c => c.BlockId).HasMaxLength(SourceCitation.BlockIdMaxLength);
+            e.Property(c => c.ExactQuote).HasMaxLength(SourceCitation.ExactQuoteMaxLength);
+            e.Property(c => c.LocatorKind).HasConversion<string>().HasMaxLength(16);
+            e.Property(c => c.LocatorText).HasMaxLength(SourceCitation.LocatorTextMaxLength);
+            e.Property(c => c.SourceQuote).HasMaxLength(SourceCitation.SourceQuoteMaxLength);
+            e.HasOne<Note>().WithMany().HasForeignKey(c => c.NoteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Source>().WithMany().HasForeignKey(c => c.SourceId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(c => new { c.NoteId, c.OwnerId });
+            e.HasIndex(c => new { c.SourceId, c.OwnerId });
+        });
+
+        modelBuilder.Entity<SourceCheck>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.OwnerId).IsRequired();
+            e.Property(c => c.Layer).HasConversion<string>().HasMaxLength(16);
+            e.Property(c => c.Status).HasConversion<string>().HasMaxLength(32);
+            e.Property(c => c.Summary).HasMaxLength(SourceCheck.SummaryMaxLength).IsRequired();
+            e.Property(c => c.ArgumentsJson).HasColumnType("jsonb").IsRequired();
+            e.Property(c => c.Provider).HasMaxLength(100);
+            e.Property(c => c.Verdict).HasMaxLength(32);
+            e.Property(c => c.LeaseOwner).HasMaxLength(64);
+            e.Property(c => c.FencingToken).IsConcurrencyToken();
+            e.Property(c => c.CostUsd).HasPrecision(12, 6);
+            e.HasOne<Source>().WithMany().HasForeignKey(c => c.SourceId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<SourceCitation>().WithMany().HasForeignKey(c => c.CitationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.SourceId, c.Layer, c.CreatedAt });
+            e.HasIndex(c => new { c.Status, c.CreatedAt });
+            e.HasIndex(c => new { c.OwnerId, c.CreatedAt });
+        });
+
+        modelBuilder.Entity<SourceArchive>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.OwnerId).IsRequired();
+            e.Property(a => a.Kind).HasMaxLength(16).IsRequired();
+            e.Property(a => a.StorageKey).HasMaxLength(1024).IsRequired();
+            e.Property(a => a.TextKey).HasMaxLength(1024);
+            e.Property(a => a.ContentType).HasMaxLength(128).IsRequired();
+            e.Property(a => a.Sha256).HasMaxLength(64).IsRequired();
+            e.Property(a => a.Basis).HasMaxLength(32).IsRequired();
+            e.Property(a => a.OriginUrl).HasMaxLength(Source.UrlMaxLength);
+            e.Property(a => a.SnapshotUrl).HasMaxLength(Source.UrlMaxLength);
+            e.HasOne<Source>().WithMany().HasForeignKey(a => a.SourceId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(a => new { a.OwnerId, a.SourceId, a.CreatedAt });
+            e.HasIndex(a => new { a.OwnerId, a.SizeBytes });
         });
 
         modelBuilder.Entity<Doubt>(e =>
@@ -217,6 +292,7 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
         {
             e.HasKey(r => r.Id);
             e.Property(r => r.Title).HasMaxLength(100).IsRequired();
+            e.Property(r => r.CitationsJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb").IsRequired();
             e.HasOne<Publication>().WithMany().HasForeignKey(r => r.PublicationId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(r => new { r.PublicationId, r.PublishedAt });
         });

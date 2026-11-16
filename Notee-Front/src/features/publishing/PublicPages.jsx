@@ -9,26 +9,36 @@ import { ChartView } from '../charts/ChartView';
 import { parseBlocks as blocksOf } from '../notes/noteBlocks';
 import { apiFetch } from '../../api';
 import { locateQuote } from '../notes/anchors';
+import { formatBibliographyCitation } from '../sources/citationFormatting';
 
-function MarkedText({ block, comments, onCommentClick }) {
+function MarkedText({ block, comments, citations, onCommentClick }) {
   const text = block.text || '';
-  const ranges = comments.filter(c => !c.parentId && c.anchorQuote && !c.isHidden && !c.isDeleted)
-    .map(c => ({ comment: c, location: locateQuote([block], c) })).filter(x => x.location)
-    .sort((a, b) => a.location.startIndex - b.location.startIndex);
+  const commentRanges = comments.filter(c => !c.parentId && c.anchorQuote && !c.isHidden && !c.isDeleted)
+    .map(c => ({ kind: 'comment', comment: c, location: locateQuote([block], c) })).filter(x => x.location);
+  const citationRanges = citations.map((citation, index) => ({ citation, number: index + 1, location: citation.blockId === block.id
+    ? locateQuote([block], { blockId: citation.blockId, exactQuote: citation.exactQuote, startIndex: citation.startIndex }) : null }))
+    .filter(x => x.location);
+  const ranges = [...commentRanges, ...citationRanges.map(x => ({ ...x, kind: 'citation' }))]
+    .sort((a, b) => a.location.startIndex - b.location.startIndex || (a.kind === b.kind ? 0 : a.kind === 'comment' ? -1 : 1));
   const parts = [];
   let cursor = 0;
-  for (const { comment, location } of ranges) {
+  for (const item of ranges) {
+    const { location } = item;
     if (location.startIndex < cursor) continue;
     parts.push(text.slice(cursor, location.startIndex));
-    parts.push(<mark key={comment.id} className="comment-mark" style={{ background: '#fef08a', color: '#713f12', cursor: 'pointer' }} onClick={() => onCommentClick?.(comment.id)}>{text.slice(location.startIndex, location.endIndex)}</mark>);
+    if (item.kind === 'citation') {
+      parts.push(<React.Fragment key={`citation-${item.citation.id}`}><mark className="source-mark">{text.slice(location.startIndex, location.endIndex)}</mark><sup className="source-reference-number">[{item.number}]</sup></React.Fragment>);
+    } else {
+      parts.push(<mark key={item.comment.id} className="comment-mark" style={{ background: '#fef08a', color: '#713f12', cursor: 'pointer' }} onClick={() => onCommentClick?.(item.comment.id)}>{text.slice(location.startIndex, location.endIndex)}</mark>);
+    }
     cursor = location.endIndex;
   }
   parts.push(text.slice(cursor));
   return parts;
 }
 
-function Block({ block, comments = [], onCommentClick }) {
-  const content = <MarkedText block={block} comments={comments} onCommentClick={onCommentClick} />;
+function Block({ block, comments = [], citations = [], onCommentClick }) {
+  const content = <MarkedText block={block} comments={comments} citations={citations} onCommentClick={onCommentClick} />;
   switch (block.type) {
     case 'chart':
       // Dados do snapshot publicado; nada é buscado fora da publicação.
@@ -99,6 +109,7 @@ function Article({ state, comments = [], onAnchor, onCommentClick, canComment = 
       </div>
     );
   const note = state.data;
+  const citations = note.citations || [];
   return (
     <article className="card pad" style={{ padding: 34 }}>
       <h1 style={{ fontSize: 32, marginBottom: 8 }}>{note.title}</h1>
@@ -119,8 +130,13 @@ function Article({ state, comments = [], onAnchor, onCommentClick, canComment = 
           if (!e.currentTarget.contains(range.startContainer) || !e.currentTarget.contains(range.endContainer)) return;
           const before = range.cloneRange(); before.selectNodeContents(e.currentTarget); before.setEnd(range.startContainer, range.startOffset);
           onAnchor({ blockId: b.id, exactQuote: selection.toString(), startIndex: before.toString().length });
-        }}><Block block={b} comments={comments} onCommentClick={onCommentClick} /></div>
+        }}><Block block={b} comments={comments} citations={citations} onCommentClick={onCommentClick} /></div>
       ))}
+      {citations.length > 0 && <section className="public-bibliography"><h2>Referências</h2><ol>{citations.map(citation => <li key={citation.id}>
+        <span>{formatBibliographyCitation(citation) || citation.title}</span> <span className="pill">{citation.verificationStatus === 'unverified' ? 'Não verificada' : citation.verificationStatus}</span>
+        {citation.url && <> · <a href={citation.url} target="_blank" rel="noopener noreferrer nofollow">Abrir fonte</a></>}
+        {citation.snapshotUrl && <> · <a href={citation.snapshotUrl} target="_blank" rel="noopener noreferrer nofollow">Snapshot do Internet Archive</a></>}
+      </li>)}</ol><p className="tiny muted">Verificação automática não garante veracidade; confira as evidências.</p></section>}
     </article>
   );
 }

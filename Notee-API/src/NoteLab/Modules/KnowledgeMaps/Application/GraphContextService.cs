@@ -91,9 +91,14 @@ public sealed class GraphContextService
         List<Guid> categoryIds = notes.Where(n => n.CategoryId.HasValue).Select(n => n.CategoryId!.Value).ToList();
         Dictionary<Guid, string> categories = await _db.Categories.AsNoTracking()
             .Where(c => c.OwnerId == ownerId && categoryIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Name, ct);
-        ILookup<Guid, NoteReference> refs = (await _db.NoteReferences.AsNoTracking()
-            .Where(r => r.OwnerId == ownerId && noteIds.Contains(r.NoteId)).OrderBy(r => r.CreatedAt).ToListAsync(ct))
-            .ToLookup(r => r.NoteId);
+        var citationRows = await (from citation in _db.SourceCitations.AsNoTracking()
+                                  join source in _db.Sources.AsNoTracking() on citation.SourceId equals source.Id
+                                  where citation.OwnerId == ownerId && source.OwnerId == ownerId && noteIds.Contains(citation.NoteId)
+                                  orderby citation.CreatedAt
+                                  select new { citation.NoteId, Citation = citation, Source = source }).ToListAsync(ct);
+        ILookup<Guid, ContextReference> refs = citationRows.ToLookup(r => r.NoteId, r => new ContextReference(
+            r.Source.Kind.ToString().ToLowerInvariant(), r.Source.Title, string.Join(", ", r.Source.Authors),
+            r.Source.Venue, r.Source.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture), r.Source.Url));
         ILookup<Guid, Doubt> doubts = (await _db.Doubts.AsNoTracking()
             .Where(d => d.OwnerId == ownerId && noteIds.Contains(d.NoteId)).OrderBy(d => d.CreatedAt).ToListAsync(ct))
             .ToLookup(d => d.NoteId);
@@ -113,7 +118,7 @@ public sealed class GraphContextService
                 n.Tags.Select(t => t.Name).OrderBy(t => t).ToList(),
                 cut ? full[..MaxCharsPerNote] : full,
                 cut,
-                refs[n.Id].Select(r => new ContextReference(r.Kind.ToString().ToLowerInvariant(), r.Title, r.Author, r.Publisher, r.PublicationYear, r.Url)).ToList(),
+                refs[n.Id].ToList(),
                 // Respostas de IA não revisadas não entram no contexto; só pergunta e estado.
                 doubts[n.Id].Select(d => new ContextDoubt(d.Id, d.Question, d.Status.ToString())).ToList());
         }).ToList();
