@@ -5,7 +5,9 @@ public enum DoubtOrigin
     /// <summary>Trecho selecionado no editor (com âncora).</summary>
     Selection,
     /// <summary>Pergunta livre criada no mapa, sem âncora (ADR-013).</summary>
-    BoardQuestion
+    BoardQuestion,
+    /// <summary>Lente (sem âncora) ou crítica (ancorada) aceita pelo usuário.</summary>
+    Perspective
 }
 
 /// <summary>Qualidade da evidência da resposta. Providers atuais não retornam citações verificáveis.</summary>
@@ -68,6 +70,10 @@ public sealed class Doubt
     /// <summary>Dúvida livre do mapa: ligada à nota, sem âncora inventada.</summary>
     public static Doubt FromBoard(string ownerId, Guid noteId, long noteRevision, string question) =>
         new(ownerId, noteId, noteRevision, null, question, DoubtOrigin.BoardQuestion);
+
+    /// <summary>Dúvida vinda de uma lente/crítica aceita; âncora só quando a crítica aponta um trecho.</summary>
+    public static Doubt FromPerspective(string ownerId, Guid noteId, long noteRevision, DoubtAnchor? anchor, string question) =>
+        new(ownerId, noteId, noteRevision, anchor, question, DoubtOrigin.Perspective);
 
     public bool IsFinal => Status is DoubtStatus.Completed or DoubtStatus.Failed or DoubtStatus.Cancelled;
 
