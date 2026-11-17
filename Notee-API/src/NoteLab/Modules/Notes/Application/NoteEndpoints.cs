@@ -38,7 +38,8 @@ public static class NoteEndpoints
         group.MapPost("/", async (CreateNoteRequest data, ClaimsPrincipal user, NoteRepository repo, CancellationToken ct) =>
         {
             string ownerId = Owner(user);
-            Note note = await repo.AddNoteAsync(ownerId, new Note(new NoteTitle(data.Title), ownerId, data.Content), ct);
+            Note note = await repo.AddNoteAsync(ownerId, new Note(new NoteTitle(data.Title), ownerId, data.Content), ct,
+                data.CategoryId, data.TagIds);
             NoteResponse response = await repo.ToResponseAsync(ownerId, note, ct);
             return Results.Created($"/notes/{response.Id}", response);
         });

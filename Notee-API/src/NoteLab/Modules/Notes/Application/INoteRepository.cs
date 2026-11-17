@@ -6,7 +6,7 @@ public interface INoteRepository
 {
     public Task<NotePage> GetNotesAsync(string ownerId, NoteQuery query, CancellationToken ct);
 
-    public Task<Note> AddNoteAsync(string ownerId, Note data, CancellationToken ct);
+    public Task<Note> AddNoteAsync(string ownerId, Note data, CancellationToken ct, Guid? categoryId = null, List<Guid>? tagIds = null);
 
     public Task<Note?> GetByIdAsync(string ownerId, Guid id, CancellationToken ct);
 

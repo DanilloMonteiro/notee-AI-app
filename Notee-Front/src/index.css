@@ -3438,3 +3438,62 @@ body.pane-is-resizing * {
   line-height: 1.4;
   vertical-align: super;
 }
+
+/* ---- Nova nota: escolher o caminho e revisar a prévia (ADR-044) ---- */
+.new-note-modes {
+  display: grid;
+  gap: 8px;
+}
+.new-note-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.new-note-mode > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.new-note-mode input {
+  margin-top: 3px;
+  accent-color: var(--brand);
+}
+.new-note-mode.selected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.new-note-mode:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.new-note-group {
+  margin-top: 16px;
+}
+.new-note-group h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.new-note-check {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.new-note-check input {
+  accent-color: var(--brand);
+}
+.new-note-chart {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.new-note-chart.off {
+  opacity: 0.45;
+}

@@ -1,12 +1,12 @@
 // src/pages/Notes.jsx
 // Minhas notas: abas Ativas / Arquivadas / Lixeira, filtros por categoria e tag e busca no servidor.
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { NoteCard } from '../components/NoteCard';
 import { useToast } from '../contexts/ToastContext';
-import { apiFetch } from '../api';
 import { notesApi, taxonomyApi } from '../notes';
+import { NewNoteModal } from '../features/notes/NewNoteModal';
 
 const TABS = [
   { id: 'active', label: 'Ativas' },
@@ -27,7 +27,9 @@ export function Notes() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // "Nova nota" da Home chega como /notes?new=1 e já abre o modal.
+  const [creating, setCreating] = useState(() => searchParams.has('new'));
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const navigate = useNavigate();
@@ -69,18 +71,15 @@ export function Notes() {
     load(1);
   }, [load]);
 
-  const handleCreateNote = async () => {
-    setCreating(true);
-    try {
-      const newNote = await apiFetch('/notes', {
-        method: 'POST',
-        body: JSON.stringify({ title: 'Uma nova ideia', content: '[]' }),
-      });
-      navigate(`/note/${newNote.id}`);
-    } catch {
-      addToast('Erro ao criar a nota.', 'warning');
-      setCreating(false);
-    }
+  const closeCreate = () => {
+    setCreating(false);
+    if (searchParams.has('new')) setSearchParams({}, { replace: true });
+  };
+
+  // Nota criada pelo modal (manual ou com IA). Fontes que falharam depois de criar a nota viram aviso.
+  const handleCreated = (newNote, warnings) => {
+    if (warnings.length > 0) addToast(`Nota criada, mas ${warnings.length} fonte(s) não foram salvas: ${warnings.join(', ')}.`, 'warning');
+    navigate(`/note/${newNote.id}`);
   };
 
   const act = async (note, action) => {
@@ -122,8 +121,8 @@ export function Notes() {
           <p>Pequenas anotações, perguntas importantes e ideias em construção.</p>
         </div>
         <div className="row gap8">
-          <button className="btn primary" onClick={handleCreateNote} disabled={creating}>
-            <Icon name="plus" /> {creating ? 'A criar...' : 'Nova nota'}
+          <button className="btn primary" onClick={() => setCreating(true)} disabled={creating}>
+            <Icon name="plus" /> Nova nota
           </button>
         </div>
       </div>
@@ -213,6 +212,7 @@ export function Notes() {
           <p>{tab === 'active' && !filtered ? 'Crie a sua primeira nota para começar.' : 'Ajuste os filtros ou troque de aba.'}</p>
         </div>
       )}
+      {creating && <NewNoteModal onCreated={handleCreated} onClose={closeCreate} />}
     </div>
   );
 }

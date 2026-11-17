@@ -76,10 +76,22 @@ public class NoteRepository : INoteRepository
         return note is null ? null : await ToResponseAsync(ownerId, note, ct);
     }
 
-    public async Task<Note> AddNoteAsync(string ownerId, Note data, CancellationToken ct)
+    public async Task<Note> AddNoteAsync(string ownerId, Note data, CancellationToken ct, Guid? categoryId = null, List<Guid>? tagIds = null)
     {
         NoteContent.Validate(data.Content);
         data.SetPlainText(NoteText.Extract(data.Content, PlainTextMaxLength));
+
+        // Criação já com taxonomia aceita (ADR-044): mesmas regras de owner do PUT.
+        if (categoryId.HasValue)
+        {
+            data.SetCategory(await OwnedCategoryAsync(ownerId, categoryId.Value, ct));
+        }
+
+        if (tagIds is { Count: > 0 })
+        {
+            data.UpdateTags(await OwnedTagsAsync(ownerId, tagIds, ct));
+        }
+
         _db.Notes.Add(data);
         _db.NoteRevisions.Add(NoteRevision.Capture(data, RevisionReason.Created));
         await _db.SaveChangesAsync(ct);
@@ -120,9 +132,7 @@ public class NoteRepository : INoteRepository
         // PUT substitui o estado: categoria nula remove a categoria.
         if (categoryId.HasValue)
         {
-            Category category = await _db.Categories.SingleOrDefaultAsync(c => c.Id == categoryId && c.OwnerId == ownerId, ct)
-                                ?? throw new DomainException("Categoria não encontrada.");
-            note.SetCategory(category);
+            note.SetCategory(await OwnedCategoryAsync(ownerId, categoryId.Value, ct));
         }
         else
         {
@@ -132,20 +142,13 @@ public class NoteRepository : INoteRepository
         // Tags: null mantém; lista vazia remove todas.
         if (tagIds != null)
         {
-            List<Guid> distinct = tagIds.Distinct().ToList();
-            if (distinct.Count == 0)
+            if (tagIds.Count == 0)
             {
                 note.ClearTags();
             }
             else
             {
-                List<Tag> tags = await _db.Tags.Where(t => distinct.Contains(t.Id) && t.OwnerId == ownerId).ToListAsync(ct);
-                if (tags.Count != distinct.Count)
-                {
-                    throw new DomainException("Uma ou mais tags não foram encontradas.");
-                }
-
-                note.UpdateTags(tags);
+                note.UpdateTags(await OwnedTagsAsync(ownerId, tagIds, ct));
             }
         }
 
@@ -156,6 +159,22 @@ public class NoteRepository : INoteRepository
 
         await _db.SaveChangesAsync(ct);
         return note;
+    }
+
+    private async Task<Category> OwnedCategoryAsync(string ownerId, Guid categoryId, CancellationToken ct) =>
+        await _db.Categories.SingleOrDefaultAsync(c => c.Id == categoryId && c.OwnerId == ownerId, ct)
+        ?? throw new DomainException("Categoria não encontrada.");
+
+    private async Task<List<Tag>> OwnedTagsAsync(string ownerId, IEnumerable<Guid> tagIds, CancellationToken ct)
+    {
+        List<Guid> distinct = tagIds.Distinct().ToList();
+        List<Tag> tags = await _db.Tags.Where(t => distinct.Contains(t.Id) && t.OwnerId == ownerId).ToListAsync(ct);
+        if (tags.Count != distinct.Count)
+        {
+            throw new DomainException("Uma ou mais tags não foram encontradas.");
+        }
+
+        return tags;
     }
 
     // ---- Revisões (M06) ----

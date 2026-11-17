@@ -31,6 +31,11 @@ public class FakeAiService : IAiService
             string result = JsonSerializer.Serialize(new { verdict = "insufficient", arguments = new[] { new { point = "A simulação não avalia a afirmação.", sourceExcerpt = evidence } } });
             return Task.FromResult(new AiCompletion(result, Math.Max(1, user.Length / 4), Math.Max(1, result.Length / 4)));
         }
+        if (system.StartsWith(NoteComposer.Marker, StringComparison.Ordinal))
+        {
+            string composed = NoteComposer.FakeCompletion(user);
+            return Task.FromResult(new AiCompletion(composed, Math.Max(1, user.Length / 4), Math.Max(1, composed.Length / 4)));
+        }
         string? note = NoteAiOrganizer.ExtractNote(user);
         return note is null
             ? Task.FromException<AiCompletion>(new NotSupportedException("Tarefa não suportada pelo provedor simulado."))

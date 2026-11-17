@@ -272,26 +272,21 @@ public static class PublishingEndpoints
 
         pub.MapGet("/public/notes/{handle}/{slug}", async (string handle, string slug, NoteDbContext db, CancellationToken ct) =>
         {
-            PublicProfile? profile = await db.PublicProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.Handle == handle.ToLower(), ct);
-            Publication? publication = profile is null
-                ? null
-                : await db.Publications.AsNoTracking().SingleOrDefaultAsync(p => p.OwnerId == profile.UserId && p.Slug == slug.ToLower()
-                    && p.Status == PublicationStatus.Published && p.Visibility == PublicationVisibility.Public, ct);
+            Publication? publication = await PublicationReader.FindPublicAsync(db, handle, slug, ct);
             return publication is null ? Results.NotFound() : await PublicViewAsync(db, publication, ct);
         });
 
         // Link secreto: funciona para Unlisted e Public enquanto não revogado.
         pub.MapGet("/shared/{token}", async (string token, NoteDbContext db, CancellationToken ct) =>
         {
-            Publication? publication = await db.Publications.AsNoTracking().SingleOrDefaultAsync(p => p.ShareToken == token
-                && p.Status == PublicationStatus.Published && p.Visibility != PublicationVisibility.Private, ct);
+            Publication? publication = await PublicationReader.FindSharedAsync(db, token, ct);
             return publication is null ? Results.NotFound() : await PublicViewAsync(db, publication, ct);
         });
     }
 
     private static async Task<IResult> PublicViewAsync(NoteDbContext db, Publication publication, CancellationToken ct)
     {
-        PublicationRevision? revision = await db.PublicationRevisions.AsNoTracking().SingleOrDefaultAsync(r => r.Id == publication.CurrentRevisionId, ct);
+        PublicationRevision? revision = await PublicationReader.CurrentRevisionAsync(db, publication, ct);
         if (revision is null)
         {
             return Results.NotFound();

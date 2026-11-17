@@ -11,7 +11,14 @@ public sealed class SourceCheckWorker(IServiceScopeFactory scopes, SafeHttpClien
 {
     private const int BatchSize = 3;
     private static readonly TimeSpan Lease = TimeSpan.FromMinutes(2);
-    private readonly string _workerId = $"{Environment.MachineName}:{Guid.NewGuid():N}"[..48];
+    private readonly string _workerId = CreateWorkerId();
+
+    private static string CreateWorkerId()
+    {
+        string workerId = $"{Environment.MachineName}:{Guid.NewGuid():N}";
+        return workerId[..Math.Min(workerId.Length, 48)];
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)

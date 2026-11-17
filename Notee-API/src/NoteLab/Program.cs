@@ -120,6 +120,7 @@ builder.Services.AddRateLimiter(options =>
     // Cota por usuário do "Organizar com IA" (ADR-037).
     options.AddOrganizeAiRateLimit(builder.Configuration);
     options.AddTaxonomyAiRateLimit(builder.Configuration);
+    options.AddComposeAiRateLimit(builder.Configuration);
     options.AddCommentRateLimit(builder.Configuration);
 });
 
@@ -193,6 +194,7 @@ app.MapNoteEndpoints();
 app.MapNoteCommentEndpoints();
 app.MapOrganizeAiEndpoints();
 app.MapTaxonomyAiEndpoints();
+app.MapComposeAiEndpoints();
 app.MapResearchEndpoints();
 app.MapLegacyNoteReferenceAdapterEndpoints();
 app.MapSourceEndpoints();

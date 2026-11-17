@@ -21,39 +21,68 @@ public static partial class SourceResolutionEndpoints
         if (input.Length is < 1 or > 2048) return Results.Problem(statusCode: 400, title: "Entrada inválida", detail: "Informe DOI, ISBN ou URL (até 2048 caracteres).");
         try
         {
-            try
-            {
-                if (Source.NormalizeDoi(input) is { } doi)
-                    return Results.Ok(await ResolveDoiAsync(doi, http, config, ct));
-            }
-            catch (DomainException) { }
-            try
-            {
-                string clean = Regex.Replace(input, @"[\s-]", "");
-                if ((clean.Length is 10 or 13) && Source.NormalizeIsbn(input) is { } isbn)
-                    return Results.Ok(await ResolveIsbnAsync(isbn, http, config, ct));
-            }
-            catch (DomainException) { }
-            if (!Uri.TryCreate(input, UriKind.Absolute, out Uri? uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-                return Results.Problem(statusCode: 400, title: "Entrada não reconhecida", detail: "Use um DOI, ISBN ou URL http(s) válida.");
-            if (uri.Host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase))
-                return Results.Ok(await ResolveYoutubeAsync(uri, http, config, ct));
-            SafeHttpResponse page = await http.GetAsync(uri.ToString(), ct);
-            if ((int)page.StatusCode >= 400) return Results.Ok(new ResolvedSource("website", "", [], null, null, null, null, uri.ToString(), null, "url", $"A página respondeu HTTP {(int)page.StatusCode}."));
-            string html = page.ReadText();
-            string title = SourcePageMetadata.PageTitle(html) is { Length: > 0 } pageTitle ? pageTitle : page.FinalUri.Host;
-            int? year = SourcePageMetadata.PublicationYear(html);
-            List<string> authors = SourcePageMetadata.Authors(html);
-            string? license = SourcePageMetadata.CreativeCommonsLicense(html);
-            return Results.Ok(new ResolvedSource("website", Decode(title), authors.Select(Decode).ToList(), year,
-                Meta(html, "citation_journal_title") ?? Meta(html, "og:site_name"), Meta(html, "citation_doi"),
-                null, page.FinalUri.ToString(), license, "url", null));
+            ResolvedSource? resolved = await ResolveInputAsync(input, http, config, ct);
+            return resolved is null
+                ? Results.Problem(statusCode: 400, title: "Entrada não reconhecida", detail: "Use um DOI, ISBN ou URL http(s) válida.")
+                : Results.Ok(resolved);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is SafeHttpException or HttpRequestException or JsonException or InvalidOperationException or FormatException)
         {
             return Results.Problem(statusCode: 502, title: "Não foi possível consultar a fonte", detail: $"A consulta ao provedor falhou ({ex.GetType().Name}).");
         }
+    }
+
+    /// <summary>
+    /// Confere se um DOI/ISBN/URL sugerido existe (ADR-044). Devolve null quando a entrada não é reconhecida,
+    /// a consulta falha, a página responde erro ou não há título — nesses casos a sugestão é descartada.
+    /// </summary>
+    public static async Task<ResolvedSource?> TryResolveAsync(string? input, SafeHttpClient http, IConfiguration config, CancellationToken ct)
+    {
+        string value = (input ?? "").Trim();
+        if (value.Length is < 1 or > 2048) return null;
+        try
+        {
+            ResolvedSource? resolved = await ResolveInputAsync(value, http, config, ct);
+            return resolved is { Message: null } && !string.IsNullOrWhiteSpace(resolved.Title) ? resolved : null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception)
+        {
+            return null; // qualquer falha de consulta = fonte não conferida
+        }
+    }
+
+    /// <summary>Resolve DOI, ISBN, YouTube ou URL. Null quando a entrada não é reconhecida.</summary>
+    private static async Task<ResolvedSource?> ResolveInputAsync(string input, SafeHttpClient http, IConfiguration config, CancellationToken ct)
+    {
+        try
+        {
+            if (Source.NormalizeDoi(input) is { } doi)
+                return await ResolveDoiAsync(doi, http, config, ct);
+        }
+        catch (DomainException) { }
+        try
+        {
+            string clean = Regex.Replace(input, @"[\s-]", "");
+            if ((clean.Length is 10 or 13) && Source.NormalizeIsbn(input) is { } isbn)
+                return await ResolveIsbnAsync(isbn, http, config, ct);
+        }
+        catch (DomainException) { }
+        if (!Uri.TryCreate(input, UriKind.Absolute, out Uri? uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
+            return null;
+        if (uri.Host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase))
+            return await ResolveYoutubeAsync(uri, http, config, ct);
+        SafeHttpResponse page = await http.GetAsync(uri.ToString(), ct);
+        if ((int)page.StatusCode >= 400) return new ResolvedSource("website", "", [], null, null, null, null, uri.ToString(), null, "url", $"A página respondeu HTTP {(int)page.StatusCode}.");
+        string html = page.ReadText();
+        string title = SourcePageMetadata.PageTitle(html) is { Length: > 0 } pageTitle ? pageTitle : page.FinalUri.Host;
+        int? year = SourcePageMetadata.PublicationYear(html);
+        List<string> authors = SourcePageMetadata.Authors(html);
+        string? license = SourcePageMetadata.CreativeCommonsLicense(html);
+        return new ResolvedSource("website", Decode(title), authors.Select(Decode).ToList(), year,
+            Meta(html, "citation_journal_title") ?? Meta(html, "og:site_name"), Meta(html, "citation_doi"),
+            null, page.FinalUri.ToString(), license, "url", null);
     }
 
     private static async Task<ResolvedSource> ResolveDoiAsync(string doi, SafeHttpClient http, IConfiguration config, CancellationToken ct)

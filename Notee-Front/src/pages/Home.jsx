@@ -34,7 +34,7 @@ export function Home() {
           <p>As suas notas e perguntas estão por aqui.</p>
         </div>
         <div className="row gap8">
-          <Link to="/notes" className="btn primary">
+          <Link to="/notes?new=1" className="btn primary">
             <Icon name="plus" /> Nova nota
           </Link>
         </div>

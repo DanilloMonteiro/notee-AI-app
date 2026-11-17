@@ -6,19 +6,12 @@ import { Icon } from '../../components/Icon';
 import { apiFetch } from '../../api';
 import { ChartView } from '../charts/ChartView';
 import { blocksToText, responseToItems } from './aiOrganize';
+import { costText, usd } from './aiCost';
 
 const DEFAULT_TITLES = new Set(['', 'sem título', 'uma nova ideia']);
 
-const usd = value =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(value);
 
-function costText(cost, tokens, external) {
-  if (!external) return 'sem custo (simulação local)';
-  if (cost === null || cost === undefined) return `preço não configurado · ~${tokens.toLocaleString('pt-BR')} tokens`;
-  return `${usd(cost)} · ~${tokens.toLocaleString('pt-BR')} tokens`;
-}
-
-function PreviewBlock({ item }) {
+export function PreviewBlock({ item }) {
   if (item.type === 'chart') return <ChartView chart={item.chart} />;
   if (item.type === 'heading') {
     const size = item.level === 1 ? 19 : item.level === 3 ? 14 : 16;
