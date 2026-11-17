@@ -3497,3 +3497,544 @@ body.pane-is-resizing * {
 .new-note-chart.off {
   opacity: 0.45;
 }
+
+/* ==========================================================================
+   Editor de nota — layout "Simplificar e Limpar a Tela" (Figma qcLMp70nkyosTqo1KToUG0, nó 1:6).
+   Barra da nota no topo, texto centralizado, Dúvidas/Comentários/Fontes no rodapé
+   e "Detalhes da nota" à direita (gaveta em telas estreitas). Prefixo ne- = note editor.
+   ========================================================================== */
+.ne-page {
+  margin: -32px -38px 0;
+}
+.ne-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 38px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid var(--line);
+}
+.ne-topbar-left,
+.ne-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ne-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #536259;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ne-back-link:hover {
+  color: var(--brand);
+}
+.ne-topbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: var(--line);
+}
+.ne-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #879188;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.ne-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #75a169;
+}
+.ne-status-dot.unsaved {
+  background: #ca964b;
+}
+.ne-topbar-actions .icon-btn {
+  color: #69766e;
+}
+.ne-topbar-actions .icon-btn:hover {
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+.ne-details-toggle {
+  display: none !important;
+}
+.ne-page > .callout {
+  margin: 20px 38px 0;
+}
+
+.ne-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 780px) 280px;
+  justify-content: center;
+  gap: 56px;
+  padding: 40px 38px 90px;
+}
+.ne-editor {
+  min-width: 0;
+}
+.ne-context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #829087;
+  font-size: 12px;
+  font-weight: 550;
+}
+.ne-category-dot {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  border-radius: 50%;
+  background: #91af7e;
+}
+.ne-title {
+  width: 100%;
+  margin: 14px 0 12px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #18271f;
+  font-size: clamp(28px, 2.6vw, 38px) !important;
+  font-weight: 680;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+.ne-quick-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+.ne-quick-tags span {
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid #e7ebe4;
+  border-radius: 6px;
+  background: #f4f6f2;
+  color: #718078;
+  font-size: 11px;
+}
+.ne-quick-tags button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px dashed #d9e0d5;
+  border-radius: 6px;
+  background: transparent;
+  color: #7d887f;
+}
+.ne-quick-tags button:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.ne-tools {
+  position: sticky;
+  top: 70px;
+  z-index: 10;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 24px;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 28px rgba(31, 54, 41, 0.045);
+}
+.ne-tools select {
+  width: 112px;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: #536158;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ne-tools button {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #758078;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ne-tools button:hover:not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+.ne-tools button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ne-tools .ne-ai-tool {
+  padding: 0 10px;
+  color: var(--brand);
+}
+.ne-tool-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line);
+}
+.ne-tool-spacer {
+  flex: 1;
+}
+
+/* Texto da nota: serifado para leitura longa; títulos e código mantêm suas fontes. */
+.ne-document #editor-blocks {
+  color: #33423a;
+  font-family: Georgia, 'Times New Roman', serif;
+  caret-color: var(--brand);
+}
+.ne-document .editor-block {
+  font-size: 16px;
+  line-height: 1.85;
+}
+.ne-document .editor-block.heading {
+  margin-top: 26px;
+  color: #1c2c23;
+  font-family: var(--font) !important;
+  font-size: 20px;
+  font-weight: 680;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+.ne-document .editor-block.code {
+  font-size: 13px;
+}
+.ne-document .editor-block.quote {
+  color: #5f6f53;
+}
+
+.ne-bottom {
+  margin-top: 56px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 80px;
+}
+.ne-tabs {
+  display: flex;
+  gap: 22px;
+}
+.ne-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: -1px;
+  padding: 14px 2px 12px;
+  border: 0;
+  border-top: 2px solid transparent;
+  background: transparent;
+  color: #859087;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ne-tabs button:hover {
+  color: var(--ink);
+}
+.ne-tabs button.active {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.ne-tab-count {
+  min-width: 19px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #dfead8;
+  color: var(--brand);
+  font-size: 10px;
+  text-align: center;
+}
+.ne-tab-panel {
+  margin-top: 8px;
+}
+.ne-tab-panel > .result-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.ne-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px;
+  border-radius: 9px;
+  background: #f3f5f1;
+  color: #7f8a82;
+  font-size: 12px;
+}
+.ne-empty-state strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #506057;
+  font-size: 13px;
+}
+
+/* Painel "Detalhes da nota" */
+.ne-details {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  min-width: 0;
+  padding-right: 4px;
+}
+.ne-details-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.ne-details-heading strong {
+  font-size: 14px;
+  font-weight: 680;
+}
+.ne-details-heading p {
+  margin: 3px 0 0;
+  color: #8c968e;
+  font-size: 12px;
+}
+.ne-details-close,
+.ne-details-backdrop {
+  display: none !important;
+}
+.ne-detail-section {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ne-organizer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ne-organizer > label,
+.ne-organizer > .ne-organizer-label {
+  flex: 0 0 100%;
+  margin: 0;
+  color: #78847b !important;
+  font-size: 12px;
+  font-weight: 650;
+}
+.ne-organizer > .ne-organizer-label {
+  margin-top: 10px;
+}
+.ne-organizer .organizer-category-select {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  padding: 8px 28px 8px 10px;
+  border-color: var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.ne-organizer .organizer-category-form {
+  left: auto;
+  right: 0;
+}
+.ne-organizer .organizer-tag {
+  font-size: 12px;
+  background: #edf2ea;
+  border-color: #edf2ea;
+}
+.ne-organizer .organizer-tag-picker {
+  flex: 1 1 100%;
+  max-width: none;
+}
+.ne-organizer .organizer-tag-form input {
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.ne-organizer .organizer-tag-form button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.ne-organizer > .stack {
+  margin-top: 6px;
+  font-size: 13px;
+}
+.ne-suggest-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 11px;
+  border: 1px solid #dfe8d9;
+  border-radius: 9px;
+  background: #f4f8f1;
+  color: var(--brand);
+  text-align: left;
+}
+.ne-suggest-button:hover {
+  border-color: #c9dbbf;
+  background: #edf5e7;
+}
+.ne-suggest-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #e4efd9;
+}
+.ne-suggest-button strong,
+.ne-suggest-button small {
+  display: block;
+}
+.ne-suggest-button strong {
+  font-size: 12px;
+}
+.ne-suggest-button small {
+  margin-top: 1px;
+  color: #81907f;
+  font-size: 11px;
+}
+.ne-note-info {
+  display: grid;
+  gap: 13px;
+}
+.ne-note-info > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #88928a;
+}
+.ne-note-info span,
+.ne-note-info small {
+  display: block;
+}
+.ne-note-info span {
+  color: #546258;
+  font-size: 13px;
+}
+.ne-note-info small {
+  margin-bottom: 1px;
+  color: #98a098;
+  font-size: 11px;
+}
+/* "Sugestões para esta nota" (NoteSuggestions) sem moldura de card dentro do painel. */
+.ne-suggestions > .card {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.ne-suggestions > .card > .row.between > * {
+  flex: 1 1 100%;
+}
+.ne-suggestions > .card select {
+  width: 100% !important;
+}
+.ne-suggestions > .card .btn {
+  flex: 1;
+}
+.ne-danger-zone {
+  padding-top: 22px;
+}
+.ne-danger-zone button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a06c67;
+  font-size: 12px;
+}
+.ne-danger-zone button:hover {
+  color: var(--danger);
+}
+
+/* Telas estreitas: detalhes viram gaveta aberta pelo botão "Detalhes". */
+@media (max-width: 1240px) {
+  .ne-layout {
+    grid-template-columns: minmax(0, 780px);
+  }
+  .ne-details-toggle {
+    display: inline-flex !important;
+  }
+  .ne-details {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    right: 0;
+    width: 320px;
+    height: 100vh;
+    max-height: none;
+    padding: 24px;
+    background: #fff;
+    box-shadow: -20px 0 45px rgba(30, 50, 38, 0.1);
+    transform: translateX(105%);
+    transition: transform 0.22s ease;
+  }
+  .ne-details.is-open {
+    transform: translateX(0);
+  }
+  .ne-details-close {
+    display: inline-flex !important;
+  }
+  .ne-details-backdrop {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    border: 0;
+    background: rgba(21, 34, 27, 0.22);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ne-details {
+    transition: none;
+  }
+}
+@media print {
+  .ne-topbar,
+  .ne-tools,
+  .ne-details,
+  .ne-quick-tags button {
+    display: none !important;
+  }
+  .ne-layout {
+    display: block;
+    padding: 0;
+  }
+}

@@ -39,6 +39,8 @@ const paths = {
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   map: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.3 7 15.6 7.6M7 8.3l1.4 7.3M16.5 10 10.8 16.2"/>',
   logout: '<path d="M9 3H3v18h6M14 8l5 4-5 4M7 12h12"/>',
+  message: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/>',
+  tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
   // Pode adicionar os restantes do seu protótipo HTML aqui conforme for precisando
 };
 

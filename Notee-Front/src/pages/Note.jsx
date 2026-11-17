@@ -255,9 +255,10 @@ export function Note() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [asideWidth, setAsideWidth] = useState(316);
-  const [isResizing, setIsResizing] = useState(false);
-  const dragRef = useRef(null);
+  // Painel "Detalhes da nota": fixo à direita em telas largas; gaveta em telas estreitas.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  // Abas Dúvidas / Comentários / Fontes no rodapé da nota.
+  const bottomRef = useRef(null);
 
   // Estados da seleção
   const [showModal, setShowModal] = useState(false);
@@ -354,32 +355,19 @@ export function Note() {
     };
   }, [id, doubts]);
 
-  const handlePointerDown = e => {
-    setIsResizing(true);
-    dragRef.current = { startX: e.clientX, startWidth: asideWidth };
-    document.body.classList.add('pane-is-resizing');
+  // Troca a aba do rodapé (dúvidas/comentários/fontes) e lembra a escolha no browser.
+  const selectAside = tab => {
+    setActiveAside(tab);
+    try { localStorage.setItem('notee-editor-aside', tab); } catch { /* armazenamento indisponível */ }
   };
 
+  // Esc fecha a gaveta de detalhes em telas estreitas.
   useEffect(() => {
-    const handlePointerMove = e => {
-      if (!isResizing) return;
-      setAsideWidth(Math.max(270, Math.min(dragRef.current.startWidth - (e.clientX - dragRef.current.startX), 900)));
-    };
-    const handlePointerUp = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.classList.remove('pane-is-resizing');
-      }
-    };
-    if (isResizing) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-    }
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [isResizing]);
+    if (!detailsOpen) return;
+    const onKey = e => { if (e.key === 'Escape') setDetailsOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailsOpen]);
 
   const handleSave = async () => {
     if (editingChart) {
@@ -619,6 +607,7 @@ export function Note() {
 
   const handleMarkDoubt = () => {
     if (!selection) return addToast('Selecione um pedaço de texto dentro do editor.', 'info');
+    selectAside('doubts');
     setQuestionText(`O que significa "${selection.quote}" neste contexto?`);
     setShowModal(true);
   };
@@ -626,13 +615,15 @@ export function Note() {
   const handleComment = () => {
     if (!selection) return addToast('Selecione um trecho do texto.', 'info');
     if (isDirty) return addToast('Salve a nota antes de comentar o trecho.', 'info');
+    selectAside('comments');
     setCommentText(''); setCommentVisibility('private'); setShowCommentModal(true);
   };
 
   const handleCite = () => {
-    setActiveAside('sources');
-    try { localStorage.setItem('notee-editor-aside', 'sources'); } catch { /* armazenamento indisponível */ }
+    selectAside('sources');
     if (selection && isDirty) addToast('Salve a nota antes de citar o trecho selecionado.', 'info');
+    // O painel de fontes fica no rodapé: rola até ele para o usuário concluir a citação.
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
   const handleSubmitComment = async e => {
@@ -754,43 +745,64 @@ export function Note() {
     }
   };
 
+  const isArchivedOrTrashed = note.status === 'Archived' || isTrashed;
+  const saveStateLabel = saving ? 'Salvando…' : isDirty ? 'Alterações não salvas' : 'Alterações salvas';
+  const wordCount = blocks
+    .filter(b => !isChartBlock(b))
+    .reduce((total, b) => total + ((b.text || '').trim().match(/\S+/g)?.length || 0), 0);
+  const lastEdited = note.updatedAt
+    ? new Date(note.updatedAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+  const commentCount = privateComments.length + publicComments.length;
+  const asideTabs = [
+    { key: 'doubts', label: 'Dúvidas', icon: 'question', count: doubts.length },
+    { key: 'comments', label: 'Comentários', icon: 'message', count: commentCount },
+    { key: 'sources', label: 'Fontes', icon: 'book', count: sourceCitations.length },
+  ];
+  const openTagInput = () => {
+    setDetailsOpen(true);
+    setTimeout(() => document.getElementById('ne-tag-input')?.focus(), 0);
+  };
+
   return (
-    <div>
-      <div className="page-heading">
-        <div>
-          <div className="overline">NOTAS / {note.categoryName || 'Sem categoria'}</div>
-          <h1>{title || 'Sem título'}</h1>
-          <p>Nota • {STATUS_LABEL[note.status] || note.status}</p>
-        </div>
-        <div className="row gap8 wrap">
-          <Link to="/notes" className="btn">
-            <Icon name="back" /> Voltar
+    <div className="ne-page">
+      <header className="ne-topbar">
+        <div className="ne-topbar-left">
+          <Link to="/notes" className="ne-back-link">
+            <Icon name="back" className="sm" /> Minhas notas
           </Link>
-          {note.status === 'Archived' || isTrashed ? (
-            <button className="btn" onClick={() => handleLifecycle('restore')}>
-              <Icon name="refresh" className="sm" /> Restaurar
+          <span className="ne-topbar-divider" />
+          <span className="ne-save-state" role="status">
+            <span className={`ne-status-dot ${isDirty || saving ? 'unsaved' : ''}`} />
+            {saveStateLabel}
+          </span>
+        </div>
+        <div className="ne-topbar-actions">
+          <button className="icon-btn" onClick={() => setShowHistory(true)} title="Histórico de versões" aria-label="Ver histórico de versões">
+            <Icon name="clock" />
+          </button>
+          {isArchivedOrTrashed ? (
+            <button className="icon-btn" onClick={() => handleLifecycle('restore')} title="Restaurar nota" aria-label="Restaurar nota">
+              <Icon name="refresh" />
             </button>
           ) : (
-            <button className="btn" onClick={() => handleLifecycle('archive')}>
-              <Icon name="archive" className="sm" /> Arquivar
+            <button className="icon-btn" onClick={() => handleLifecycle('archive')} title="Arquivar nota" aria-label="Arquivar nota">
+              <Icon name="archive" />
             </button>
           )}
-          <button className="btn" onClick={() => setShowPublish(true)}>
+          <button className="btn compact ne-details-toggle" onClick={() => setDetailsOpen(open => !open)} aria-expanded={detailsOpen} aria-controls="ne-details">
+            Detalhes <Icon name="down" className="sm" />
+          </button>
+          {(isDirty || saving) && !isTrashed && (
+            <button className="btn compact" onClick={handleSave} disabled={saving}>
+              <Icon name="save" className="sm" /> {saving ? 'Salvando…' : 'Salvar'}
+            </button>
+          )}
+          <button className="btn compact primary" onClick={() => setShowPublish(true)}>
             <Icon name="globe" className="sm" /> Publicar
           </button>
-          <button className="btn" onClick={() => setShowHistory(true)}>
-            <Icon name="clock" className="sm" /> Histórico
-          </button>
-          {!isTrashed && (
-            <button className="btn" onClick={() => handleLifecycle('trash')}>
-              <Icon name="trash" className="sm" /> Lixeira
-            </button>
-          )}
-          <button className={`btn ${isDirty ? 'primary' : ''}`} onClick={handleSave} disabled={saving || !isDirty || isTrashed}>
-            <Icon name="save" className="sm" /> {saving ? 'A salvar...' : 'Salvar alterações'}
-          </button>
         </div>
-      </div>
+      </header>
 
       {isTrashed && (
         <div className="callout warning mb24">
@@ -818,63 +830,75 @@ export function Note() {
         />
       )}
 
-      <NoteOrganizer
-        noteId={id}
-        noteVersion={note.version}
-        title={title}
-        blocks={blocks}
-        categoryId={categoryId}
-        tagIds={tagIds}
-        onCategoryChange={setCategoryId}
-        onTagsChange={setTagIds}
-        disabled={isTrashed}
-        isDirty={isDirty}
-      />
+      <div className="ne-layout">
+        <article className="ne-editor">
+          <div className="ne-context">
+            <span className="ne-category-dot" />
+            {note.categoryName || 'Sem categoria'}
+            <span aria-hidden="true">•</span>
+            <span>{STATUS_LABEL[note.status] || note.status}</span>
+          </div>
 
-      <NoteSuggestions noteId={id} isDirty={isDirty} disabled={isTrashed} onNoteChanged={loadNoteAndDoubts} />
+          <input
+            className="ne-title"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Sem título"
+            aria-label="Título da nota"
+          />
 
-      <div className="editor-layout" style={{ '--editor-aside-width': `${asideWidth}px` }}>
-        <section className="card editor-main-card">
-          <div className="toolbar">
-            <div className="row gap8">
-              <select
-                value={newBlockType}
-                onChange={e => setNewBlockType(e.target.value)}
-                style={{ padding: '6px', borderRadius: '4px' }}
-              >
-                <option value="paragraph">Parágrafo</option>
-                <option value="heading">Título</option>
-                <option value="list">Lista</option>
-                <option value="quote">Citação</option>
-                <option value="code">Código</option>
-                <option value="chart">Gráfico</option>
-              </select>
-              <button className="icon-btn" onClick={handleAddBlock} disabled={isTrashed} aria-label="Adicionar bloco" title="Adicionar bloco">
-                <Icon name="plus" />
+          <div className="ne-quick-tags" aria-label="Tags da nota">
+            {(note.tags || []).map((tag, index) => (
+              <span key={tag.id}>
+                {index === 0 && <Icon name="tag" className="sm" />} {tag.name}
+              </span>
+            ))}
+            {!isTrashed && (
+              <button type="button" onClick={openTagInput} aria-label="Adicionar tag" title="Adicionar tag">
+                <Icon name="plus" className="sm" />
               </button>
-            </div>
-            <div className="editor-toolbar-group">
-              <button
-                className="btn compact"
-                onClick={handleOrganize}
-                disabled={isTrashed}
-                title="Organiza títulos, listas, destaques e tabelas com regras locais (nada sai do Notee)"
-              >
-                <Icon name="grid" className="sm" /> Organizar em tópicos
-              </button>
-              <button
-                className="btn compact"
-                onClick={() => setShowOrganizeAi(true)}
-                disabled={isTrashed || !!editingChart}
-                title="Envia o texto para o provedor de IA configurado, com custo e confirmação"
-              >
-                <Icon name="spark" className="sm" /> Organizar com IA
-              </button>
-              {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
-              <button className="btn compact" onMouseDown={e => e.preventDefault()} onClick={activeAside === 'sources' ? handleCite : activeAside === 'comments' ? handleComment : handleMarkDoubt} disabled={isTrashed}>
-                <Icon name="question" className="sm" /> {activeAside === 'sources' ? 'Citar trecho' : activeAside === 'comments' ? 'Comentar trecho' : 'Marcar dúvida no texto'}
-              </button>
-            </div>
+            )}
+          </div>
+
+          <div className="ne-tools" role="toolbar" aria-label="Ferramentas da nota">
+            <select value={newBlockType} onChange={e => setNewBlockType(e.target.value)} aria-label="Tipo do novo bloco">
+              <option value="paragraph">Parágrafo</option>
+              <option value="heading">Título</option>
+              <option value="list">Lista</option>
+              <option value="quote">Citação</option>
+              <option value="code">Código</option>
+              <option value="chart">Gráfico</option>
+            </select>
+            <button onClick={handleAddBlock} disabled={isTrashed} aria-label="Adicionar bloco" title="Adicionar bloco">
+              <Icon name="plus" className="sm" />
+            </button>
+            <span className="ne-tool-divider" />
+            {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
+            <button onMouseDown={e => e.preventDefault()} onClick={handleMarkDoubt} disabled={isTrashed} title="Selecione um trecho e marque como dúvida">
+              <Icon name="question" className="sm" /> Dúvida
+            </button>
+            <button onMouseDown={e => e.preventDefault()} onClick={handleComment} disabled={isTrashed} title="Selecione um trecho para comentar">
+              <Icon name="message" className="sm" /> Comentar
+            </button>
+            <button onMouseDown={e => e.preventDefault()} onClick={handleCite} disabled={isTrashed} title="Selecione um trecho e vincule uma fonte">
+              <Icon name="book" className="sm" /> Citar
+            </button>
+            <span className="ne-tool-spacer" />
+            <button
+              onClick={handleOrganize}
+              disabled={isTrashed}
+              title="Organiza títulos, listas, destaques e tabelas com regras locais (nada sai do Notee)"
+            >
+              <Icon name="grid" className="sm" /> Organizar em tópicos
+            </button>
+            <button
+              className="ne-ai-tool"
+              onClick={() => setShowOrganizeAi(true)}
+              disabled={isTrashed || !!editingChart}
+              title="Envia o texto para o provedor de IA configurado, com custo e confirmação"
+            >
+              <Icon name="spark" className="sm" /> Organizar com IA
+            </button>
           </div>
 
           {showOrganizeAi && (
@@ -887,21 +911,7 @@ export function Note() {
             />
           )}
 
-          <div className="editor-body">
-            <input
-              className="editor-title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Sem título"
-            />
-            <div className="editor-meta mb24">
-              {note.tags &&
-                note.tags.map(tag => (
-                  <span key={tag.id} className="tag">
-                    {tag.name}
-                  </span>
-                ))}
-            </div>
+          <div className="ne-document">
 
             {notice && (
               <div className="callout neutral mb16 paste-chart-notice" role="status">
@@ -970,17 +980,24 @@ export function Note() {
               )}
             </div>
           </div>
-        </section>
 
-        <div
-          className={`pane-resizer editor-resizer ${isResizing ? 'is-resizing' : ''}`}
-          onPointerDown={handlePointerDown}
-        ></div>
-
-        <aside className="stack editor-side">
-          <div className="row gap8" role="tablist" aria-label="Painel da nota">
-            {['doubts', 'comments', 'sources'].map(tab => <button key={tab} type="button" role="tab" aria-selected={activeAside === tab} className={`btn compact ${activeAside === tab ? 'primary' : ''}`} onClick={() => { setActiveAside(tab); try { localStorage.setItem('notee-editor-aside', tab); } catch { /* armazenamento indisponível */ } }}>{tab === 'doubts' ? 'Dúvidas' : tab === 'comments' ? 'Comentários' : 'Fontes'}</button>)}
-          </div>
+          <section className="ne-bottom" ref={bottomRef} aria-label="Dúvidas, comentários e fontes da nota">
+            <div className="ne-tabs" role="tablist" aria-label="Painel da nota">
+              {asideTabs.map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeAside === tab.key}
+                  className={activeAside === tab.key ? 'active' : ''}
+                  onClick={() => selectAside(tab.key)}
+                >
+                  <Icon name={tab.icon} className="sm" /> {tab.label}
+                  {tab.count > 0 && <span className="ne-tab-count">{tab.count}</span>}
+                </button>
+              ))}
+            </div>
+            <div className="ne-tab-panel" role="tabpanel">
           {activeAside === 'sources' ? <SourcesPanel noteId={id} noteBlocks={blocks} isDirty={isDirty} selectedAnchor={selection} onClearAnchor={() => setSelection(null)} onCitationsChange={setSourceCitations} /> : activeAside === 'comments' ? <div className="result-panel">
             <h4>Comentários desta nota</h4>
             {privateComments.length + publicComments.length === 0 && <p className="small muted">Selecione um trecho e clique em Comentar trecho.</p>}
@@ -1082,13 +1099,74 @@ export function Note() {
               })}
             </div>
           ) : (
-            <div className="empty" style={{ padding: '24px' }}>
-              <Icon name="spark" />
-              <p style={{ fontSize: '12px', marginTop: '10px' }}>
-                Nenhuma dúvida. Selecione texto e marque uma dúvida.
-              </p>
+            <div className="ne-empty-state">
+              <Icon name="question" />
+              <span>
+                <strong>Nenhuma dúvida marcada</strong>
+                Selecione um trecho do texto e clique em “Dúvida” para transformá-lo em uma pergunta.
+              </span>
             </div>
           ))}
+            </div>
+          </section>
+        </article>
+
+        {detailsOpen && <button type="button" className="ne-details-backdrop" onClick={() => setDetailsOpen(false)} aria-label="Fechar detalhes" />}
+        <aside id="ne-details" className={`ne-details ${detailsOpen ? 'is-open' : ''}`} aria-label="Detalhes da nota">
+          <div className="ne-details-heading">
+            <div>
+              <strong>Detalhes da nota</strong>
+              <p>Organize e acompanhe</p>
+            </div>
+            <button type="button" className="icon-btn ne-details-close" onClick={() => setDetailsOpen(false)} aria-label="Fechar detalhes">
+              <Icon name="close" />
+            </button>
+          </div>
+
+          <div className="ne-detail-section">
+            <NoteOrganizer
+              variant="panel"
+              noteId={id}
+              noteVersion={note.version}
+              title={title}
+              blocks={blocks}
+              categoryId={categoryId}
+              tagIds={tagIds}
+              onCategoryChange={setCategoryId}
+              onTagsChange={setTagIds}
+              disabled={isTrashed}
+              isDirty={isDirty}
+            />
+          </div>
+
+          <div className="ne-detail-section ne-note-info">
+            {lastEdited && (
+              <div>
+                <Icon name="clock" className="sm" />
+                <span><small>Última edição salva</small>{lastEdited}</span>
+              </div>
+            )}
+            <div>
+              <Icon name="note" className="sm" />
+              <span><small>Extensão</small>{wordCount} {wordCount === 1 ? 'palavra' : 'palavras'}</span>
+            </div>
+            <div>
+              <Icon name="folder" className="sm" />
+              <span><small>Local</small>Meu espaço · v{note.version}</span>
+            </div>
+          </div>
+
+          <div className="ne-detail-section ne-suggestions">
+            <NoteSuggestions noteId={id} isDirty={isDirty} disabled={isTrashed} onNoteChanged={loadNoteAndDoubts} />
+          </div>
+
+          {!isTrashed && (
+            <div className="ne-danger-zone">
+              <button type="button" onClick={() => handleLifecycle('trash')}>
+                <Icon name="trash" className="sm" /> Mover para a lixeira
+              </button>
+            </div>
+          )}
         </aside>
       </div>
 

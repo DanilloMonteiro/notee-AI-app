@@ -6,7 +6,9 @@ import { useToast } from '../contexts/ToastContext';
 import { apiFetch } from '../api';
 import { suggestTaxonomy } from '../features/notes/suggestTaxonomy';
 
-export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, tagIds, onCategoryChange, onTagsChange, disabled, isDirty }) {
+// variant="panel": layout vertical usado no painel "Detalhes da nota" do editor.
+export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, tagIds, onCategoryChange, onTagsChange, disabled, isDirty, variant }) {
+  const isPanel = variant === 'panel';
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
@@ -118,7 +120,7 @@ export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, 
   };
 
   return (
-    <div className="card pad mb24 row gap8 wrap" style={{ alignItems: 'center' }}>
+    <div className={isPanel ? 'ne-organizer' : 'card pad mb24 row gap8 wrap'} style={isPanel ? undefined : { alignItems: 'center' }}>
       <label className="small muted" htmlFor="note-category">
         Categoria
       </label>
@@ -153,7 +155,7 @@ export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, 
       )}
       </div>
 
-      <span className="small muted" style={{ marginLeft: 12 }}>
+      <span className="small muted ne-organizer-label" style={isPanel ? undefined : { marginLeft: 12 }}>
         Tags
       </span>
       {selectedTags.map(tag => (
@@ -175,6 +177,7 @@ export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, 
         <div className="organizer-tag-picker" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setShowTags(false); }}>
         <form onSubmit={addTag} className="organizer-tag-form">
           <input
+            id={isPanel ? 'ne-tag-input' : undefined}
             onFocus={() => setShowTags(true)}
             onKeyDown={e => { if (e.key === 'Escape') setShowTags(false); }}
             aria-expanded={showTags}
@@ -200,7 +203,7 @@ export function NoteOrganizer({ noteId, noteVersion, title, blocks, categoryId, 
         )}
         </div>
       )}
-      {!disabled && <button type="button" className="btn compact" onClick={() => { setEstimate(null); setSuggestions(suggestTaxonomy({ title, blocks, categories, tags, currentCategoryId: categoryId, currentTagIds: tagIds })); }}>Sugerir categoria e tags</button>}
+      {!disabled && <button type="button" className={isPanel ? 'ne-suggest-button' : 'btn compact'} onClick={() => { setEstimate(null); setSuggestions(suggestTaxonomy({ title, blocks, categories, tags, currentCategoryId: categoryId, currentTagIds: tagIds })); }}>{isPanel ? <><span className="ne-suggest-icon"><Icon name="spark" className="sm" /></span><span><strong>Sugerir categoria e tags</strong><small>Regras locais, você aplica cada uma</small></span></> : 'Sugerir categoria e tags'}</button>}
       {suggestions && <div className="stack" style={{ width: '100%', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
         <strong>Sugestões para esta nota</strong>
         {[...(suggestions.category ? [{ ...suggestions.category, kind: 'categories' }] : []), ...suggestions.tags.map(t => ({ ...t, kind: 'tags' }))].map(item => <div key={`${item.kind}-${item.name}`} className="row between wrap gap8">
