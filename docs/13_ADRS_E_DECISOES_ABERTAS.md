@@ -257,3 +257,23 @@ Status: Proposto (implementado).
 - A saída só é persistida quando cada excerto citado existe literalmente no texto enviado; caso contrário retorna 422. Registra veredito, argumentos, provedor, tokens e custo informado. Não apresenta percentual nem declara fato verdadeiro/falso.
 - Limite: cota diária padrão de 200 verificações é conferida em banco por dono, mas a contagem e inserção ainda não são serializadas entre requisições concorrentes. A análise por IA tem a mesma limitação de corrida na cota horária.
 - Verificação executada nesta implementação: build API Release, testes unitários, testes Node do frontend e build frontend. As novas suítes HTTP usam provedores falsos locais; a execução requer Postgres e LocalStack S3, e o resultado desta rodada está registrado em `docs/ESTADO_DO_PROJETO.md`.
+
+## ADR-043 — Lentes e crítica de raciocínio (17/11/2026)
+
+Status: Aceito para a fatia F1 (domínio + Fake). API, migration, interface e provedor real (F2–F5) continuam como proposta em `PLANO_LENTES_E_CRITICA.md`.
+
+- `PerspectiveSuggestion` fica no módulo `Research`, ao lado de `NoteSuggestion` e `Doubt`, porque aceitar uma sugestão cria uma `Doubt` e reaproveita o fluxo de pesquisa. Tipos: `Lens` (outro ângulo sobre a nota inteira, sem âncora) e `Critique` (lacuna de raciocínio, âncora obrigatória `BlockId/ExactQuote/StartIndex/EndIndex`). Categorias fechadas em `PerspectiveCategories`.
+- Regra "só perguntas" é invariante de domínio: o texto precisa terminar em `?` (até 500 caracteres). Lentes de temas políticos usam redação equilibrada ("defensores e críticos"), sem veredicto.
+- A origem é a `Note.Version` usada na geração (mesmo padrão de `NoteSuggestion`), não um ID de `NoteRevision`. Versão diferente → `IsStale`; `Accept` lança `StalePerspectiveException` (a API deve mapear para 409). Aceitar cria `Doubt` com nova origem `DoubtOrigin.Perspective` (persistida como texto, sem migration); descartar guarda motivo opcional, até 300 caracteres, visível só para o owner.
+- Fake determinístico (`PerspectiveRules`): até 4 lentes, escolhidas por palavras-chave (conjunto de humanas ou de matemática), e até 3 críticas, encontradas por marcadores em frases dos blocos. Também sugere crítica "um lado só" quando não há contraponto. Menos de 15 palavras → "contexto insuficiente". Conteúdo legado sem IDs de bloco recebe só lentes. É heurística lexical, não análise lógica.
+- Aberto para F5: escopo enviado à IA externa (nota inteira × blocos selecionados), consentimento por nota e validação JSON da saída.
+
+## ADR-044 — Criação de nota assistida por IA (17/11/2026)
+
+- "Nova nota" pede o título e oferece três caminhos: escrever (fluxo anterior), descrever e gerar com IA, ou partir de outra nota. Os caminhos de IA usam `POST /notes/compose-ai/estimate` (não envia nada) e `POST /notes/compose-ai` (exige `confirm`, cota `Ai:ComposeMaxPerHour`, padrão 10/h, timeout de 90 s). A resposta é só uma prévia; a nota é criada pelo cliente depois do aceite, com `POST /notes` (que agora aceita `categoryId` e `tagIds` opcionais, validados por owner) e com `POST /sources` + `POST /notes/{id}/citations` para as fontes aceitas.
+- Escopo enviado à IA: título, descrição/instrução, texto da nota base (quando houver) e nomes das categorias/tags do owner. Provedor externo só com consentimento vigente (`AiProviderSelector`); sem isso, roda a simulação local.
+- Link de outra nota: `/note/{id}` só do mesmo owner (outra conta → 404); `/p/{handle}/{slug}` só publicação ativa e pública; `/s/{token}` só ativa e não privada. Publicações são lidas sempre do snapshot (`PublicationReader`), nunca do rascunho. Base de outra pessoa gera uma fonte de atribuição obrigatória com o link, o título e o nome público da autora.
+- Fontes: a IA só propõe DOI/ISBN/URL. Cada um passa pela mesma resolução de `/sources/resolve` (extraída para `SourceResolutionEndpoints.TryResolveAsync`); só as encontradas voltam. Isso confirma que a fonte existe, não que sustenta o texto.
+- Gráficos: gráficos da nota base voltam intactos por referência. Gráfico novo só entra se a fonte dos dados for resolvida; ele é validado com `NoteContent.Validate`, recebe a fonte no próprio bloco e a mesma fonte entra na lista da nota. Sem fonte resolvida, o gráfico é descartado. O sistema não confere os números contra a fonte, e a prévia avisa isso. Tabelas geradas ficam como texto, para não virarem gráfico sem fonte.
+- O Fake não sugere fontes nem gráficos novos. Ele monta um rascunho a partir da descrição ou da base e usa a taxonomia local (`TaxonomyAi.Fake`).
+- Limites: a criação não é atômica. Se uma fonte falhar depois de criada a nota, a nota fica e o problema volta como aviso. Não há cota diária nem registro persistente de custo desta função.

@@ -187,3 +187,21 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Validações executadas: build API Release aprovado; `dotnet test tests/NoteLab.Tests -c Release --no-restore --disable-build-servers` **195/195**; `dotnet ef migrations has-pending-model-changes --configuration Release --no-build` sem diferenças; `npm test` **25/25**; `npm run build` aprovado; `npm run lint` terminou com avisos em arquivos existentes fora dos componentes novos de fontes; `node --check` aprovou os arquivos JavaScript das suítes HTTP de fontes e citações.
 - A build Vite emitiu aviso de chunk JavaScript acima de 500 kB. As suítes HTTP de integração de fontes/arquivos não foram executadas porque Docker Desktop não estava disponível e as portas de teste PostgreSQL/LocalStack estavam fechadas. Nenhuma migration foi aplicada ao banco do usuário; navegador e deploy não foram verificados.
 - Commit consolidado: `feat(sources): add source verification and bibliography`, na branch `feature/editor-organizacao-deploy`.
+
+## Atualização 17/11/2026 — Lentes e crítica de raciocínio, fatia F1 (ADR-043)
+
+- Implementado somente o F1 de `PLANO_LENTES_E_CRITICA.md`: entidade `PerspectiveSuggestion` (`Research/Domain`), gerador Fake determinístico `PerspectiveRules` (`Research/Application`) e `Doubt.FromPerspective` com nova origem `DoubtOrigin.Perspective`. Sem endpoints, sem tabela/migration e sem interface; F2–F5 continuam como proposta.
+- Validação executada: `dotnet test tests/NoteLab.Tests --artifacts-path <pasta temporária>` **207/207** (195 anteriores + 12 novos em `PerspectiveTests.cs`). A saída foi isolada porque uma instância local da API estava travando `bin/`. Não foram executados `npm test`, `npm run build`, suítes HTTP ou checagem de migrations, porque F1 não altera frontend nem `DbContext`.
+- Commit: pendente.
+
+## Atualização 17/11/2026 — Nova nota com IA: gerar, partir de outra nota, gráficos com fonte (ADR-044)
+
+- Implementado: modal "Nova nota" (`Notee-Front/src/features/notes/NewNoteModal.jsx`) com título e três caminhos; endpoints `POST /notes/compose-ai/estimate` e `POST /notes/compose-ai` (`NoteComposeAiEndpoints`, `NoteComposer`); `POST /notes` com `categoryId`/`tagIds` opcionais; leitura de publicações extraída para `PublicationReader`; resolução de fontes extraída para `SourceResolutionEndpoints.TryResolveAsync`, sem mudar o contrato de `/sources/resolve`. A Home abre o modal via `/notes?new=1`. "Nova nota" do mapa não mudou. Sem migration.
+- Validações executadas:
+  - `dotnet test tests/NoteLab.Tests --artifacts-path <temp>` **224/224** (207 anteriores + 17 em `NoteComposerTests`).
+  - `dotnet ef migrations has-pending-model-changes --configuration Release` sem diferenças.
+  - `npm test` **30/30** (25 + 5 em `composeNote.test.js`); `npm run build` aprovado, com o aviso já conhecido de chunk > 500 kB; `oxlint` nos arquivos novos e alterados sem avisos novos.
+  - Suítes HTTP contra Postgres 16 descartável (porta 55432) e API Release na 5099, mensageria `inprocess`, IA sem chave (Fake): `compose` 16/16, `notes` 36/36, `publishing` 30/30, `taxonomy` 6/6, `organize` 12/12.
+  - `source-checks`: 10 ok e 8 falhas. Os 5 casos de `/sources/resolve` passaram. As falhas são do worker de verificação, do arquivamento e das etapas seguintes, que dependem do S3/LocalStack (não estava rodando). Na mesma rodada havia uma alteração não commitada em `SourceCheckWorker.cs`. A relação das falhas com esta entrega não foi isolada.
+- Não verificado: provedor real (DeepSeek ou outro) gerando fontes e gráficos; interface no navegador; suítes com LocalStack.
+- Commit: pendente.
