@@ -12,8 +12,17 @@ public enum ComposeMode
     Rewrite
 }
 
-/// <summary>Fonte sugerida pela IA, ainda não conferida.</summary>
-public sealed record ComposeSourceSuggestion(string Identifier, string Reason);
+/// <summary>
+/// Fonte sugerida pela IA, ainda não conferida. <see cref="Supports"/>: trechos EXATOS do texto gerado que a fonte apoia
+/// (só ficam os que existem no texto; viram citações ancoradas no cliente).
+/// </summary>
+public sealed record ComposeSourceSuggestion(string Identifier, string Reason, IReadOnlyList<string>? Supports = null);
+
+/// <summary>
+/// Origem informada pela IA SEM identificador conferível (ex.: "IBGE, Censo 2022"), ou referência cujo DOI/ISBN/URL
+/// não foi encontrado. Exibida como "Origem informada pela IA — não conferida"; nunca recebe link.
+/// </summary>
+public sealed record ComposeOrigin(string Label, IReadOnlyList<string> Supports, bool FromUnresolvedIdentifier = false);
 
 /// <summary>Gráfico novo proposto pela IA: bloco no formato de NoteContent (sem fontes) + identificador da fonte dos dados.</summary>
 public sealed record ComposeChartDraft(JsonObject Chart, string SourceIdentifier, string SourceReason);
@@ -28,10 +37,11 @@ public sealed record ComposeDraft(
     IReadOnlyList<ComposeChartDraft> NewCharts,
     TaxonomyPreview Taxonomy,
     IReadOnlyList<ComposeSourceSuggestion> Sources,
-    int DiscardedCharts);
+    int DiscardedCharts,
+    IReadOnlyList<ComposeOrigin>? Origins = null);
 
-/// <summary>Fonte sugerida que foi encontrada pela resolução de DOI/ISBN/URL.</summary>
-public sealed record ComposeResolvedSource(string Identifier, string Reason, ResolvedSource Resolved);
+/// <summary>Fonte sugerida que foi encontrada pela resolução de DOI/ISBN/URL, com os trechos que apoia.</summary>
+public sealed record ComposeResolvedSource(string Identifier, string Reason, ResolvedSource Resolved, IReadOnlyList<string>? Supports = null);
 
 /// <summary>Gráfico da prévia: <c>base</c> (copiado da nota base) ou <c>generated</c> (com fonte conferida em <see cref="SourceIndex"/>).</summary>
 public sealed record ComposeChartOut(JsonObject Chart, string Origin, int? SourceIndex);
@@ -43,7 +53,8 @@ public sealed record ComposeResult(
     TaxonomyPreview Taxonomy,
     IReadOnlyList<ComposeResolvedSource> Sources,
     int DiscardedSources,
-    int DiscardedCharts);
+    int DiscardedCharts,
+    IReadOnlyList<ComposeOrigin>? Origins = null);
 
 /// <summary>Texto da nota base enviado à IA; gráficos viram marcadores [[grafico:N]] e voltam intactos.</summary>
 public sealed record ComposeBaseText(string Text, IReadOnlyList<JsonObject> Charts);
@@ -57,6 +68,10 @@ public static partial class NoteComposer
     public const string Marker = "NOTE-COMPOSE";
     public const int MaxInstructionsChars = 4_000;
     public const int MaxSources = 5;
+    public const int MaxOrigins = 5;
+    public const int MaxSupportsPerSource = 5;
+    public const int MaxSupportLength = 500;
+    public const int MaxOriginLabelLength = 200;
     public const int MaxNewCharts = 3;
     public const int MaxOutputTokens = 8_000;
 
@@ -69,7 +84,8 @@ public static partial class NoteComposer
         "\"charts\": [{\"chartType\": \"line\"|\"bar\", \"title\": string, \"labels\": [string], \"series\": [{\"name\": string, \"values\": [number|null]}], " +
         "\"sourceIdentifier\": \"DOI, ISBN ou URL\", \"sourceReason\": string}], " +
         "\"category\": {\"name\": string, \"reason\": string}|null, \"tags\": [{\"name\": string, \"reason\": string}], " +
-        "\"sources\": [{\"identifier\": \"DOI, ISBN ou URL\", \"reason\": string}]}. " +
+        "\"sources\": [{\"identifier\": \"DOI, ISBN ou URL\", \"reason\": string, \"supports\": [string]}], " +
+        "\"origins\": [{\"label\": string, \"supports\": [string]}]}. " +
         "Regras: no modo \"generate\", escreva a nota a partir do título e da descrição; no modo \"rewrite\", modifique a nota base " +
         "conforme a instrução. Itens de lista ficam um por linha em \"text\", sem marcadores; sem markdown (#, **). " +
         "Cada marcador [[grafico:N]] da nota base é um gráfico existente: mantenha-o como {\"type\":\"chart\",\"ref\":N} e nunca altere seus números. " +
@@ -77,6 +93,10 @@ public static partial class NoteComposer
         "Só crie gráfico com dados numéricos tirados de uma fonte real e identificável (DOI, ISBN ou URL) em \"sourceIdentifier\"; " +
         "sem fonte, NÃO crie o gráfico. Em \"sources\", só DOI, ISBN ou URL que você tenha certeza de que existem; " +
         "na dúvida, deixe a lista vazia. Não invente dados, números, citações nem fontes. " +
+        "Em \"supports\" de cada fonte, copie EXATAMENTE (mesmas palavras e pontuação) de 1 a 5 trechos curtos do texto da nota " +
+        "que vieram dessa fonte. Em \"origins\", liste de onde vieram informações que não têm DOI, ISBN ou URL " +
+        "(ex.: \"IBGE, Censo 2022\", \"Relatório anual do Banco Central\"), também com \"supports\"; " +
+        "se a informação vem de conhecimento geral sem origem identificável, não a liste. " +
         "Categoria e até cinco tags: prefira nomes existentes quando combinarem.";
 
     private static readonly string[] TextTypes = ["heading", "paragraph", "list", "quote", "code", "table"];
@@ -274,6 +294,9 @@ public static partial class NoteComposer
             taxonomy = new TaxonomyPreview(null, []);
         }
 
+        // Texto gerado: os trechos de "supports" só valem se existirem nele (nada de citação para texto que não está na nota).
+        string noteText = string.Join("\n", blocks.Where(b => b.Text is not null).Select(b => b.Text));
+
         var sources = new List<ComposeSourceSuggestion>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (root["sources"] is JsonArray sourceRows)
@@ -286,7 +309,9 @@ public static partial class NoteComposer
                     continue;
                 }
 
-                sources.Add(new ComposeSourceSuggestion(identifier, Clip(Str((JsonObject)row!, "reason") ?? "Sugestão da IA", 200)));
+                var source = (JsonObject)row!;
+                sources.Add(new ComposeSourceSuggestion(identifier, Clip(Str(source, "reason") ?? "Sugestão da IA", 200),
+                    ParseSupports(source, noteText)));
                 if (sources.Count == MaxSources)
                 {
                     break;
@@ -294,8 +319,60 @@ public static partial class NoteComposer
             }
         }
 
+        var origins = new List<ComposeOrigin>();
+        var seenOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (root["origins"] is JsonArray originRows)
+        {
+            foreach (JsonNode? row in originRows)
+            {
+                if (row is not JsonObject origin)
+                {
+                    continue;
+                }
+
+                string label = Clip(Str(origin, "label")?.Trim() ?? "", MaxOriginLabelLength);
+                if (label.Length == 0 || !seenOrigins.Add(label))
+                {
+                    continue;
+                }
+
+                origins.Add(new ComposeOrigin(label, ParseSupports(origin, noteText)));
+                if (origins.Count == MaxOrigins)
+                {
+                    break;
+                }
+            }
+        }
+
         string? title = Str(root, "title")?.Trim();
-        return new ComposeDraft(string.IsNullOrEmpty(title) ? null : Clip(title, 100), blocks, newCharts, taxonomy, sources, discarded);
+        return new ComposeDraft(string.IsNullOrEmpty(title) ? null : Clip(title, 100), blocks, newCharts, taxonomy, sources, discarded, origins);
+    }
+
+    /// <summary>Trechos de "supports" que existem EXATAMENTE no texto da nota (sem duplicatas, até o limite).</summary>
+    private static List<string> ParseSupports(JsonObject row, string noteText)
+    {
+        var supports = new List<string>();
+        if (row["supports"] is not JsonArray items)
+        {
+            return supports;
+        }
+
+        foreach (JsonNode? item in items)
+        {
+            string quote = item is JsonValue v && v.TryGetValue(out string? s) ? s?.Trim() ?? "" : "";
+            if (quote.Length is < 3 or > MaxSupportLength || supports.Contains(quote) || !noteText.Contains(quote, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            supports.Add(quote);
+            if (supports.Count == MaxSupportsPerSource)
+            {
+                break;
+            }
+        }
+
+        return supports;
     }
 
     /// <summary>Monta o bloco no formato de NoteContent e valida com a mesma regra do salvamento. Sem fonte → null.</summary>
@@ -343,11 +420,17 @@ public static partial class NoteComposer
         IReadOnlyDictionary<string, ResolvedSource> resolved)
     {
         var sources = new List<ComposeResolvedSource>();
+        var origins = new List<ComposeOrigin>(draft.Origins ?? []);
         foreach (ComposeSourceSuggestion s in draft.Sources)
         {
             if (resolved.TryGetValue(s.Identifier, out ResolvedSource? r))
             {
-                sources.Add(new ComposeResolvedSource(s.Identifier, s.Reason, r));
+                sources.Add(new ComposeResolvedSource(s.Identifier, s.Reason, r, s.Supports ?? []));
+            }
+            else
+            {
+                // DOI/ISBN/URL não encontrado: não vira fonte conferida, mas a origem declarada continua visível como "não conferida".
+                origins.Add(new ComposeOrigin(Clip(s.Identifier, MaxOriginLabelLength), s.Supports ?? [], FromUnresolvedIdentifier: true));
             }
         }
 
@@ -390,7 +473,7 @@ public static partial class NoteComposer
             blocks.Add(block);
         }
 
-        return new ComposeResult(draft.Title, blocks, charts, draft.Taxonomy, sources, discardedSources, discardedCharts);
+        return new ComposeResult(draft.Title, blocks, charts, draft.Taxonomy, sources, discardedSources, discardedCharts, origins);
     }
 
     private static JsonObject ChartSource(ResolvedSource source)

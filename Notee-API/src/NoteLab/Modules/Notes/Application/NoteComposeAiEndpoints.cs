@@ -140,7 +140,10 @@ public static class NoteComposeAiEndpoints
                 charts = result.Charts.Select(c => new { chart = c.Chart, c.Origin, c.SourceIndex }),
                 category = result.Taxonomy.Category,
                 tags = result.Taxonomy.Tags,
-                sources = result.Sources.Select(s => new { s.Identifier, s.Reason, s.Resolved }),
+                // supports: trechos exatos do texto que a fonte apoia (viram citações ancoradas no cliente).
+                sources = result.Sources.Select(s => new { s.Identifier, s.Reason, s.Resolved, supports = s.Supports ?? [] }),
+                // Origens sem DOI/ISBN/URL conferido: exibidas como "Origem informada pela IA — não conferida", sem link.
+                origins = (result.Origins ?? []).Select(o => new { o.Label, o.Supports, unresolvedIdentifier = o.FromUnresolvedIdentifier }),
                 attribution = baseNote is { IsOwn: false } ? new
                 {
                     kind = "website",

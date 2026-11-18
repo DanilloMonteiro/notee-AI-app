@@ -7,6 +7,12 @@ public sealed record AiSource(string Title, string Url);
 public sealed record AiAnswer(string Text, IReadOnlyList<AiSource> Sources, int? InputTokens = null, int? OutputTokens = null)
 {
     public static AiAnswer WithoutSources(string text) => new(text, []);
+
+    /// <summary>
+    /// Referências que a IA DECLAROU (provedores sem busca na web, ADR-045). Ainda não conferidas:
+    /// o worker confere cada uma antes de gravar; as não encontradas viram "origem não conferida".
+    /// </summary>
+    public IReadOnlyList<DeclaredReference> DeclaredReferences { get; init; } = [];
 }
 
 /// <summary>Resposta de uma tarefa genérica (sem busca na web) com o uso reportado pelo provedor.</summary>

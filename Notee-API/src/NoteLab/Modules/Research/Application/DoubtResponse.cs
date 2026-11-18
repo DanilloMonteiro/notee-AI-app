@@ -61,4 +61,8 @@ public record ResearchJobResponse(
 
 public record CreateBoardDoubtRequest(string Question);
 
-public record SourceResponse(string Title, string Url);
+/// <summary>
+/// Fonte da resposta. <c>Verified = false</c>: origem informada pela IA e não conferida (sem link).
+/// O número nos marcadores [n] da resposta é a posição na lista (1, 2, …).
+/// </summary>
+public record SourceResponse(string Title, string? Url, bool Verified = true);

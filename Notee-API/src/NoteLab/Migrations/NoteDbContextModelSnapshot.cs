@@ -1349,9 +1349,11 @@ namespace NoteLab.Migrations
                         .HasColumnType("character varying(300)");
 
                     b.Property<string>("Url")
-                        .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
+
+                    b.Property<bool>("Verified")
+                        .HasColumnType("boolean");
 
                     b.HasKey("Id");
 

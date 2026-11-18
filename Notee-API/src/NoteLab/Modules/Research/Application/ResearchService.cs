@@ -169,7 +169,22 @@ public sealed class ResearchService
 
     public Task<List<SourceResponse>> SourcesAsync(Guid doubtId, CancellationToken ct) =>
         _db.ResearchSources.AsNoTracking().Where(s => s.DoubtId == doubtId).OrderBy(s => s.Position)
-            .Select(s => new SourceResponse(s.Title, s.Url)).ToListAsync(ct);
+            .Select(s => new SourceResponse(s.Title, s.Url, s.Verified)).ToListAsync(ct);
+
+    /// <summary>Fontes de várias dúvidas numa consulta só (lista de dúvidas da nota).</summary>
+    public async Task<Dictionary<Guid, List<SourceResponse>>> SourcesByDoubtsAsync(IReadOnlyCollection<Guid> doubtIds, CancellationToken ct)
+    {
+        if (doubtIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await _db.ResearchSources.AsNoTracking().Where(s => doubtIds.Contains(s.DoubtId))
+            .OrderBy(s => s.DoubtId).ThenBy(s => s.Position)
+            .Select(s => new { s.DoubtId, Source = new SourceResponse(s.Title, s.Url, s.Verified) })
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.DoubtId).ToDictionary(g => g.Key, g => g.Select(r => r.Source).ToList());
+    }
 
     public async Task<Dictionary<Guid, ResearchJob>> LatestJobsAsync(IEnumerable<Guid> doubtIds, CancellationToken ct)
     {

@@ -199,7 +199,10 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
         {
             e.HasKey(s => s.Id);
             e.Property(s => s.Title).HasMaxLength(300).IsRequired();
-            e.Property(s => s.Url).HasMaxLength(2048).IsRequired();
+            // ADR-045: origem declarada e não conferida não tem link (Url nulo, Verified = false).
+            // Sem HasDefaultValue: com default no banco o EF trocaria o false de Declared pelo default.
+            // As linhas antigas recebem true na migration (eram todas links da busca do provedor).
+            e.Property(s => s.Url).HasMaxLength(2048);
             e.HasOne<Doubt>().WithMany().HasForeignKey(s => s.DoubtId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.DoubtId, s.Position });
         });

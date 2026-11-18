@@ -15,6 +15,8 @@ namespace NoteLab.Infrastructure;
 public class DoubtProcessingWorker : BackgroundService
 {
     private const int BatchSize = 5;
+    /// <summary>Tempo máximo para conferir cada referência declarada pela IA (ADR-045).</summary>
+    private static readonly TimeSpan ReferenceTimeout = TimeSpan.FromSeconds(10);
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DoubtProcessingWorker> _logger;
     private readonly string _workerId = $"{Environment.MachineName}:{Guid.NewGuid():N}"[..40];
@@ -132,6 +134,24 @@ public class DoubtProcessingWorker : BackgroundService
         {
             AiAnswer answer = await selector.For(prefs).AnswerAsync(doubt.Question, doubt.Anchor?.ExactQuote ?? string.Empty, ct);
 
+            // ADR-045: referências declaradas pela IA são conferidas aqui (mesmo resolvedor da criação de nota);
+            // só as encontradas ganham link. Cada consulta tem tempo limite; falha = não conferida.
+            var http = jobScope.ServiceProvider.GetRequiredService<SafeHttpClient>();
+            var config = jobScope.ServiceProvider.GetRequiredService<IConfiguration>();
+            (string answerText, List<ResearchSourceDraft> sourceDrafts) = await ResearchReferences.AssembleAsync(answer, async (identifier, token) =>
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+                timeout.CancelAfter(ReferenceTimeout);
+                try
+                {
+                    return await SourceResolutionEndpoints.TryResolveAsync(identifier, http, config, timeout.Token);
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    return null; // tempo esgotado = não conferida
+                }
+            }, ct);
+
             // O usuário pode ter cancelado enquanto o provider respondia.
             await db.Entry(job).ReloadAsync(ct);
             if (job.FencingToken != claimed.FencingToken)
@@ -151,12 +171,15 @@ public class DoubtProcessingWorker : BackgroundService
                 // Fontes da nova resposta substituem as da anterior; sem fontes => "Sem fonte".
                 db.ResearchSources.RemoveRange(await db.ResearchSources.Where(s => s.DoubtId == doubt.Id).ToListAsync(ct)); // mesma gravação (fencing)
                 int position = 0;
-                foreach (AiSource source in answer.Sources)
+                foreach (ResearchSourceDraft source in sourceDrafts)
                 {
-                    db.ResearchSources.Add(new ResearchSource(doubt.Id, job.Id, position++, source.Title, source.Url));
+                    db.ResearchSources.Add(source.Verified && source.Url is not null
+                        ? new ResearchSource(doubt.Id, job.Id, position++, source.Title, source.Url)
+                        : ResearchSource.Declared(doubt.Id, job.Id, position++, source.Title));
                 }
 
-                doubt.Complete(answer.Text, providerName, answer.Sources.Count > 0 ? AnswerEvidence.Sourced : AnswerEvidence.NoSource);
+                // "Com fonte" só quando há ao menos uma fonte conferida; origens declaradas não contam.
+                doubt.Complete(answerText, providerName, sourceDrafts.Any(s => s.Verified) ? AnswerEvidence.Sourced : AnswerEvidence.NoSource);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

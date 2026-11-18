@@ -26,16 +26,24 @@ public abstract class OpenAiCompatibleService : IAiService
     public async Task<string> GetAnswerAsync(string question, string exactQuote, CancellationToken ct) =>
         (await AnswerAsync(question, exactQuote, ct)).Text;
 
-    public async Task<AiAnswer> AnswerAsync(string question, string exactQuote, CancellationToken ct) =>
-        Parse(await SendAsync(new
+    /// <summary>
+    /// Sem busca na web: a IA responde com [n] e DECLARA as referências (ADR-045). Elas não viram fonte aqui;
+    /// o worker confere cada uma. Mesmo escopo de dados de antes (só a pergunta e o trecho).
+    /// </summary>
+    public async Task<AiAnswer> AnswerAsync(string question, string exactQuote, CancellationToken ct)
+    {
+        AiAnswer raw = Parse(await SendAsync(new
         {
             model = _settings.ModelFor(_provider),
             messages = new object[]
             {
-                new { role = "system", content = AiPrompts.System },
+                new { role = "system", content = ResearchAnswerFormat.System },
                 new { role = "user", content = AiPrompts.User(question, exactQuote) },
             },
         }, ct));
+        (string text, List<DeclaredReference> refs) = ResearchAnswerFormat.Parse(raw.Text);
+        return raw with { Text = text, DeclaredReferences = refs };
+    }
 
     public async Task<AiCompletion> CompleteAsync(string system, string user, int maxOutputTokens, CancellationToken ct)
     {

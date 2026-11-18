@@ -55,6 +55,61 @@ public class NoteComposerTests
     }
 
     [Fact]
+    public void Parse_keeps_only_supports_that_exist_in_the_generated_text()
+    {
+        string json = """
+            {"blocks":[{"type":"paragraph","text":"O PIB caiu 3,5% em 2015. A inflação subiu."}],
+             "sources":[{"identifier":"https://www.ibge.gov.br/contas","reason":"série oficial",
+                         "supports":["O PIB caiu 3,5% em 2015.","trecho que não está na nota","O PIB caiu 3,5% em 2015.","ok"]}],
+             "origins":[{"label":"Banco Central, Relatório de Inflação","supports":["A inflação subiu."]},
+                        {"label":"  ","supports":[]},{"label":"Banco Central, Relatório de Inflação","supports":[]}]}
+            """;
+
+        ComposeDraft draft = NoteComposer.Parse(json, 0, [], []);
+
+        // Só trechos que existem no texto, sem duplicata e com tamanho mínimo.
+        Assert.Equal(["O PIB caiu 3,5% em 2015."], Assert.Single(draft.Sources).Supports);
+        ComposeOrigin origin = Assert.Single(draft.Origins!);
+        Assert.Equal("Banco Central, Relatório de Inflação", origin.Label);
+        Assert.Equal(["A inflação subiu."], origin.Supports);
+        Assert.False(origin.FromUnresolvedIdentifier);
+    }
+
+    [Fact]
+    public void Parse_limits_origins_and_accepts_responses_without_the_new_fields()
+    {
+        string origins = string.Join(',', Enumerable.Range(1, 8).Select(i => $$"""{"label":"Origem {{i}}"}"""));
+        ComposeDraft draft = NoteComposer.Parse($$"""{"blocks":[{"type":"paragraph","text":"Texto"}],"origins":[{{origins}}]}""", 0, [], []);
+        Assert.Equal(NoteComposer.MaxOrigins, draft.Origins!.Count);
+        Assert.All(draft.Origins, o => Assert.Empty(o.Supports));
+
+        ComposeDraft old = NoteComposer.Parse("""{"blocks":[{"type":"paragraph","text":"Texto"}],"sources":[{"identifier":"https://ex.org","reason":"r"}]}""", 0, [], []);
+        Assert.Empty(old.Origins!);
+        Assert.Empty(Assert.Single(old.Sources).Supports!);
+    }
+
+    [Fact]
+    public void Assemble_keeps_supports_and_turns_unresolved_identifier_into_unverified_origin()
+    {
+        string json = """
+            {"blocks":[{"type":"paragraph","text":"O PIB caiu 3,5% em 2015. Dado de outra fonte."}],
+             "sources":[{"identifier":"https://www.ibge.gov.br/contas","reason":"r","supports":["O PIB caiu 3,5% em 2015."]},
+                        {"identifier":"10.9999/nao-existe","reason":"r","supports":["Dado de outra fonte."]}]}
+            """;
+        ComposeDraft draft = NoteComposer.Parse(json, 0, [], []);
+        var resolved = new Dictionary<string, ResolvedSource>(StringComparer.OrdinalIgnoreCase) { ["https://www.ibge.gov.br/contas"] = Ibge };
+
+        ComposeResult result = NoteComposer.Assemble(draft, [], resolved);
+
+        Assert.Equal(["O PIB caiu 3,5% em 2015."], Assert.Single(result.Sources).Supports);
+        Assert.Equal(1, result.DiscardedSources);
+        ComposeOrigin origin = Assert.Single(result.Origins!);
+        Assert.Equal("10.9999/nao-existe", origin.Label);
+        Assert.True(origin.FromUnresolvedIdentifier);
+        Assert.Equal(["Dado de outra fonte."], origin.Supports);
+    }
+
+    [Fact]
     public void Parse_rejects_response_without_text()
     {
         Assert.Throws<OrganizeRejectedException>(() => NoteComposer.Parse("não é json", 0, [], []));

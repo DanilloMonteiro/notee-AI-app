@@ -42,10 +42,12 @@ public static class ResearchEndpoints
             return Results.Ok(doubts.Select(d => DoubtResponse.From(d)).ToList());
         });
 
-        group.MapGet("/note/{noteId:guid}", async (Guid noteId, IDoubtRepository doubtRepo, ClaimsPrincipal user, CancellationToken ct) =>
+        // Inclui as fontes de cada dúvida: o editor mostra a resposta com [n] e o link da fonte (ADR-045).
+        group.MapGet("/note/{noteId:guid}", async (Guid noteId, IDoubtRepository doubtRepo, ResearchService service, ClaimsPrincipal user, CancellationToken ct) =>
         {
             List<Doubt> doubts = await doubtRepo.GetByNoteIdAsync(Owner(user), noteId, ct);
-            return Results.Ok(doubts.Select(d => DoubtResponse.From(d)).ToList());
+            Dictionary<Guid, List<SourceResponse>> sources = await service.SourcesByDoubtsAsync(doubts.Select(d => d.Id).ToList(), ct);
+            return Results.Ok(doubts.Select(d => DoubtResponse.From(d) with { Sources = sources.GetValueOrDefault(d.Id) ?? [] }).ToList());
         });
 
         group.MapDelete("/{id:guid}", async (Guid id, IDoubtRepository doubtRepo, ClaimsPrincipal user, CancellationToken ct) =>
