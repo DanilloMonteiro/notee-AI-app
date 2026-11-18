@@ -136,13 +136,21 @@ public class DoubtProcessingWorker : BackgroundService
             var config = jobScope.ServiceProvider.GetRequiredService<IConfiguration>();
             IAiService ai = selector.For(prefs);
 
-            // ADR-046: com o DeepSeek ativo, o Notee pesquisa na web e a resposta usa SÓ os resultados (fontes reais).
-            // Sem busca disponível, sem resultado bom ou acima do teto diário: segue pelo caminho do ADR-045.
+            // ADR-047: artigos acadêmicos (OpenAlex) primeiro; a web do DeepSeek só completa quando faltam artigos
+            // (ou é a única origem, conforme a preferência). A resposta usa SÓ os resultados (fontes reais).
+            // Sem origem disponível, sem resultado bom ou acima do teto diário: segue pelo caminho do ADR-045.
             GroundedOutcome? grounded = null;
-            var searchOptions = WebSearchOptions.From(config);
-            if (providerName == AiProviders.DeepSeek && searchOptions.Enabled && await WithinDailySearchCapAsync(db, searchOptions, ct))
+            var search = jobScope.ServiceProvider.GetRequiredService<SourceSearchService>();
+            SourceMode mode = SourceModes.Parse(prefs.SourceMode) ?? SourceMode.Mixed;
+            // Pesquisar fora do Notee exige o consentimento vigente (o simulador local não pesquisa).
+            bool external = prefs.AllowsExternalAi && providerName != "fake";
+            bool allowAcademic = external && await WithinAcademicCapAsync(db, search.Options, ct);
+            // A busca na web usa a chave e o consentimento do DeepSeek: só com ele como IA ativa.
+            bool allowWeb = external && providerName == AiProviders.DeepSeek && await WithinDailySearchCapAsync(db, search.WebOptions, ct);
+            if (mode != SourceMode.None && (allowAcademic || allowWeb))
             {
-                grounded = await GroundedAnswer.TryAnswerAsync(jobScope.ServiceProvider.GetRequiredService<IWebSearch>(), searchOptions,
+                SourceRules rules = await SourceRuleEndpoints.LoadAsync(db, job.OwnerId, search.Options, ct);
+                grounded = await GroundedAnswer.TryAnswerAsync(search, mode, rules, allowAcademic, allowWeb,
                     ai.CompleteAsync, doubt.Question, quote, ct);
             }
 
@@ -150,14 +158,16 @@ public class DoubtProcessingWorker : BackgroundService
             List<ResearchSourceDraft> sourceDrafts;
             int? inputTokens;
             int? outputTokens;
-            if (grounded is not null)
+            if (grounded is { Answered: true })
             {
-                (answerText, sourceDrafts, inputTokens, outputTokens) = (grounded.Text, grounded.Sources, grounded.InputTokens, grounded.OutputTokens);
+                (answerText, sourceDrafts, inputTokens, outputTokens) = (grounded.Text!, grounded.Sources, grounded.InputTokens, grounded.OutputTokens);
             }
             else
             {
                 AiAnswer answer = await ai.AnswerAsync(doubt.Question, quote, ct);
-                (inputTokens, outputTokens) = (answer.InputTokens, answer.OutputTokens);
+                // Pesquisou sem achar nada bom: a consulta pt/en também foi paga e entra na conta.
+                (inputTokens, outputTokens) = (GroundedAnswer.Sum(grounded?.InputTokens, answer.InputTokens),
+                    GroundedAnswer.Sum(grounded?.OutputTokens, answer.OutputTokens));
 
                 // ADR-045: referências declaradas pela IA são conferidas aqui (mesmo resolvedor da criação de nota);
                 // só as encontradas ganham link. Cada consulta tem tempo limite; falha = não conferida.
@@ -192,7 +202,7 @@ public class DoubtProcessingWorker : BackgroundService
             }
             else
             {
-                job.Succeed(providerName, now, inputTokens, outputTokens, grounded?.WebSearches ?? 0);
+                job.Succeed(providerName, now, inputTokens, outputTokens, grounded?.WebSearches ?? 0, grounded?.AcademicSearches ?? 0);
                 // Fontes da nova resposta substituem as da anterior; sem fontes => "Sem fonte".
                 db.ResearchSources.RemoveRange(await db.ResearchSources.Where(s => s.DoubtId == doubt.Id).ToListAsync(ct)); // mesma gravação (fencing)
                 int position = 0;
@@ -201,7 +211,8 @@ public class DoubtProcessingWorker : BackgroundService
                     db.ResearchSources.Add((source.Verified && source.Url is not null
                         ? new ResearchSource(doubt.Id, job.Id, position++, source.Title, source.Url)
                         : ResearchSource.Declared(doubt.Id, job.Id, position++, source.Title))
-                        .WithSearchMetadata(source.SiteName, source.PublishedAt, source.Authority));
+                        .WithSearchMetadata(source.SiteName, source.PublishedAt, source.Authority)
+                        .WithOrigin(source.Origin, source.Doi, source.Authors, source.Trusted));
                 }
 
                 // "Com fonte" só quando há ao menos uma fonte conferida; origens declaradas não contam.
@@ -245,6 +256,19 @@ public class DoubtProcessingWorker : BackgroundService
         DateTimeOffset since = new(DateTime.UtcNow.Date, TimeSpan.Zero);
         int used = await db.ResearchJobs.AsNoTracking().Where(j => j.CompletedAt >= since).SumAsync(j => j.WebSearches, ct);
         return used < options.MaxPerDay;
+    }
+
+    /// <summary>Teto diário de buscas de artigos do servidor todo (Research:Academic:MaxPerDay; 0 = sem busca).</summary>
+    private static async Task<bool> WithinAcademicCapAsync(NoteDbContext db, SourceSearchOptions options, CancellationToken ct)
+    {
+        if (options.AcademicMaxPerDay <= 0)
+        {
+            return false;
+        }
+
+        DateTimeOffset since = new(DateTime.UtcNow.Date, TimeSpan.Zero);
+        int used = await db.ResearchJobs.AsNoTracking().Where(j => j.CompletedAt >= since).SumAsync(j => j.AcademicSearches, ct);
+        return used < options.AcademicMaxPerDay;
     }
 
     private async Task SaveFencedAsync(NoteDbContext db, ResearchJob job, CancellationToken ct)

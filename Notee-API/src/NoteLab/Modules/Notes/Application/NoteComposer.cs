@@ -97,7 +97,8 @@ public static partial class NoteComposer
         "que vieram dessa fonte. Em \"origins\", liste de onde vieram informações que não têm DOI, ISBN ou URL " +
         "(ex.: \"IBGE, Censo 2022\", \"Relatório anual do Banco Central\"), também com \"supports\"; " +
         "se a informação vem de conhecimento geral sem origem identificável, não a liste. " +
-        "Se a mensagem trouxer \"searchResults\" (resultados de busca numerados), escreva a nota com base neles: fatos, números e datas " +
+        "Se a mensagem trouxer \"searchResults\" (resultados de busca numerados: artigos acadêmicos e/ou páginas da web), escreva a nota com base neles " +
+        "(prefira os de tipo \"article\"): fatos, números e datas " +
         "devem vir desses resultados; em \"sources\" use {\"result\": n, \"reason\": string, \"supports\": [string]} para cada resultado usado " +
         "(no lugar de \"identifier\") e não invente outras fontes. " +
         "Categoria e até cinco tags: prefira nomes existentes quando combinarem.";
@@ -106,9 +107,9 @@ public static partial class NoteComposer
 
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    /// <param name="searchResults">Resultados da busca na web (ADR-046), numerados a partir de 1; null = sem busca.</param>
+    /// <param name="searchResults">Resultados da busca combinada (ADR-046/047), numerados a partir de 1; null = sem busca.</param>
     public static string UserPrompt(ComposeMode mode, string title, string? instructions, string? baseTitle, ComposeBaseText? baseText,
-        IEnumerable<Category> categories, IEnumerable<Tag> tags, IReadOnlyList<WebSearchResult>? searchResults = null)
+        IEnumerable<Category> categories, IEnumerable<Tag> tags, IReadOnlyList<SourceHit>? searchResults = null)
     {
         var root = JsonSerializer.SerializeToNode(new
         {
@@ -126,10 +127,12 @@ public static partial class NoteComposer
             root["searchResults"] = JsonSerializer.SerializeToNode(searchResults.Select((r, i) => new
             {
                 n = i + 1,
+                type = r.Origin == SourceOrigin.Academic ? "article" : "webpage",
                 title = r.Title,
+                authors = r.Authors.Count > 0 ? string.Join(", ", r.Authors.Take(3)) : null,
                 site = r.SiteName,
                 date = r.PublishedAt?.ToString("yyyy-MM-dd"),
-                summary = r.Summary.Length > 900 ? r.Summary[..900] : r.Summary.Length > 0 ? r.Summary : r.Snippet,
+                summary = r.Excerpt.Length > 900 ? r.Excerpt[..900] : r.Excerpt,
             }), Json);
         }
 
@@ -139,9 +142,13 @@ public static partial class NoteComposer
     /// <summary>Identificador interno de uma fonte que é o resultado N da busca (não passa pelo resolvedor).</summary>
     public static string SearchResultId(int n) => $"busca:{n}";
 
-    /// <summary>Resultado da busca como fonte já conferida (página real devolvida pelo buscador).</summary>
-    public static ResolvedSource AsResolvedSource(WebSearchResult r) =>
-        new("website", r.Title, [], r.PublishedAt?.Year, r.SiteName, null, null, r.Url, null, "deepseek-search", null);
+    /// <summary>
+    /// Resultado da busca como fonte já conferida: artigo (OpenAlex) vira <c>article</c> com DOI, autores e periódico —
+    /// a checagem pelo Crossref passa a confirmá-lo; página da web vira <c>website</c>.
+    /// </summary>
+    public static ResolvedSource AsResolvedSource(SourceHit r) => r.Origin == SourceOrigin.Academic
+        ? new("article", r.Title, r.Authors.ToList(), r.PublishedAt?.Year, r.SiteName, r.Doi, null, r.Url, null, r.Provider, null)
+        : new("website", r.Title, [], r.PublishedAt?.Year, r.SiteName, null, null, r.Url, null, r.Provider, null);
 
     /// <summary>Estimativa grosseira (≈ 4 caracteres por token), igual à do organizar com IA.</summary>
     public static int EstimateTokens(string userPrompt) => (int)Math.Ceiling((SystemPrompt.Length + userPrompt.Length) / 4.0);

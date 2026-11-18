@@ -4,8 +4,10 @@ namespace NoteLab.Application;
 /// Fonte da resposta pronta para gravar: conferida (com link) ou só declarada pela IA (sem link).
 /// Site, data e autoridade vêm da busca na web (ADR-046), quando houver.
 /// </summary>
+/// Origem (web|academic), DOI, autores e "confiável" vêm da busca combinada (ADR-047).
 public sealed record ResearchSourceDraft(string Title, string? Url, bool Verified,
-    string? SiteName = null, DateTimeOffset? PublishedAt = null, int? Authority = null);
+    string? SiteName = null, DateTimeOffset? PublishedAt = null, int? Authority = null,
+    string? Origin = null, string? Doi = null, IReadOnlyList<string>? Authors = null, bool Trusted = false);
 
 /// <summary>
 /// Junta as fontes de uma resposta de dúvida (ADR-045):

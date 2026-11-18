@@ -28,6 +28,26 @@ public sealed class ResearchSource
     public int? Authority { get; private set; }
 
     public const int MaxSiteNameLength = 200;
+    public const int MaxDoiLength = 300;
+    public const int MaxAuthorsLength = 500;
+
+    /// <summary>ADR-047: "web" ou "academic" (null em respostas antigas ou origens declaradas).</summary>
+    public string? Origin { get; private set; }
+    public string? Doi { get; private set; }
+    /// <summary>Autores separados por "; " (artigos).</summary>
+    public string? Authors { get; private set; }
+    /// <summary>Site marcado como confiável pela pessoa quando a fonte foi encontrada.</summary>
+    public bool Trusted { get; private set; }
+
+    public ResearchSource WithOrigin(string? origin, string? doi, IEnumerable<string>? authors, bool trusted)
+    {
+        Origin = origin is "web" or "academic" ? origin : null;
+        Doi = string.IsNullOrWhiteSpace(doi) ? null : doi.Trim() is { Length: > MaxDoiLength } d ? d[..MaxDoiLength] : doi.Trim();
+        string joined = string.Join("; ", (authors ?? []).Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim()));
+        Authors = joined.Length == 0 ? null : joined.Length > MaxAuthorsLength ? joined[..MaxAuthorsLength] : joined;
+        Trusted = trusted;
+        return this;
+    }
 
     public ResearchSource WithSearchMetadata(string? siteName, DateTimeOffset? publishedAt, int? authority)
     {

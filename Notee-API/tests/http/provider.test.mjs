@@ -56,8 +56,10 @@ for (let i = 0; i < 40; i++) {
 }
 ok(doubt.status === 'Completed' && doubt.answerProvider === 'gemini', 'resposta do provider externo');
 ok(doubt.evidence === 'Sourced' && doubt.sources.length === 1 && doubt.sources[0].url === 'https://example.org/fonte', 'fontes devolvidas são registradas');
-ok(doubt.latestJob.inputTokens === 10 && doubt.latestJob.outputTokens === 5, 'uso de tokens registrado no job');
-ok(requests.length === 1 && requests[0].key === 'fake-key' && !requests[0].url.includes('key='), 'chave enviada no cabeçalho, não na URL');
+// ADR-047: com consentimento há antes a consulta curta de palavras-chave (pt/en) para a busca de artigos;
+// sem OpenAlex alcançável aqui, a resposta segue pelo Gemini com a busca dele, e os tokens das duas chamadas entram no job.
+ok(doubt.latestJob.inputTokens === 20 && doubt.latestJob.outputTokens === 10, 'uso de tokens registrado no job (palavras-chave + resposta)');
+ok(requests.length === 2 && requests.every(r => r.key === 'fake-key' && !r.url.includes('key=')), 'chave enviada no cabeçalho, não na URL');
 const sent = JSON.stringify(requests[0].body);
 ok(sent.includes('Com consentimento?') && !sent.includes('conteúdo privado'), 'só a pergunta/trecho são enviados, não a nota inteira');
 

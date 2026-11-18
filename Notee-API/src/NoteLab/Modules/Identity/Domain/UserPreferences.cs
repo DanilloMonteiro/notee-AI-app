@@ -7,8 +7,11 @@ namespace NoteLab.Domain;
 public sealed class UserPreferences
 {
     /// <summary>Versão do texto de consentimento apresentado ao usuário.</summary>
-    /// <remarks>v2 (09/11/2026): o provedor passa a buscar na web para citar fontes.</remarks>
-    public const int CurrentConsentVersion = 2;
+    /// <remarks>
+    /// v2 (09/11/2026): o provedor passa a buscar na web para citar fontes.
+    /// v3 (18/11/2026): a pergunta (em palavras-chave) também vai à base de artigos OpenAlex (ADR-047).
+    /// </remarks>
+    public const int CurrentConsentVersion = 3;
 
     public string UserId { get; private set; }
     public bool ResearchEnabled { get; private set; } = true;
@@ -17,6 +20,8 @@ public sealed class UserPreferences
     public bool ExternalAiConsent { get; private set; }
     public int? ConsentVersion { get; private set; }
     public DateTimeOffset? ConsentedAt { get; private set; }
+    /// <summary>Origem padrão das fontes: mixed (artigos primeiro), academic, web ou none (ADR-047).</summary>
+    public string SourceMode { get; private set; } = "mixed";
     public long Version { get; private set; } = 1;
     public DateTimeOffset UpdatedAt { get; private set; }
 
@@ -41,6 +46,18 @@ public sealed class UserPreferences
     public void SetAutoResearch(bool enabled)
     {
         AutoResearch = enabled;
+        Touch();
+    }
+
+    public void SetSourceMode(string mode)
+    {
+        string value = (mode ?? "").Trim().ToLowerInvariant();
+        if (value is not ("mixed" or "academic" or "web" or "none"))
+        {
+            throw new DomainException("Origem das fontes inválida (use mixed, academic, web ou none).");
+        }
+
+        SourceMode = value;
         Touch();
     }
 

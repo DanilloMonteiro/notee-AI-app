@@ -66,6 +66,8 @@ jobs:
       DeepSeek__BaseUrl: http://localhost:5198
       Claude__ApiKey: fake-key
       Claude__BaseUrl: http://localhost:5198
+      # ADR-047: OpenAlex falso (mesmo servidor da suíte admin); nas outras suítes a porta fica fechada e a busca de artigos cai no caminho sem fontes.
+      OpenAlex__BaseUrl: http://localhost:5198
       Messaging__Sqs__ServiceUrl: http://localhost:4566
       Messaging__Sqs__QueueUrl: http://localhost:4566/000000000000/notee-research-jobs
       DOTNET_NOLOGO: "true"

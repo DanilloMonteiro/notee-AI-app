@@ -38,6 +38,7 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<InboxMessage> InboxMessages { get; set; }
     public DbSet<ResearchSource> ResearchSources { get; set; }
+    public DbSet<SourceDomainRule> SourceDomainRules { get; set; }
     public DbSet<SystemSetting> SystemSettings { get; set; }
     public DbSet<AiProviderSecret> AiProviderSecrets { get; set; }
 
@@ -204,6 +205,9 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
             // As linhas antigas recebem true na migration (eram todas links da busca do provedor).
             e.Property(s => s.Url).HasMaxLength(2048);
             e.Property(s => s.SiteName).HasMaxLength(ResearchSource.MaxSiteNameLength);
+            e.Property(s => s.Origin).HasMaxLength(16);
+            e.Property(s => s.Doi).HasMaxLength(ResearchSource.MaxDoiLength);
+            e.Property(s => s.Authors).HasMaxLength(ResearchSource.MaxAuthorsLength);
             e.HasOne<Doubt>().WithMany().HasForeignKey(s => s.DoubtId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.DoubtId, s.Position });
         });
@@ -321,9 +325,20 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne<Note>().WithMany().HasForeignKey(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<SourceDomainRule>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Property(r => r.OwnerId).HasMaxLength(450).IsRequired();
+            e.Property(r => r.Domain).HasMaxLength(SourceDomainRule.MaxDomainLength).IsRequired();
+            e.Property(r => r.Kind).HasConversion<string>().HasMaxLength(16);
+            e.HasIndex(r => new { r.OwnerId, r.Domain }).IsUnique();
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(r => r.OwnerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<UserPreferences>(e =>
         {
             e.HasKey(p => p.UserId);
+            e.Property(p => p.SourceMode).HasMaxLength(16).HasDefaultValue("mixed");
             e.Property(p => p.Version).IsConcurrencyToken();
             // Contas existentes continuam com pesquisa automática ligada; true é o "não informado" do EF.
             e.Property(p => p.AutoResearch).HasDefaultValue(true).HasSentinel(true);

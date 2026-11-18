@@ -104,8 +104,12 @@ builder.Services.AddHttpClient<ChatGptAiService>();
 builder.Services.AddHttpClient<GrokAiService>();
 builder.Services.AddHttpClient<DeepSeekAiService>();
 // Busca na web do DeepSeek para respostas e notas embasadas (ADR-046).
+// ADR-047: origens de fonte plugáveis (web do DeepSeek e artigos do OpenAlex) combinadas pelo SourceSearchService.
 builder.Services.AddHttpClient<DeepSeekWebSearch>();
-builder.Services.AddTransient<IWebSearch>(sp => sp.GetRequiredService<DeepSeekWebSearch>());
+builder.Services.AddHttpClient<OpenAlexSearch>();
+builder.Services.AddTransient<ISourceSearchProvider>(sp => sp.GetRequiredService<DeepSeekWebSearch>());
+builder.Services.AddTransient<ISourceSearchProvider>(sp => sp.GetRequiredService<OpenAlexSearch>());
+builder.Services.AddTransient<SourceSearchService>();
 builder.Services.AddScoped<ClaudeAiService>();
 builder.Services.AddScoped<AiProviderSelector>();
 builder.Services.AddScoped<PreferencesService>();
@@ -193,6 +197,7 @@ app.UseRateLimiter();
 app.MapNoteeHealth();
 app.MapIdentityEndpoints();
 app.MapPreferenceEndpoints();
+app.MapSourceRuleEndpoints();
 app.MapNoteEndpoints();
 app.MapNoteCommentEndpoints();
 app.MapOrganizeAiEndpoints();

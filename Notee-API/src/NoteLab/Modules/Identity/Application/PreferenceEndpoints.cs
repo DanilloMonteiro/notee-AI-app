@@ -18,10 +18,14 @@ public record PreferencesResponse(
 {
     /// <summary>Nome do provedor externo escolhido pelo administrador (para o texto de consentimento).</summary>
     public string ExternalProviderName { get; init; } = "";
+
+    /// <summary>Origem padrão das fontes (ADR-047): mixed, academic, web ou none.</summary>
+    public string SourceMode { get; init; } = "mixed";
 }
 
 /// <summary>Campos nulos não são alterados. Conceder consentimento exige ConsentVersion vigente.</summary>
-public record UpdatePreferencesRequest(bool? ResearchEnabled, bool? ExternalAiConsent, int? ConsentVersion, long ExpectedVersion, bool? AutoResearch = null);
+public record UpdatePreferencesRequest(bool? ResearchEnabled, bool? ExternalAiConsent, int? ConsentVersion, long ExpectedVersion, bool? AutoResearch = null,
+    string? SourceMode = null);
 
 public record MeResponse(string Id, string? Email, string? FullName, string? PhoneNumber);
 
@@ -51,7 +55,7 @@ public sealed class PreferencesService
         _selector.ExternalConfigured,
         _selector.Describe(p),
         p.Version)
-    { ExternalProviderName = _selector.Active.Name };
+    { ExternalProviderName = _selector.Active.Name, SourceMode = p.SourceMode };
 
     public async Task<MapResult<PreferencesResponse>> UpdateAsync(string userId, UpdatePreferencesRequest request, CancellationToken ct)
     {
@@ -74,6 +78,11 @@ public sealed class PreferencesService
             if (request.AutoResearch.HasValue)
             {
                 prefs.SetAutoResearch(request.AutoResearch.Value);
+            }
+
+            if (request.SourceMode is not null)
+            {
+                prefs.SetSourceMode(request.SourceMode);
             }
 
             if (request.ExternalAiConsent.HasValue)

@@ -54,11 +54,13 @@ public record ResearchJobResponse(
     public int? OutputTokens { get; init; }
     /// <summary>Buscas na web feitas nesta execução (ADR-046).</summary>
     public int WebSearches { get; init; }
+    /// <summary>Buscas de artigos acadêmicos feitas nesta execução (ADR-047).</summary>
+    public int AcademicSearches { get; init; }
 
     public static ResearchJobResponse From(ResearchJob j) =>
         new(j.Id, j.DoubtId, j.Status.ToString(), j.Attempt, j.MaxAttempts, j.NextAttemptAt, j.CancelRequested,
             j.Provider, j.LastError, j.CreatedAt, j.CompletedAt)
-        { InputTokens = j.InputTokens, OutputTokens = j.OutputTokens, WebSearches = j.WebSearches };
+        { InputTokens = j.InputTokens, OutputTokens = j.OutputTokens, WebSearches = j.WebSearches, AcademicSearches = j.AcademicSearches };
 }
 
 public record CreateBoardDoubtRequest(string Question);
@@ -73,4 +75,10 @@ public record SourceResponse(string Title, string? Url, bool Verified = true)
     public string? SiteName { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
     public int? Authority { get; init; }
+    /// <summary>ADR-047: "academic" (artigo) ou "web" (página); null em respostas antigas.</summary>
+    public string? Origin { get; init; }
+    public string? Doi { get; init; }
+    /// <summary>Autores separados por "; ".</summary>
+    public string? Authors { get; init; }
+    public bool Trusted { get; init; }
 }

@@ -1247,6 +1247,9 @@ namespace NoteLab.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AcademicSearches")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Attempt")
                         .HasColumnType("integer");
 
@@ -1337,11 +1340,23 @@ namespace NoteLab.Migrations
                     b.Property<int?>("Authority")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Authors")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Doi")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<Guid>("DoubtId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("JobId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Origin")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<int>("Position")
                         .HasColumnType("integer");
@@ -1360,6 +1375,9 @@ namespace NoteLab.Migrations
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
+
+                    b.Property<bool>("Trusted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Url")
                         .HasMaxLength(2048)
@@ -1674,6 +1692,38 @@ namespace NoteLab.Migrations
                     b.ToTable("SourceCitations");
                 });
 
+            modelBuilder.Entity("NoteLab.Domain.SourceDomainRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .HasColumnType("character varying(253)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "Domain")
+                        .IsUnique();
+
+                    b.ToTable("SourceDomainRules");
+                });
+
             modelBuilder.Entity("NoteLab.Domain.SystemSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -1738,6 +1788,13 @@ namespace NoteLab.Migrations
 
                     b.Property<bool>("ResearchEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("SourceMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("mixed");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2178,6 +2235,15 @@ namespace NoteLab.Migrations
                         .WithMany()
                         .HasForeignKey("SourceId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLab.Domain.SourceDomainRule", b =>
+                {
+                    b.HasOne("NoteLab.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

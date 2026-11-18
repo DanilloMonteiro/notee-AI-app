@@ -169,7 +169,7 @@ public sealed class ResearchService
 
     public Task<List<SourceResponse>> SourcesAsync(Guid doubtId, CancellationToken ct) =>
         _db.ResearchSources.AsNoTracking().Where(s => s.DoubtId == doubtId).OrderBy(s => s.Position)
-            .Select(s => new SourceResponse(s.Title, s.Url, s.Verified) { SiteName = s.SiteName, PublishedAt = s.PublishedAt, Authority = s.Authority }).ToListAsync(ct);
+            .Select(s => new SourceResponse(s.Title, s.Url, s.Verified) { SiteName = s.SiteName, PublishedAt = s.PublishedAt, Authority = s.Authority, Origin = s.Origin, Doi = s.Doi, Authors = s.Authors, Trusted = s.Trusted }).ToListAsync(ct);
 
     /// <summary>Fontes de várias dúvidas numa consulta só (lista de dúvidas da nota).</summary>
     public async Task<Dictionary<Guid, List<SourceResponse>>> SourcesByDoubtsAsync(IReadOnlyCollection<Guid> doubtIds, CancellationToken ct)
@@ -181,7 +181,7 @@ public sealed class ResearchService
 
         var rows = await _db.ResearchSources.AsNoTracking().Where(s => doubtIds.Contains(s.DoubtId))
             .OrderBy(s => s.DoubtId).ThenBy(s => s.Position)
-            .Select(s => new { s.DoubtId, Source = new SourceResponse(s.Title, s.Url, s.Verified) { SiteName = s.SiteName, PublishedAt = s.PublishedAt, Authority = s.Authority } })
+            .Select(s => new { s.DoubtId, Source = new SourceResponse(s.Title, s.Url, s.Verified) { SiteName = s.SiteName, PublishedAt = s.PublishedAt, Authority = s.Authority, Origin = s.Origin, Doi = s.Doi, Authors = s.Authors, Trusted = s.Trusted } })
             .ToListAsync(ct);
         return rows.GroupBy(r => r.DoubtId).ToDictionary(g => g.Key, g => g.Select(r => r.Source).ToList());
     }

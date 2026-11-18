@@ -1,39 +1,9 @@
 namespace NoteLab.Application;
 
 /// <summary>
-/// Resultado da busca na web (ADR-046). Página real devolvida pelo buscador, com link.
-/// <see cref="RerankScore"/>: 0–3 (relevância + autoridade + atualidade); <see cref="Authority"/>: -1 (desconhecida) a 4.
+/// Configuração <c>Research:WebSearch</c> da busca na web do DeepSeek (ADR-046). A nota mínima usa a escala
+/// do buscador (rerank 0–3); no formato comum (<see cref="SourceHit.Score"/>) ela vale MinScore/3.
 /// </summary>
-public sealed record WebSearchResult(
-    string Title,
-    string Url,
-    string? SiteName,
-    string Snippet,
-    string Summary,
-    DateTimeOffset? PublishedAt,
-    int Authority,
-    double RerankScore);
-
-/// <summary>Falha da busca (sem saldo, chave inválida, limite, indisponível). Quem chama cai no caminho sem busca.</summary>
-public sealed class WebSearchException(string message, int? status = null) : Exception(message)
-{
-    public int? Status { get; } = status;
-}
-
-/// <summary>Busca na web usada para embasar respostas e notas. Só a pergunta/título sai do Notee.</summary>
-public interface IWebSearch
-{
-    /// <summary>Há chave configurada para o buscador.</summary>
-    public bool Available { get; }
-
-    /// <summary>
-    /// <paramref name="query"/>: até 128 caracteres (operadores como lang: incluídos).
-    /// <paramref name="intent"/>: pergunta original, até 128 caracteres, para o buscador entender a intenção.
-    /// </summary>
-    public Task<IReadOnlyList<WebSearchResult>> SearchAsync(string query, string? intent, CancellationToken ct);
-}
-
-/// <summary>Configuração <c>Research:WebSearch</c>.</summary>
 public sealed record WebSearchOptions(
     bool Enabled,
     double MinScore,
@@ -70,42 +40,6 @@ public static class WebSearchQuery
         string intent = Clip(clean, WebSearchOptions.MaxQueryLength);
         string query = Clip(clean, WebSearchOptions.MaxQueryLength - LanguageFilter.Length) + LanguageFilter;
         return (query, intent);
-    }
-
-    /// <summary>
-    /// Resultados usados: nota mínima, no máximo <see cref="WebSearchOptions.MaxPerSite"/> por site,
-    /// ordenados pela nota, sem URL repetida e com resumo para a IA ler.
-    /// </summary>
-    public static List<WebSearchResult> Select(IEnumerable<WebSearchResult> results, WebSearchOptions options)
-    {
-        var picked = new List<WebSearchResult>();
-        var perSite = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (WebSearchResult r in results.Where(r => r.RerankScore >= options.MinScore).OrderByDescending(r => r.RerankScore))
-        {
-            bool parsed = Uri.TryCreate(r.Url, UriKind.Absolute, out Uri? uri);
-            string site = parsed ? uri!.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? uri.Host[4..] : uri.Host : r.Url;
-            // Mesma página com e sem "www." ou com barra final conta uma vez só.
-            string pageKey = parsed ? $"{site}{uri!.PathAndQuery.TrimEnd('/')}" : r.Url;
-            if ((string.IsNullOrWhiteSpace(r.Summary) && string.IsNullOrWhiteSpace(r.Snippet)) || !urls.Add(pageKey))
-            {
-                continue;
-            }
-
-            if (perSite.GetValueOrDefault(site) >= options.MaxPerSite)
-            {
-                continue;
-            }
-
-            perSite[site] = perSite.GetValueOrDefault(site) + 1;
-            picked.Add(r);
-            if (picked.Count == options.MaxResults)
-            {
-                break;
-            }
-        }
-
-        return picked;
     }
 
     private static string Clip(string s, int max) => s.Length <= max ? s : s[..max].TrimEnd();

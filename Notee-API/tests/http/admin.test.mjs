@@ -2,7 +2,7 @@
 // SEM rede externa: esta suíte sobe um servidor falso na porta 5198. A API precisa rodar com:
 //   Admin__Email / Admin__Password (NOTEE_ADMIN_EMAIL / NOTEE_ADMIN_PASSWORD iguais aqui)
 //   OpenAI__ApiKey, Grok__ApiKey, Claude__ApiKey = fake-key  (DeepSeek SEM chave: ela é cadastrada pelo painel)
-//   OpenAI__BaseUrl, Grok__BaseUrl, DeepSeek__BaseUrl, Claude__BaseUrl = http://localhost:5198
+//   OpenAI__BaseUrl, Grok__BaseUrl, DeepSeek__BaseUrl, Claude__BaseUrl, OpenAlex__BaseUrl = http://localhost:5198
 // Sem essa configuração a suíte é pulada.
 import http from 'node:http';
 import { blocks, call, newUser, ok, summary } from './lib.mjs';
@@ -11,6 +11,14 @@ const ADMIN_EMAIL = process.env.NOTEE_ADMIN_EMAIL || 'admin@notee.local';
 const ADMIN_PASSWORD = process.env.NOTEE_ADMIN_PASSWORD || 'Admin!Teste123';
 
 const requests = [];
+const article = (doi, score) => ({
+  id: `https://openalex.org/${doi}`, doi: `https://doi.org/10.1/${doi}`, display_name: `Artigo ${doi}`, publication_date: '2024-05-02',
+  relevance_score: score, authorships: [{ author: { display_name: 'Ana Souza' } }],
+  primary_location: { landing_page_url: `https://revista.org/${doi}`, source: { display_name: 'Revista Teste' } },
+  open_access: { oa_url: null }, abstract_inverted_index: { Resumo: [0], do: [1], artigo: [2] },
+});
+// Artigos devolvidos pelo OpenAlex falso (ADR-047); cada cenário troca a lista.
+let openAlexResults = [];
 const server = http.createServer((req, res) => {
   let body = '';
   req.on('data', c => (body += c));
@@ -18,7 +26,9 @@ const server = http.createServer((req, res) => {
     const parsed = JSON.parse(body || '{}');
     requests.push({ url: req.url, auth: req.headers.authorization, apiKey: req.headers['x-api-key'], body: parsed });
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    if (req.url.endsWith('/v1/messages')) {
+    if (req.url.startsWith('/works')) {
+      res.end(JSON.stringify({ meta: { count: openAlexResults.length }, results: openAlexResults }));
+    } else if (req.url.endsWith('/v1/messages')) {
       res.end(
         JSON.stringify({
           id: 'msg_fake',
@@ -48,15 +58,24 @@ const server = http.createServer((req, res) => {
               content: '', site_name: 'Exemplo', site_icon: null, date: '2026-06-01T00:00:00+00:00', authority: 3 },
             { rerank_score: 1.0, title: 'Fraca', url: 'https://example.org/fraca', snippet: 's', summary: 'Resumo fraco.',
               content: '', site_name: null, site_icon: null, date: null, authority: -1 },
+            { rerank_score: 2.9, title: 'Wiki', url: 'https://pt.wikipedia.org/wiki/Teste', snippet: 's', summary: 'Enciclopédia.',
+              content: '', site_name: 'Wikipédia', site_icon: null, date: null, authority: 2 },
+            { rerank_score: 2.8, title: 'Bloqueado', url: 'https://bloqueado.org/x', snippet: 's', summary: 'Site bloqueado.',
+              content: '', site_name: null, site_icon: null, date: null, authority: 1 },
           ],
         }),
       );
     } else {
-      // Resposta embasada (ADR-046) quando o prompt traz resultados de busca; senão, texto simples.
-      const grounded = String(parsed.messages?.[0]?.content || '').includes('resultados de busca numerados');
+      // Palavras-chave pt/en (ADR-047), resposta embasada quando o prompt traz resultados de busca; senão, texto simples.
+      const system = String(parsed.messages?.[0]?.content || '');
+      const content = system.includes('prepara consultas')
+        ? '{"pt":"termos pt","en":"terms en"}'
+        : system.includes('resultados de busca numerados')
+          ? '{"answer":"Resposta embasada [1][2]. Inventado [9]."}'
+          : `Resposta de ${parsed.model}.`;
       res.end(
         JSON.stringify({
-          choices: [{ message: { role: 'assistant', content: grounded ? '{"answer":"Resposta embasada [1]. Inventado [2]."}' : `Resposta de ${parsed.model}.` } }],
+          choices: [{ message: { role: 'assistant', content } }],
           usage: { prompt_tokens: 11, completion_tokens: 4 },
         }),
       );
@@ -119,40 +138,96 @@ async function askWith(provider) {
   return doubt;
 }
 
-for (const [provider, model] of [['chatgpt', 'gpt-4o-mini'], ['grok', 'grok-4']]) {
+const setSourceMode = async mode => {
+  const current = (await call(user, 'GET', '/me/preferences')).json;
+  return call(user, 'PATCH', '/me/preferences', { sourceMode: mode, expectedVersion: current.version });
+};
+prefs = (await call(user, 'GET', '/me/preferences')).json;
+ok(prefs.sourceMode === 'mixed', 'origem padrão das fontes: artigos primeiro (mixed)');
+ok((await setSourceMode('livros')).status === 400, 'origem das fontes desconhecida -> 400');
+
+// ChatGPT, modo misturado (ADR-047): artigos suficientes no OpenAlex -> resposta só com artigos, sem internet.
+{
+  openAlexResults = [article('A1', 120), article('A2', 100), article('A3', 90)];
   const before = requests.length;
-  const doubt = await askWith(provider);
-  const req = requests[before];
+  const doubt = await askWith('chatgpt');
+  const made = requests.slice(before);
+  const req = made[0];
+  const works = made.filter(r => r.url.startsWith('/works'));
+  const params = new URL(works[0]?.url || '/', 'http://x').searchParams;
+  ok(req?.url === '/chat/completions' && req.auth === 'Bearer fake-key' && req.body.model === 'gpt-4o-mini', 'chatgpt: endpoint, chave e modelo padrão corretos');
+  ok(String(req?.body.messages?.[0]?.content).includes('prepara consultas'), 'chatgpt: palavras-chave pt/en geradas antes da busca');
+  ok(params.get('search') === 'terms en' && !works[0]?.auth, 'chatgpt: OpenAlex consultado com os termos em inglês, sem chave (opcional)');
+  ok(params.get('filter') === 'type:article|review,has_abstract:true,language:en|pt', 'chatgpt: filtro de artigos com resumo em en/pt');
+  ok(!made.some(r => r.url.endsWith('/v1/tools/search')), 'chatgpt: sem busca na web (só o DeepSeek tem)');
+  const [s1, s2] = doubt.sources || [];
+  ok(doubt.status === 'Completed' && doubt.evidence === 'Sourced' && doubt.answer === 'Resposta embasada [1][2]. Inventado.', 'chatgpt: resposta embasada em artigos');
   ok(
-    state.activeProvider === provider && doubt.status === 'Completed' && doubt.answerProvider === provider && doubt.evidence === 'NoSource',
-    `${provider}: resposta pelo adaptador, sem fontes inventadas`,
+    doubt.sources?.length === 2 && s1.origin === 'academic' && s1.doi === '10.1/A1' && s1.url === 'https://doi.org/10.1/A1' &&
+      s1.siteName === 'Revista Teste' && s1.authors === 'Ana Souza' && s2.doi === '10.1/A2',
+    'chatgpt: fontes são artigos com DOI, periódico e autores',
   );
-  ok(req?.url === '/chat/completions' && req.auth === 'Bearer fake-key' && req.body.model === model, `${provider}: endpoint, chave e modelo padrão corretos`);
-  ok(!requests.slice(before).some(r => r.url.endsWith('/v1/tools/search')), `${provider}: sem busca na web do DeepSeek`);
+  ok(doubt.latestJob?.academicSearches >= 1 && doubt.latestJob?.webSearches === 0, 'chatgpt: busca de artigos registrada na execução');
 }
 
-// DeepSeek (ADR-046): o Notee pesquisa na web e a resposta usa só os resultados (fontes reais com link).
+// Grok, modo "só internet": a busca web é do DeepSeek -> sem pesquisa, sem fontes inventadas.
 {
+  ok((await setSourceMode('web')).json?.sourceMode === 'web', 'origem das fontes trocada para só internet');
+  const before = requests.length;
+  const doubt = await askWith('grok');
+  const made = requests.slice(before);
+  ok(
+    doubt.status === 'Completed' && doubt.answerProvider === 'grok' && doubt.evidence === 'NoSource',
+    'grok: resposta pelo adaptador, sem fontes inventadas',
+  );
+  ok(made[0]?.url === '/chat/completions' && made[0].body.model === 'grok-4', 'grok: endpoint e modelo padrão corretos');
+  ok(!made.some(r => r.url.endsWith('/v1/tools/search') || r.url.startsWith('/works')), 'grok: só internet sem DeepSeek não pesquisa');
+  await setSourceMode('mixed');
+}
+
+// Sites bloqueados e confiáveis (ADR-047).
+{
+  const rules = (await call(user, 'GET', '/me/source-rules')).json;
+  ok(rules.some(r => r.domain === 'wikipedia.org' && r.kind === 'blocked' && r.fixed), 'Wikipédia bloqueada fixa');
+  const blocked = await call(user, 'PUT', '/me/source-rules', { domain: 'https://www.bloqueado.org/qualquer', kind: 'blocked' });
+  ok(blocked.status === 200 && blocked.json.some(r => r.domain === 'bloqueado.org' && r.kind === 'blocked' && !r.fixed), 'site bloqueado pela pessoa (domínio normalizado)');
+  ok((await call(user, 'PUT', '/me/source-rules', { domain: 'pt.wikipedia.org', kind: 'trusted' })).status === 400, 'Wikipédia não pode ser confiável');
+  ok((await call(user, 'PUT', '/me/source-rules', { domain: 'nao e site', kind: 'blocked' })).status === 400, 'site inválido -> 400');
+  await call(user, 'PUT', '/me/source-rules', { domain: 'confiavel.org', kind: 'trusted' });
+  ok((await call(user, 'DELETE', '/me/source-rules/confiavel.org')).json.every(r => r.domain !== 'confiavel.org'), 'site removido da lista');
+}
+
+// DeepSeek, modo misturado: poucos artigos -> a web do DeepSeek completa, sem Wikipédia nem site bloqueado.
+{
+  openAlexResults = [article('B1', 50)];
   const before = requests.length;
   const doubt = await askWith('deepseek');
-  const search = requests.slice(before).find(r => r.url === '/v1/tools/search');
-  const chat = requests.slice(before).find(r => r.url === '/chat/completions');
+  const made = requests.slice(before);
+  const search = made.find(r => r.url === '/v1/tools/search');
+  const chat = made.filter(r => r.url === '/chat/completions').at(-1);
   ok(
-    search?.auth === 'Bearer fake-key' && search.body.query === 'Pergunta para deepseek? lang:pt,en' && search.body.count === 10 &&
-      search.body.need_content === false && !('localization' in search.body),
-    'deepseek: busca na web com a pergunta, sem IP do usuário',
+    search?.auth === 'Bearer fake-key' && search.body.query === 'termos pt lang:pt,en' && search.body.ori_question === 'Pergunta para deepseek?' &&
+      search.body.count === 10 && search.body.need_content === false && !('localization' in search.body),
+    'deepseek: busca na web com as palavras-chave e a pergunta como intenção, sem IP do usuário',
   );
-  ok(chat?.body.model === 'deepseek-chat' && !JSON.stringify(chat.body).includes('example.org/fraca'), 'deepseek: resultado abaixo da nota mínima não vai para a IA');
+  const sent = JSON.stringify(chat?.body);
+  ok(
+    chat?.body.model === 'deepseek-chat' && !sent.includes('Resumo fraco') && !sent.includes('Enciclop') && !sent.includes('Site bloqueado'),
+    'deepseek: resultado fraco, Wikipédia e site bloqueado não vão para a IA',
+  );
   ok(doubt.status === 'Completed' && doubt.answerProvider === 'deepseek' && doubt.evidence === 'Sourced', 'deepseek: resposta embasada com fonte');
-  ok(doubt.answer === 'Resposta embasada [1]. Inventado.', 'deepseek: [n] sem resultado correspondente é removido');
-  const src = doubt.sources?.[0];
+  ok(doubt.answer === 'Resposta embasada [1][2]. Inventado.', 'deepseek: [n] sem resultado correspondente é removido');
+  const [art, web] = doubt.sources || [];
+  ok(doubt.sources?.length === 2 && art.origin === 'academic' && art.doi === '10.1/B1', 'deepseek: artigo vem primeiro');
   ok(
-    doubt.sources?.length === 1 && src.url === 'https://example.org/deepseek' && src.verified === true && src.siteName === 'Exemplo' && src.authority === 3,
-    'deepseek: só a fonte citada, com link, site e autoridade',
+    web?.origin === 'web' && web.url === 'https://example.org/deepseek' && web.verified === true && web.siteName === 'Exemplo' && web.authority === 3,
+    'deepseek: internet completa com link, site e autoridade',
   );
-  ok(doubt.latestJob?.webSearches === 1, 'deepseek: busca registrada na execução');
+  ok(doubt.latestJob?.webSearches === 1 && doubt.latestJob?.academicSearches >= 1, 'deepseek: buscas de artigos e web registradas');
 }
 
+// Claude no modo "só internet": usa a própria busca na web (sem OpenAlex nem DeepSeek).
+await setSourceMode('web');
 const beforeClaude = requests.length;
 const claude = await askWith('claude');
 const creq = requests[beforeClaude];

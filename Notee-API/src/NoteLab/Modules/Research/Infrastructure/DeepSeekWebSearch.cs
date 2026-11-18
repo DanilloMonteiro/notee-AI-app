@@ -12,19 +12,31 @@ namespace NoteLab.Infrastructure;
 /// Envia só a consulta (pergunta ou título/descrição) — nunca <c>localization</c> (IP do usuário).
 /// Cobrança do DeepSeek: só quando devolve resultados; falha, vazio e tempo esgotado não são cobrados.
 /// </summary>
-public sealed class DeepSeekWebSearch(HttpClient http, AiSettings settings) : IWebSearch
+public sealed class DeepSeekWebSearch(HttpClient http, AiSettings settings) : ISourceSearchProvider
 {
+    public const string ProviderName = "deepseek-search";
     public const int RequestedCount = 10;
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
     private static readonly AiProviderInfo Provider = AiProviders.Find(AiProviders.DeepSeek)!;
 
+    public string Name => ProviderName;
+
+    public SourceOrigin Origin => SourceOrigin.Web;
+
     public bool Available => settings.IsConfigured(Provider);
 
-    public async Task<IReadOnlyList<WebSearchResult>> SearchAsync(string query, string? intent, CancellationToken ct)
+    /// <summary>Busca com as palavras-chave em português (o buscador já cobre pt e en) e a pergunta como intenção.</summary>
+    public Task<IReadOnlyList<SourceHit>> SearchAsync(SourceQuery query, CancellationToken ct)
+    {
+        (string q, string intent) = WebSearchQuery.Build(query.Pt);
+        return SearchAsync(q, string.IsNullOrWhiteSpace(query.Intent) ? intent : query.Intent, ct);
+    }
+
+    public async Task<IReadOnlyList<SourceHit>> SearchAsync(string query, string? intent, CancellationToken ct)
     {
         string apiKey = settings.ApiKeyFor(Provider) is { } key && AiProviders.IsRealKey(key)
             ? key
-            : throw new WebSearchException("Busca na web sem chave configurada.");
+            : throw new SourceSearchException("Busca na web sem chave configurada.");
 
         var body = new
         {
@@ -52,11 +64,11 @@ public sealed class DeepSeekWebSearch(HttpClient http, AiSettings settings) : IW
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new WebSearchException("A busca na web demorou demais.");
+                throw new SourceSearchException("A busca na web demorou demais.");
             }
             catch (HttpRequestException)
             {
-                throw new WebSearchException("Busca na web indisponível.");
+                throw new SourceSearchException("Busca na web indisponível.");
             }
 
             using (response)
@@ -75,7 +87,7 @@ public sealed class DeepSeekWebSearch(HttpClient http, AiSettings settings) : IW
                 }
 
                 // O corpo do erro não é propagado (pode ecoar a consulta).
-                throw new WebSearchException(status switch
+                throw new SourceSearchException(status switch
                 {
                     (int)HttpStatusCode.Unauthorized => "Chave do DeepSeek inválida para a busca.",
                     (int)HttpStatusCode.PaymentRequired => "Sem saldo no DeepSeek para a busca na web.",
@@ -87,9 +99,9 @@ public sealed class DeepSeekWebSearch(HttpClient http, AiSettings settings) : IW
     }
 
     /// <summary>Lê <c>results</c>; ignora itens sem título ou sem URL http(s).</summary>
-    public static IReadOnlyList<WebSearchResult> Parse(JsonNode? json)
+    public static IReadOnlyList<SourceHit> Parse(JsonNode? json)
     {
-        var list = new List<WebSearchResult>();
+        var list = new List<SourceHit>();
         foreach (JsonNode? node in json?["results"]?.AsArray() ?? [])
         {
             if (node is not JsonObject r)
@@ -108,15 +120,19 @@ public sealed class DeepSeekWebSearch(HttpClient http, AiSettings settings) : IW
             DateTimeOffset? date = DateTimeOffset.TryParse(Str(r, "date"), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset d)
                 ? d
                 : null;
-            list.Add(new WebSearchResult(
+            string summary = Str(r, "summary")?.Trim() ?? "";
+            list.Add(new SourceHit(
                 title,
                 uri.ToString(),
+                summary.Length > 0 ? summary : Str(r, "snippet")?.Trim() ?? "",
                 Str(r, "site_name")?.Trim() is { Length: > 0 } site ? site : null,
-                Str(r, "snippet")?.Trim() ?? "",
-                Str(r, "summary")?.Trim() ?? "",
                 date,
-                Num(r, "authority") is { } a ? (int)a : -1,
-                Num(r, "rerank_score") ?? 0));
+                [],
+                null,
+                SourceOrigin.Web,
+                ProviderName,
+                Math.Clamp((Num(r, "rerank_score") ?? 0) / 3.0, 0, 1),
+                Num(r, "authority") is { } a ? (int)a : -1));
         }
 
         return list;

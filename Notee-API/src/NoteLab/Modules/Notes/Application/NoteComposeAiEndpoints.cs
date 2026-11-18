@@ -8,8 +8,10 @@ using NoteLab.Infrastructure;
 
 namespace NoteLab.Application;
 
-/// <param name="WebSearch">Pesquisar fontes na web antes de escrever (ADR-046). Padrão: sim.</param>
-public sealed record ComposeAiRequest(string? Mode, string? Title, string? Instructions, string? BaseLink, bool Confirm = false, bool WebSearch = true);
+/// <param name="WebSearch">Compatibilidade (ADR-046): false = não pesquisar fontes.</param>
+/// <param name="Sources">Origem das fontes para esta nota (ADR-047): account (padrão da conta), mixed, academic, web ou none.</param>
+public sealed record ComposeAiRequest(string? Mode, string? Title, string? Instructions, string? BaseLink, bool Confirm = false, bool WebSearch = true,
+    string? Sources = null);
 
 /// <summary>
 /// Criação de nota assistida por IA (ADR-044). Estimativa (sem envio) e geração (com confirmação explícita).
@@ -41,7 +43,7 @@ public static class NoteComposeAiEndpoints
         var group = app.MapGroup("/notes").RequireAuthorization().WithTags("Notes");
 
         group.MapPost("/compose-ai/estimate", async (ComposeAiRequest body, ClaimsPrincipal user, NoteDbContext db,
-            AiProviderSelector selector, IWebSearch webSearch, IConfiguration config, CancellationToken ct) =>
+            AiProviderSelector selector, SourceSearchService search, IConfiguration config, CancellationToken ct) =>
         {
             string owner = Owner(user);
             if (Validate(body, out ComposeInput? input) is { } invalid) return invalid;
@@ -51,21 +53,36 @@ public static class NoteComposeAiEndpoints
             UserPreferences prefs = await PreferencesAsync(db, owner, ct);
             string provider = selector.Describe(prefs);
             bool external = provider != "fake";
-            var searchOptions = WebSearchOptions.From(config);
-            bool searchAvailable = SearchAvailable(provider, searchOptions, webSearch);
-            bool willSearch = body.WebSearch && searchAvailable;
+            SourceMode mode = ResolveMode(body, prefs);
+            (bool allowAcademic, bool allowWeb) = Allowed(provider, search);
+            bool willAcademic = SourceModes.IncludesAcademic(mode) && allowAcademic;
+            // Em "misturar" a web só entra se faltarem artigos: a estimativa conta o pior caso.
+            bool mayUseWeb = SourceModes.IncludesWeb(mode) && allowWeb;
+            bool willSearch = willAcademic || mayUseWeb;
             string prompt = await PromptAsync(db, owner, input, baseNote, ct);
-            // Com busca, a IA também lê até MaxResults resumos (~900 caracteres cada).
-            int estimatedInput = NoteComposer.EstimateTokens(prompt) + (willSearch ? searchOptions.MaxResults * 260 : 0);
-            int estimatedOutput = Math.Min(NoteComposer.MaxOutputTokens, 1_500 + estimatedInput);
+            // Com busca, a IA também lê até MaxResults resumos (~900 caracteres cada); a consulta pt+en custa ~250 tokens.
+            int estimatedInput = NoteComposer.EstimateTokens(prompt) + (willSearch ? search.Options.MaxResults * 260 : 0)
+                                 + (willAcademic ? 250 : 0);
+            int estimatedOutput = Math.Min(NoteComposer.MaxOutputTokens, 1_500 + estimatedInput) + (willAcademic ? SourceQueryPlanner.MaxOutputTokens : 0);
+            decimal searchCost = (willAcademic ? search.Options.AcademicCostOf(2) : 0m) + (mayUseWeb ? search.WebOptions.CostOf(1) : 0m);
             decimal? modelCost = external ? AiPricing.Cost(config, provider, estimatedInput, estimatedOutput) : 0m;
             return Results.Ok(new
             {
+                sources = new
+                {
+                    mode = SourceModes.ToWire(mode),
+                    accountMode = prefs.SourceMode,
+                    academicAvailable = allowAcademic,
+                    webAvailable = allowWeb,
+                    willSearchAcademic = willAcademic,
+                    mayUseWeb,
+                    estimatedCostUsd = searchCost,
+                },
                 webSearch = new
                 {
-                    available = searchAvailable,
+                    available = allowAcademic || allowWeb,
                     willSearch,
-                    estimatedCostUsd = willSearch ? searchOptions.CostOf(1) : 0m,
+                    estimatedCostUsd = searchCost,
                 },
                 provider,
                 providerName = external ? selector.Active.Name : "Simulação local (sem custo)",
@@ -74,14 +91,14 @@ public static class NoteComposeAiEndpoints
                 externalConfigured = selector.ExternalConfigured,
                 estimatedInputTokens = estimatedInput,
                 estimatedOutputTokens = estimatedOutput,
-                estimatedCostUsd = modelCost is null ? null : modelCost + (willSearch ? searchOptions.CostOf(1) : 0m),
+                estimatedCostUsd = modelCost is null ? null : modelCost + searchCost,
                 maxPerHour = MaxPerHour(config),
                 baseNote = baseNote is null ? null : new { baseNote.Title, baseNote.IsOwn },
             });
         });
 
         group.MapPost("/compose-ai", async (ComposeAiRequest body, ClaimsPrincipal user, NoteDbContext db,
-            AiProviderSelector selector, IWebSearch webSearch, SafeHttpClient http, IConfiguration config, ILoggerFactory logs, CancellationToken ct) =>
+            AiProviderSelector selector, SourceSearchService search, SafeHttpClient http, IConfiguration config, ILoggerFactory logs, CancellationToken ct) =>
         {
             string owner = Owner(user);
             if (!body.Confirm)
@@ -99,25 +116,32 @@ public static class NoteComposeAiEndpoints
             UserPreferences prefs = await PreferencesAsync(db, owner, ct);
             string provider = selector.Describe(prefs);
 
-            // ADR-046: pesquisa na web antes de escrever. Sai só o título + descrição/instrução (até 128 caracteres).
-            // Falha ou nenhum resultado bom: a nota é escrita sem busca, como antes, e a prévia avisa.
-            var searchOptions = WebSearchOptions.From(config);
-            List<WebSearchResult> searchResults = [];
+            // ADR-046/047: pesquisa antes de escrever — artigos (OpenAlex) primeiro e, se faltar, a web do DeepSeek.
+            // Sai só o título + descrição/instrução (em palavras-chave pt/en). Falha ou nenhum resultado bom:
+            // a nota é escrita sem fontes da busca, como antes, e a prévia avisa.
+            SourceMode mode = ResolveMode(body, prefs);
+            (bool allowAcademic, bool allowWeb) = Allowed(provider, search);
+            bool academic = SourceModes.IncludesAcademic(mode) && allowAcademic;
+            bool web = SourceModes.IncludesWeb(mode) && allowWeb;
+            List<SourceHit> searchResults = [];
             int webSearches = 0;
+            int academicSearches = 0;
+            AiCompletion? planUsage = null;
             string? searchNotice = null;
-            if (body.WebSearch && SearchAvailable(provider, searchOptions, webSearch))
+            if (academic || web)
             {
-                (string query, string intent) = WebSearchQuery.Build($"{input.Title} {input.Instructions}");
-                try
+                string text = $"{input.Title} {input.Instructions}";
+                SourceQuery query;
+                (query, planUsage) = academic
+                    ? await SourceQueryPlanner.PlanAsync(selector.For(prefs).CompleteAsync, text, ct)
+                    : (SourceQueryPlanner.Plain(text), null);
+                SourceRules rules = await SourceRuleEndpoints.LoadAsync(db, owner, search.Options, ct);
+                SourceSearchOutcome found = await search.SearchAsync(mode, query, rules, academic, web, ct);
+                (searchResults, webSearches, academicSearches) = (found.Hits, found.WebCalls, found.AcademicCalls);
+                if (searchResults.Count == 0)
                 {
-                    IReadOnlyList<WebSearchResult> found = await webSearch.SearchAsync(query, intent, ct);
-                    webSearches = found.Count > 0 ? 1 : 0; // o DeepSeek só cobra busca com resultado
-                    searchResults = WebSearchQuery.Select(found, searchOptions);
-                    if (searchResults.Count == 0) searchNotice = "A busca não trouxe resultados confiáveis; a nota foi escrita sem fontes da web.";
-                }
-                catch (WebSearchException ex)
-                {
-                    searchNotice = $"{ex.Message} A nota foi escrita sem fontes da web.";
+                    searchNotice = (found.Notices.Count > 0 ? string.Join(" ", found.Notices) + " " : "A busca não trouxe resultados confiáveis; ")
+                                   + "a nota foi escrita sem fontes da busca.";
                 }
             }
 
@@ -142,7 +166,11 @@ public static class NoteComposeAiEndpoints
             }
 
             decimal? cost = provider == "fake" ? 0m : AiPricing.Cost(config, provider, completion.InputTokens, completion.OutputTokens);
-            if (cost is not null) cost += searchOptions.CostOf(webSearches);
+            if (cost is not null)
+            {
+                cost += search.WebOptions.CostOf(webSearches) + search.Options.AcademicCostOf(academicSearches)
+                        + (planUsage is null ? 0m : AiPricing.Cost(config, provider, planUsage.InputTokens, planUsage.OutputTokens) ?? 0m);
+            }
             ComposeDraft draft;
             try
             {
@@ -199,6 +227,15 @@ public static class NoteComposeAiEndpoints
                 discardedSources = result.DiscardedSources,
                 discardedCharts = result.DiscardedCharts,
                 webSearch = new { used = searchResults.Count > 0, results = searchResults.Count, searches = webSearches, notice = searchNotice },
+                // ADR-047: quanto da busca veio de artigos e quanto da internet (sobre os resultados enviados à IA).
+                sourceSearch = new
+                {
+                    mode = SourceModes.ToWire(mode),
+                    academicResults = searchResults.Count(r => r.Origin == SourceOrigin.Academic),
+                    webResults = searchResults.Count(r => r.Origin == SourceOrigin.Web),
+                    academicSearches,
+                    webSearches,
+                },
                 inputTokens = completion.InputTokens,
                 outputTokens = completion.OutputTokens,
                 costUsd = cost,
@@ -331,9 +368,19 @@ public static class NoteComposeAiEndpoints
     private static IResult ValidationProblem(string detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Erro de validação", detail: detail);
 
-    /// <summary>Busca na web só com o DeepSeek ativo (com consentimento e chave) e a busca ligada no servidor.</summary>
-    private static bool SearchAvailable(string provider, WebSearchOptions options, IWebSearch webSearch) =>
-        provider == AiProviders.DeepSeek && options.Enabled && webSearch.Available;
+    /// <summary>
+    /// Origem desta nota: <c>WebSearch=false</c> (contrato antigo) = sem busca; <c>Sources</c> ausente ou "account" = padrão da conta.
+    /// </summary>
+    private static SourceMode ResolveMode(ComposeAiRequest body, UserPreferences prefs) =>
+        !body.WebSearch ? SourceMode.None
+        : SourceModes.Parse(body.Sources) ?? SourceModes.Parse(prefs.SourceMode) ?? SourceMode.Mixed;
+
+    /// <summary>
+    /// Artigos: qualquer IA externa autorizada (o simulador local não pesquisa). Web: só com o DeepSeek ativo
+    /// (a busca usa a chave e o consentimento dele).
+    /// </summary>
+    private static (bool Academic, bool Web) Allowed(string provider, SourceSearchService search) =>
+        (provider != "fake" && search.AcademicAvailable, provider == AiProviders.DeepSeek && search.WebAvailable);
 
     private static int MaxPerHour(IConfiguration config) => Math.Max(1, config.GetValue<int?>("Ai:ComposeMaxPerHour") ?? 10);
 
