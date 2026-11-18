@@ -2,7 +2,7 @@
 // [n] conferido → link para a fonte; [n] de origem só declarada pela IA → marcador sem link, com aviso.
 import React from 'react';
 import { Icon } from '../../components/Icon';
-import { UNVERIFIED_LABEL, isVerifiedSource, sourceHost, splitAnswerRefs } from './answerRefs';
+import { UNVERIFIED_LABEL, isHighAuthority, isVerifiedSource, sourceHost, sourceMeta, splitAnswerRefs } from './answerRefs';
 
 function RefMark({ n, source }) {
   if (isVerifiedSource(source)) {
@@ -48,7 +48,12 @@ export function AnswerSources({ sources = [], compact = false }) {
               <a href={s.url} target="_blank" rel="noopener noreferrer">
                 {s.title} <Icon name="external" className="sm" />
               </a>{' '}
-              <span className="answer-sources-host">{sourceHost(s.url)}</span>
+              <span className="answer-sources-host">{sourceMeta(s) || sourceHost(s.url)}</span>
+              {isHighAuthority(s) && (
+                <span className="answer-sources-authority" title="O buscador classifica esta fonte como de alta autoridade">
+                  alta autoridade
+                </span>
+              )}
             </span>
           ) : (
             <span>

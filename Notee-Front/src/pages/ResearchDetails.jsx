@@ -140,7 +140,13 @@ export function ResearchDetail() {
             <>
               <div className="callout neutral mb16 mt16">
                 <Icon name="info" className="sm" />
-                <span>Resposta de: {PROVIDER[doubt.answerProvider] || doubt.answerProvider || 'provedor desconhecido'}.</span>
+                <span>
+                  Resposta de: {PROVIDER[doubt.answerProvider] || doubt.answerProvider || 'provedor desconhecido'}.{' '}
+                  {/* ADR-046: com busca, a resposta usa só as páginas encontradas; sem busca, fontes só declaradas pela IA. */}
+                  {doubt.latestJob?.webSearches > 0
+                    ? 'Pesquisado na web: a resposta usa só as páginas encontradas.'
+                    : doubt.answerProvider === 'deepseek' && 'Sem busca na web nesta resposta: fontes indicadas pela IA e conferidas pelo Notee.'}
+                </span>
               </div>
               {/* [n] na resposta leva à fonte; origem só declarada pela IA aparece sem link e marcada. */}
               <AnswerText

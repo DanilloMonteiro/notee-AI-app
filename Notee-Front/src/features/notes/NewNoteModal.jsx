@@ -60,6 +60,8 @@ export function NewNoteModal({ onCreated, onClose }) {
   const [estimate, setEstimate] = useState(null);
   const [result, setResult] = useState(null);
   const [selection, setSelection] = useState(null);
+  // Pesquisar fontes na web antes de escrever (marcado por padrão; ADR-046).
+  const [webSearch, setWebSearch] = useState(true);
 
   const parsedLink = mode === 'rewrite' ? parseNoteLink(link) : null;
   const trimmedTitle = title.trim();
@@ -79,6 +81,7 @@ export function NewNoteModal({ onCreated, onClose }) {
     title: trimmedTitle,
     instructions: instructions.trim(),
     baseLink: parsedLink?.url ?? null,
+    webSearch, // ADR-046: pesquisar fontes na web antes de escrever (só com DeepSeek ativo)
     ...extra,
   });
 
@@ -213,6 +216,19 @@ export function NewNoteModal({ onCreated, onClose }) {
               </div>
             )}
 
+            {mode !== 'manual' && (
+              <label className="new-note-check mt16">
+                <input type="checkbox" checked={webSearch} onChange={e => setWebSearch(e.target.checked)} />
+                <span>
+                  <strong>Pesquisar fontes na web</strong>
+                  <span className="small muted">
+                    {' '}
+                    O Notee busca páginas sobre o assunto e a IA escreve com base nelas; cada trecho fica ligado à página de onde veio.
+                  </span>
+                </span>
+              </label>
+            )}
+
             {formError && trimmedTitle && <p className="small muted">{formError}</p>}
 
             <div className="modal-actions mt16">
@@ -264,6 +280,14 @@ export function NewNoteModal({ onCreated, onClose }) {
                   </dd>
                 </>
               )}
+              <dt>Busca na web</dt>
+              <dd>
+                {estimate.webSearch?.willSearch
+                  ? `Sim — uma busca (≈ US$ ${Number(estimate.webSearch.estimatedCostUsd).toFixed(5)}), incluída no custo abaixo`
+                  : !webSearch
+                    ? 'Desligada'
+                    : 'Indisponível (só com o DeepSeek ativo e autorizado)'}
+              </dd>
               <dt>Custo estimado</dt>
               <dd>{costText(estimate.estimatedCostUsd, estimate.estimatedInputTokens + estimate.estimatedOutputTokens, external)}</dd>
               <dt>Limite</dt>
@@ -289,7 +313,14 @@ export function NewNoteModal({ onCreated, onClose }) {
               Prévia · {costText(result.costUsd, (result.inputTokens || 0) + (result.outputTokens || 0), result.external)}
               {result.discardedSources > 0 && ` · ${result.discardedSources} referência(s) não encontrada(s): aparecem abaixo como não conferidas`}
               {result.discardedCharts > 0 && ` · ${result.discardedCharts} gráfico(s) descartado(s) por falta de fonte verificável`}
+              {result.webSearch?.used && ` · escrita com base em ${result.webSearch.results} página(s) da web`}
             </p>
+            {result.webSearch?.notice && (
+              <div className="callout warning mb16">
+                <Icon name="info" className="sm" />
+                <span>{result.webSearch.notice}</span>
+              </div>
+            )}
             <div className="organize-ai-preview">
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{trimmedTitle}</div>
               {result.blocks.map((b, i) => {
@@ -350,7 +381,8 @@ export function NewNoteModal({ onCreated, onClose }) {
                 <label key={s.identifier} className="new-note-check">
                   <input type="checkbox" checked={selection.sources[i]} onChange={() => setSelection(sel => toggleSource(sel, result, i))} />
                   <span>
-                    <strong>{s.resolved.title}</strong> <span className="pill green">conferida pelo sistema · revise</span>
+                    <strong>{s.resolved.title}</strong>{' '}
+                    <span className="pill green">{s.resolved.provider === 'deepseek-search' ? 'página da busca na web · revise' : 'conferida pelo sistema · revise'}</span>
                     <span className="small muted">
                       {' '}
                       {authorsYear(s.resolved)} · {s.reason}

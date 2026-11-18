@@ -33,3 +33,17 @@ export function sourceHost(url) {
     return '';
   }
 }
+
+/** "Site · mês/ano" da fonte vinda da busca na web (ADR-046); vazio quando não há esses dados. */
+export function sourceMeta(source) {
+  const parts = [];
+  if (source?.siteName) parts.push(source.siteName);
+  if (source?.publishedAt) {
+    const date = new Date(source.publishedAt);
+    if (!Number.isNaN(date.getTime())) parts.push(date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' }));
+  }
+  return parts.join(' · ');
+}
+
+/** Autoridade 3 ou 4 no buscador = fonte de alta autoridade. */
+export const isHighAuthority = source => typeof source?.authority === 'number' && source.authority >= 3;

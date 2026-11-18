@@ -26,3 +26,14 @@ test('só fonte com link e não marcada como declarada é conferida; respostas a
   assert.equal(sourceHost('https://www.ibge.gov.br/x'), 'ibge.gov.br');
   assert.equal(sourceHost('não é url'), '');
 });
+
+import { isHighAuthority, sourceMeta } from './answerRefs.js';
+
+test('metadados da busca: site, mês/ano e autoridade', () => {
+  assert.match(sourceMeta({ siteName: 'IBGE', publishedAt: '2026-06-01T00:00:00Z' }), /^IBGE · jun\.? de 2026$/);
+  assert.equal(sourceMeta({ siteName: 'IBGE' }), 'IBGE');
+  assert.equal(sourceMeta({}), '');
+  assert.equal(isHighAuthority({ authority: 3 }), true);
+  assert.equal(isHighAuthority({ authority: 2 }), false);
+  assert.equal(isHighAuthority({}), false);
+});
