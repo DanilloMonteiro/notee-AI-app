@@ -97,15 +97,20 @@ public static partial class NoteComposer
         "que vieram dessa fonte. Em \"origins\", liste de onde vieram informações que não têm DOI, ISBN ou URL " +
         "(ex.: \"IBGE, Censo 2022\", \"Relatório anual do Banco Central\"), também com \"supports\"; " +
         "se a informação vem de conhecimento geral sem origem identificável, não a liste. " +
+        "Se a mensagem trouxer \"searchResults\" (resultados de busca numerados), escreva a nota com base neles: fatos, números e datas " +
+        "devem vir desses resultados; em \"sources\" use {\"result\": n, \"reason\": string, \"supports\": [string]} para cada resultado usado " +
+        "(no lugar de \"identifier\") e não invente outras fontes. " +
         "Categoria e até cinco tags: prefira nomes existentes quando combinarem.";
 
     private static readonly string[] TextTypes = ["heading", "paragraph", "list", "quote", "code", "table"];
 
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
+    /// <param name="searchResults">Resultados da busca na web (ADR-046), numerados a partir de 1; null = sem busca.</param>
     public static string UserPrompt(ComposeMode mode, string title, string? instructions, string? baseTitle, ComposeBaseText? baseText,
-        IEnumerable<Category> categories, IEnumerable<Tag> tags) =>
-        JsonSerializer.Serialize(new
+        IEnumerable<Category> categories, IEnumerable<Tag> tags, IReadOnlyList<WebSearchResult>? searchResults = null)
+    {
+        var root = JsonSerializer.SerializeToNode(new
         {
             mode = mode == ComposeMode.Generate ? "generate" : "rewrite",
             title,
@@ -113,7 +118,30 @@ public static partial class NoteComposer
             baseNote = baseText is null ? null : new { title = baseTitle, text = baseText.Text },
             categories = categories.Select(c => c.Name),
             tags = tags.Select(t => t.Name),
-        }, Json);
+        }, Json)!.AsObject();
+
+        // Só entra quando houve busca: sem busca, o escopo enviado à IA é exatamente o de antes.
+        if (searchResults is { Count: > 0 })
+        {
+            root["searchResults"] = JsonSerializer.SerializeToNode(searchResults.Select((r, i) => new
+            {
+                n = i + 1,
+                title = r.Title,
+                site = r.SiteName,
+                date = r.PublishedAt?.ToString("yyyy-MM-dd"),
+                summary = r.Summary.Length > 900 ? r.Summary[..900] : r.Summary.Length > 0 ? r.Summary : r.Snippet,
+            }), Json);
+        }
+
+        return root.ToJsonString();
+    }
+
+    /// <summary>Identificador interno de uma fonte que é o resultado N da busca (não passa pelo resolvedor).</summary>
+    public static string SearchResultId(int n) => $"busca:{n}";
+
+    /// <summary>Resultado da busca como fonte já conferida (página real devolvida pelo buscador).</summary>
+    public static ResolvedSource AsResolvedSource(WebSearchResult r) =>
+        new("website", r.Title, [], r.PublishedAt?.Year, r.SiteName, null, null, r.Url, null, "deepseek-search", null);
 
     /// <summary>Estimativa grosseira (≈ 4 caracteres por token), igual à do organizar com IA.</summary>
     public static int EstimateTokens(string userPrompt) => (int)Math.Ceiling((SystemPrompt.Length + userPrompt.Length) / 4.0);
@@ -184,7 +212,9 @@ public static partial class NoteComposer
     /// Interpreta a resposta. Taxonomia reaproveita <see cref="TaxonomyAi.Parse"/>. Gráficos novos inválidos ou sem fonte
     /// são descartados junto com o bloco que os referencia; referências a gráficos base inexistentes também saem.
     /// </summary>
-    public static ComposeDraft Parse(string aiText, int baseChartCount, IEnumerable<Category> categories, IEnumerable<Tag> tags)
+    /// <param name="searchResultCount">Quantos resultados de busca foram enviados (0 = sem busca); "result" fora disso é descartado.</param>
+    public static ComposeDraft Parse(string aiText, int baseChartCount, IEnumerable<Category> categories, IEnumerable<Tag> tags,
+        int searchResultCount = 0)
     {
         string body = aiText.Trim();
         int open = body.IndexOf('{');
@@ -303,7 +333,10 @@ public static partial class NoteComposer
         {
             foreach (JsonNode? row in sourceRows)
             {
-                string identifier = (row is JsonObject o ? Str(o, "identifier") : null)?.Trim() ?? "";
+                // Resultado da busca (ADR-046): {"result": n} vira "busca:n"; só vale se n existe na busca enviada.
+                string identifier = row is JsonObject withResult && withResult["result"] is JsonValue rv && rv.TryGetValue(out int resultN)
+                    ? (resultN >= 1 && resultN <= searchResultCount ? SearchResultId(resultN) : "")
+                    : (row is JsonObject o ? Str(o, "identifier") : null)?.Trim() ?? "";
                 if (identifier.Length is < 1 or > NoteContent.MaxUrlLength || !seen.Add(identifier))
                 {
                     continue;

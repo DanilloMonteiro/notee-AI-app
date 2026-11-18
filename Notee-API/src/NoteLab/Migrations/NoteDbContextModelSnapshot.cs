@@ -1309,6 +1309,9 @@ namespace NoteLab.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("WebSearches")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DoubtId")
@@ -1331,6 +1334,9 @@ namespace NoteLab.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("Authority")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("DoubtId")
                         .HasColumnType("uuid");
 
@@ -1340,8 +1346,15 @@ namespace NoteLab.Migrations
                     b.Property<int>("Position")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("RetrievedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SiteName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Title")
                         .IsRequired()

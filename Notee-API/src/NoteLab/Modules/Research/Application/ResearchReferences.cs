@@ -1,7 +1,11 @@
 namespace NoteLab.Application;
 
-/// <summary>Fonte da resposta pronta para gravar: conferida (com link) ou só declarada pela IA (sem link).</summary>
-public sealed record ResearchSourceDraft(string Title, string? Url, bool Verified);
+/// <summary>
+/// Fonte da resposta pronta para gravar: conferida (com link) ou só declarada pela IA (sem link).
+/// Site, data e autoridade vêm da busca na web (ADR-046), quando houver.
+/// </summary>
+public sealed record ResearchSourceDraft(string Title, string? Url, bool Verified,
+    string? SiteName = null, DateTimeOffset? PublishedAt = null, int? Authority = null);
 
 /// <summary>
 /// Junta as fontes de uma resposta de dúvida (ADR-045):

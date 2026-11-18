@@ -39,10 +39,24 @@ const server = http.createServer((req, res) => {
           usage: { input_tokens: 20, output_tokens: 8 },
         }),
       );
-    } else {
+    } else if (req.url.endsWith('/v1/tools/search')) {
+      // Busca na web do DeepSeek (ADR-046): um resultado bom e um abaixo da nota mínima (1,5).
       res.end(
         JSON.stringify({
-          choices: [{ message: { role: 'assistant', content: `Resposta de ${parsed.model}.` } }],
+          results: [
+            { rerank_score: 2.4, title: 'Fonte DeepSeek', url: 'https://example.org/deepseek', snippet: 's', summary: 'Resumo da fonte.',
+              content: '', site_name: 'Exemplo', site_icon: null, date: '2026-06-01T00:00:00+00:00', authority: 3 },
+            { rerank_score: 1.0, title: 'Fraca', url: 'https://example.org/fraca', snippet: 's', summary: 'Resumo fraco.',
+              content: '', site_name: null, site_icon: null, date: null, authority: -1 },
+          ],
+        }),
+      );
+    } else {
+      // Resposta embasada (ADR-046) quando o prompt traz resultados de busca; senão, texto simples.
+      const grounded = String(parsed.messages?.[0]?.content || '').includes('resultados de busca numerados');
+      res.end(
+        JSON.stringify({
+          choices: [{ message: { role: 'assistant', content: grounded ? '{"answer":"Resposta embasada [1]. Inventado [2]."}' : `Resposta de ${parsed.model}.` } }],
           usage: { prompt_tokens: 11, completion_tokens: 4 },
         }),
       );
@@ -105,7 +119,7 @@ async function askWith(provider) {
   return doubt;
 }
 
-for (const [provider, model] of [['chatgpt', 'gpt-4o-mini'], ['grok', 'grok-4'], ['deepseek', 'deepseek-chat']]) {
+for (const [provider, model] of [['chatgpt', 'gpt-4o-mini'], ['grok', 'grok-4']]) {
   const before = requests.length;
   const doubt = await askWith(provider);
   const req = requests[before];
@@ -114,6 +128,29 @@ for (const [provider, model] of [['chatgpt', 'gpt-4o-mini'], ['grok', 'grok-4'],
     `${provider}: resposta pelo adaptador, sem fontes inventadas`,
   );
   ok(req?.url === '/chat/completions' && req.auth === 'Bearer fake-key' && req.body.model === model, `${provider}: endpoint, chave e modelo padrão corretos`);
+  ok(!requests.slice(before).some(r => r.url.endsWith('/v1/tools/search')), `${provider}: sem busca na web do DeepSeek`);
+}
+
+// DeepSeek (ADR-046): o Notee pesquisa na web e a resposta usa só os resultados (fontes reais com link).
+{
+  const before = requests.length;
+  const doubt = await askWith('deepseek');
+  const search = requests.slice(before).find(r => r.url === '/v1/tools/search');
+  const chat = requests.slice(before).find(r => r.url === '/chat/completions');
+  ok(
+    search?.auth === 'Bearer fake-key' && search.body.query === 'Pergunta para deepseek? lang:pt,en' && search.body.count === 10 &&
+      search.body.need_content === false && !('localization' in search.body),
+    'deepseek: busca na web com a pergunta, sem IP do usuário',
+  );
+  ok(chat?.body.model === 'deepseek-chat' && !JSON.stringify(chat.body).includes('example.org/fraca'), 'deepseek: resultado abaixo da nota mínima não vai para a IA');
+  ok(doubt.status === 'Completed' && doubt.answerProvider === 'deepseek' && doubt.evidence === 'Sourced', 'deepseek: resposta embasada com fonte');
+  ok(doubt.answer === 'Resposta embasada [1]. Inventado.', 'deepseek: [n] sem resultado correspondente é removido');
+  const src = doubt.sources?.[0];
+  ok(
+    doubt.sources?.length === 1 && src.url === 'https://example.org/deepseek' && src.verified === true && src.siteName === 'Exemplo' && src.authority === 3,
+    'deepseek: só a fonte citada, com link, site e autoridade',
+  );
+  ok(doubt.latestJob?.webSearches === 1, 'deepseek: busca registrada na execução');
 }
 
 const beforeClaude = requests.length;

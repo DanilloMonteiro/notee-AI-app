@@ -8,7 +8,8 @@ using NoteLab.Infrastructure;
 
 namespace NoteLab.Application;
 
-public sealed record ComposeAiRequest(string? Mode, string? Title, string? Instructions, string? BaseLink, bool Confirm = false);
+/// <param name="WebSearch">Pesquisar fontes na web antes de escrever (ADR-046). Padrão: sim.</param>
+public sealed record ComposeAiRequest(string? Mode, string? Title, string? Instructions, string? BaseLink, bool Confirm = false, bool WebSearch = true);
 
 /// <summary>
 /// Criação de nota assistida por IA (ADR-044). Estimativa (sem envio) e geração (com confirmação explícita).
@@ -40,7 +41,7 @@ public static class NoteComposeAiEndpoints
         var group = app.MapGroup("/notes").RequireAuthorization().WithTags("Notes");
 
         group.MapPost("/compose-ai/estimate", async (ComposeAiRequest body, ClaimsPrincipal user, NoteDbContext db,
-            AiProviderSelector selector, IConfiguration config, CancellationToken ct) =>
+            AiProviderSelector selector, IWebSearch webSearch, IConfiguration config, CancellationToken ct) =>
         {
             string owner = Owner(user);
             if (Validate(body, out ComposeInput? input) is { } invalid) return invalid;
@@ -50,11 +51,22 @@ public static class NoteComposeAiEndpoints
             UserPreferences prefs = await PreferencesAsync(db, owner, ct);
             string provider = selector.Describe(prefs);
             bool external = provider != "fake";
+            var searchOptions = WebSearchOptions.From(config);
+            bool searchAvailable = SearchAvailable(provider, searchOptions, webSearch);
+            bool willSearch = body.WebSearch && searchAvailable;
             string prompt = await PromptAsync(db, owner, input, baseNote, ct);
-            int estimatedInput = NoteComposer.EstimateTokens(prompt);
+            // Com busca, a IA também lê até MaxResults resumos (~900 caracteres cada).
+            int estimatedInput = NoteComposer.EstimateTokens(prompt) + (willSearch ? searchOptions.MaxResults * 260 : 0);
             int estimatedOutput = Math.Min(NoteComposer.MaxOutputTokens, 1_500 + estimatedInput);
+            decimal? modelCost = external ? AiPricing.Cost(config, provider, estimatedInput, estimatedOutput) : 0m;
             return Results.Ok(new
             {
+                webSearch = new
+                {
+                    available = searchAvailable,
+                    willSearch,
+                    estimatedCostUsd = willSearch ? searchOptions.CostOf(1) : 0m,
+                },
                 provider,
                 providerName = external ? selector.Active.Name : "Simulação local (sem custo)",
                 external,
@@ -62,14 +74,14 @@ public static class NoteComposeAiEndpoints
                 externalConfigured = selector.ExternalConfigured,
                 estimatedInputTokens = estimatedInput,
                 estimatedOutputTokens = estimatedOutput,
-                estimatedCostUsd = external ? AiPricing.Cost(config, provider, estimatedInput, estimatedOutput) : 0m,
+                estimatedCostUsd = modelCost is null ? null : modelCost + (willSearch ? searchOptions.CostOf(1) : 0m),
                 maxPerHour = MaxPerHour(config),
                 baseNote = baseNote is null ? null : new { baseNote.Title, baseNote.IsOwn },
             });
         });
 
         group.MapPost("/compose-ai", async (ComposeAiRequest body, ClaimsPrincipal user, NoteDbContext db,
-            AiProviderSelector selector, SafeHttpClient http, IConfiguration config, ILoggerFactory logs, CancellationToken ct) =>
+            AiProviderSelector selector, IWebSearch webSearch, SafeHttpClient http, IConfiguration config, ILoggerFactory logs, CancellationToken ct) =>
         {
             string owner = Owner(user);
             if (!body.Confirm)
@@ -86,7 +98,31 @@ public static class NoteComposeAiEndpoints
             var tags = await db.Tags.AsNoTracking().Where(t => t.OwnerId == owner).OrderBy(t => t.Name).ToListAsync(ct);
             UserPreferences prefs = await PreferencesAsync(db, owner, ct);
             string provider = selector.Describe(prefs);
-            string prompt = NoteComposer.UserPrompt(input.Mode, input.Title, input.Instructions, baseNote?.Title, baseNote?.Text, categories, tags);
+
+            // ADR-046: pesquisa na web antes de escrever. Sai só o título + descrição/instrução (até 128 caracteres).
+            // Falha ou nenhum resultado bom: a nota é escrita sem busca, como antes, e a prévia avisa.
+            var searchOptions = WebSearchOptions.From(config);
+            List<WebSearchResult> searchResults = [];
+            int webSearches = 0;
+            string? searchNotice = null;
+            if (body.WebSearch && SearchAvailable(provider, searchOptions, webSearch))
+            {
+                (string query, string intent) = WebSearchQuery.Build($"{input.Title} {input.Instructions}");
+                try
+                {
+                    IReadOnlyList<WebSearchResult> found = await webSearch.SearchAsync(query, intent, ct);
+                    webSearches = found.Count > 0 ? 1 : 0; // o DeepSeek só cobra busca com resultado
+                    searchResults = WebSearchQuery.Select(found, searchOptions);
+                    if (searchResults.Count == 0) searchNotice = "A busca não trouxe resultados confiáveis; a nota foi escrita sem fontes da web.";
+                }
+                catch (WebSearchException ex)
+                {
+                    searchNotice = $"{ex.Message} A nota foi escrita sem fontes da web.";
+                }
+            }
+
+            string prompt = NoteComposer.UserPrompt(input.Mode, input.Title, input.Instructions, baseNote?.Title, baseNote?.Text, categories, tags,
+                searchResults.Count > 0 ? searchResults : null);
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(90));
@@ -106,10 +142,11 @@ public static class NoteComposeAiEndpoints
             }
 
             decimal? cost = provider == "fake" ? 0m : AiPricing.Cost(config, provider, completion.InputTokens, completion.OutputTokens);
+            if (cost is not null) cost += searchOptions.CostOf(webSearches);
             ComposeDraft draft;
             try
             {
-                draft = NoteComposer.Parse(completion.Text, baseNote?.Text.Charts.Count ?? 0, categories, tags);
+                draft = NoteComposer.Parse(completion.Text, baseNote?.Text.Charts.Count ?? 0, categories, tags, searchResults.Count);
             }
             catch (OrganizeRejectedException rejected)
             {
@@ -124,10 +161,17 @@ public static class NoteComposeAiEndpoints
             }
 
             // Fontes da nota e dos gráficos novos: só fica o que a resolução de DOI/ISBN/URL encontrar.
+            // Resultados da busca já são páginas reais: entram direto, sem passar pelo resolvedor.
             var identifiers = draft.Sources.Select(s => s.Identifier)
                 .Concat(draft.NewCharts.Select(c => c.SourceIdentifier))
+                .Where(id => !id.StartsWith("busca:", StringComparison.Ordinal))
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            IReadOnlyDictionary<string, ResolvedSource> resolved = await ResolveAllAsync(identifiers, http, config, ct);
+            var resolved = new Dictionary<string, ResolvedSource>(await ResolveAllAsync(identifiers, http, config, ct), StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < searchResults.Count; i++)
+            {
+                resolved[NoteComposer.SearchResultId(i + 1)] = NoteComposer.AsResolvedSource(searchResults[i]);
+            }
+
             ComposeResult result = NoteComposer.Assemble(draft, baseNote?.Text.Charts ?? [], resolved);
 
             Runs.Add(1, new("provider", provider), new("result", "ok"));
@@ -154,6 +198,7 @@ public static class NoteComposeAiEndpoints
                 } : null,
                 discardedSources = result.DiscardedSources,
                 discardedCharts = result.DiscardedCharts,
+                webSearch = new { used = searchResults.Count > 0, results = searchResults.Count, searches = webSearches, notice = searchNotice },
                 inputTokens = completion.InputTokens,
                 outputTokens = completion.OutputTokens,
                 costUsd = cost,
@@ -285,6 +330,10 @@ public static class NoteComposeAiEndpoints
 
     private static IResult ValidationProblem(string detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Erro de validação", detail: detail);
+
+    /// <summary>Busca na web só com o DeepSeek ativo (com consentimento e chave) e a busca ligada no servidor.</summary>
+    private static bool SearchAvailable(string provider, WebSearchOptions options, IWebSearch webSearch) =>
+        provider == AiProviders.DeepSeek && options.Enabled && webSearch.Available;
 
     private static int MaxPerHour(IConfiguration config) => Math.Max(1, config.GetValue<int?>("Ai:ComposeMaxPerHour") ?? 10);
 

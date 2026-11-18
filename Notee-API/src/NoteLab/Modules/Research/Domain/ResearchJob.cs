@@ -36,6 +36,8 @@ public sealed class ResearchJob
     /// <summary>Uso reportado pelo provider (custo), quando disponível.</summary>
     public int? InputTokens { get; private set; }
     public int? OutputTokens { get; private set; }
+    /// <summary>Buscas na web cobradas nesta execução (ADR-046; 0 = respondeu sem busca).</summary>
+    public int WebSearches { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
@@ -87,11 +89,12 @@ public sealed class ResearchJob
         UpdatedAt = now;
     }
 
-    public void Succeed(string provider, DateTimeOffset now, int? inputTokens = null, int? outputTokens = null)
+    public void Succeed(string provider, DateTimeOffset now, int? inputTokens = null, int? outputTokens = null, int webSearches = 0)
     {
         EnsureRunning();
         InputTokens = inputTokens;
         OutputTokens = outputTokens;
+        WebSearches = Math.Max(0, webSearches);
         Status = ResearchJobStatus.Succeeded;
         Provider = provider;
         LastError = null;

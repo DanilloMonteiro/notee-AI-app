@@ -203,6 +203,7 @@ public sealed class NoteDbContext : IdentityDbContext<ApplicationUser>
             // Sem HasDefaultValue: com default no banco o EF trocaria o false de Declared pelo default.
             // As linhas antigas recebem true na migration (eram todas links da busca do provedor).
             e.Property(s => s.Url).HasMaxLength(2048);
+            e.Property(s => s.SiteName).HasMaxLength(ResearchSource.MaxSiteNameLength);
             e.HasOne<Doubt>().WithMany().HasForeignKey(s => s.DoubtId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.DoubtId, s.Position });
         });

@@ -52,11 +52,13 @@ public record ResearchJobResponse(
 {
     public int? InputTokens { get; init; }
     public int? OutputTokens { get; init; }
+    /// <summary>Buscas na web feitas nesta execução (ADR-046).</summary>
+    public int WebSearches { get; init; }
 
     public static ResearchJobResponse From(ResearchJob j) =>
         new(j.Id, j.DoubtId, j.Status.ToString(), j.Attempt, j.MaxAttempts, j.NextAttemptAt, j.CancelRequested,
             j.Provider, j.LastError, j.CreatedAt, j.CompletedAt)
-        { InputTokens = j.InputTokens, OutputTokens = j.OutputTokens };
+        { InputTokens = j.InputTokens, OutputTokens = j.OutputTokens, WebSearches = j.WebSearches };
 }
 
 public record CreateBoardDoubtRequest(string Question);
@@ -65,4 +67,10 @@ public record CreateBoardDoubtRequest(string Question);
 /// Fonte da resposta. <c>Verified = false</c>: origem informada pela IA e não conferida (sem link).
 /// O número nos marcadores [n] da resposta é a posição na lista (1, 2, …).
 /// </summary>
-public record SourceResponse(string Title, string? Url, bool Verified = true);
+public record SourceResponse(string Title, string? Url, bool Verified = true)
+{
+    /// <summary>Dados do buscador (ADR-046): site, data de publicação e autoridade (-1 a 4).</summary>
+    public string? SiteName { get; init; }
+    public DateTimeOffset? PublishedAt { get; init; }
+    public int? Authority { get; init; }
+}

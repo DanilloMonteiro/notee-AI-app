@@ -103,6 +103,9 @@ builder.Services.AddHttpClient<GeminiAiService>();
 builder.Services.AddHttpClient<ChatGptAiService>();
 builder.Services.AddHttpClient<GrokAiService>();
 builder.Services.AddHttpClient<DeepSeekAiService>();
+// Busca na web do DeepSeek para respostas e notas embasadas (ADR-046).
+builder.Services.AddHttpClient<DeepSeekWebSearch>();
+builder.Services.AddTransient<IWebSearch>(sp => sp.GetRequiredService<DeepSeekWebSearch>());
 builder.Services.AddScoped<ClaudeAiService>();
 builder.Services.AddScoped<AiProviderSelector>();
 builder.Services.AddScoped<PreferencesService>();

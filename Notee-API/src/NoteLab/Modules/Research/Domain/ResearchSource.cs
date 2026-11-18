@@ -21,6 +21,22 @@ public sealed class ResearchSource
     public bool Verified { get; private set; }
     public DateTimeOffset RetrievedAt { get; private set; }
 
+    /// <summary>Dados do buscador (ADR-046), quando a fonte veio da busca na web.</summary>
+    public string? SiteName { get; private set; }
+    public DateTimeOffset? PublishedAt { get; private set; }
+    /// <summary>-1 (desconhecida) a 4; 3 ou mais = alta autoridade segundo o buscador.</summary>
+    public int? Authority { get; private set; }
+
+    public const int MaxSiteNameLength = 200;
+
+    public ResearchSource WithSearchMetadata(string? siteName, DateTimeOffset? publishedAt, int? authority)
+    {
+        SiteName = string.IsNullOrWhiteSpace(siteName) ? null : siteName.Trim() is { Length: > MaxSiteNameLength } s ? s[..MaxSiteNameLength] : siteName.Trim();
+        PublishedAt = publishedAt?.ToUniversalTime();
+        Authority = authority is null ? null : Math.Clamp(authority.Value, -1, 4);
+        return this;
+    }
+
     private ResearchSource()
     {
         Title = null!;
