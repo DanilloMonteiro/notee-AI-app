@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptedSources, buildBlocks, createComposedNote, initialSelection, parseNoteLink, toggleChart, toggleSource } from './composeNote.js';
+import {
+  UNVERIFIED_ORIGIN_NOTE,
+  acceptedSourceEntries,
+  acceptedSources,
+  buildBlocks,
+  citationBodies,
+  createComposedNote,
+  initialSelection,
+  parseNoteLink,
+  toggleChart,
+  toggleOrigin,
+  toggleSource,
+} from './composeNote.js';
 
 const chart = { type: 'chart', schemaVersion: 1, chartType: 'bar', title: 'PIB', labels: ['2014'], series: [{ name: 'PIB', values: [0.5] }] };
 const ibge = { kind: 'website', title: 'IBGE', authors: [], year: 2020, url: 'https://ibge.gov.br' };
@@ -76,4 +88,52 @@ test('cria a nota com taxonomia aceita e cita as fontes; reaproveita tag e fonte
   assert.deepEqual(calls.find(c => c[0] === 'note'), ['note', 'c1', ['t1', 't2']]);
   // A fonte não pôde ser reaproveitada nem criada: a nota continua criada e o problema volta como aviso.
   assert.deepEqual(warnings, ['IBGE']);
+});
+
+test('citações ficam ancoradas nos trechos que a fonte apoia; sem trecho localizado, nota inteira', () => {
+  const blocks = [{ id: 'b1', type: 'paragraph', text: 'O PIB caiu 3,5% em 2015. Outra frase.' }];
+  assert.deepEqual(citationBodies('s1', ['O PIB caiu 3,5% em 2015.', 'não existe'], blocks), [
+    { sourceId: 's1', blockId: 'b1', exactQuote: 'O PIB caiu 3,5% em 2015.', startIndex: 0, endIndex: 24 },
+  ]);
+  assert.deepEqual(citationBodies('s1', ['não existe'], blocks), [{ sourceId: 's1' }]);
+  assert.deepEqual(citationBodies('s1', [], blocks), [{ sourceId: 's1' }]);
+});
+
+test('origens aceitas viram fonte "Outro" sem link e com aviso de não conferida', () => {
+  const withOrigins = {
+    ...result,
+    origins: [
+      { label: 'IBGE, Censo 2022', supports: ['Intro'], unresolvedIdentifier: false },
+      { label: '10.9999/x', supports: [], unresolvedIdentifier: true },
+    ],
+  };
+  let sel = initialSelection(withOrigins);
+  assert.deepEqual(sel.origins, [true, true]);
+  sel = toggleOrigin(sel, 1);
+  const entries = acceptedSourceEntries(withOrigins, sel);
+  const origin = entries.at(-1);
+  assert.equal(entries.length, 2); // fonte conferida + 1 origem marcada
+  assert.equal(origin.input.kind, 'other');
+  assert.equal(origin.input.url, null);
+  assert.equal(origin.input.notes, UNVERIFIED_ORIGIN_NOTE);
+  assert.deepEqual(origin.supports, ['Intro']);
+});
+
+test('criar nota cita a fonte no trecho que ela apoia', async () => {
+  const cited = [];
+  const api = {
+    createTaxonomy: async (kind, name) => ({ id: `${kind}-${name}` }),
+    listTaxonomy: async () => [],
+    createNote: async () => ({ id: 'n1' }),
+    createSource: async () => ({ id: 's1' }),
+    listSources: async () => [],
+    addCitation: async (noteId, body) => cited.push(body),
+  };
+  const withSupport = { ...result, sources: [{ ...result.sources[0], supports: ['Intro'] }] };
+  const { warnings } = await createComposedNote({ api, title: 'T', result: withSupport, selection: initialSelection(withSupport) });
+  assert.deepEqual(warnings, []);
+  assert.equal(cited.length, 1);
+  assert.equal(cited[0].exactQuote, 'Intro');
+  assert.equal(cited[0].startIndex, 0);
+  assert.ok(cited[0].blockId);
 });

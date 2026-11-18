@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
+import { AnswerSources, AnswerText } from '../features/research/AnswerWithRefs';
 
 const DOUBT_STATUS = {
   Pending: { label: 'Na fila', cls: 'amber' },
@@ -141,30 +142,22 @@ export function ResearchDetail() {
                 <Icon name="info" className="sm" />
                 <span>Resposta de: {PROVIDER[doubt.answerProvider] || doubt.answerProvider || 'provedor desconhecido'}.</span>
               </div>
-              <div style={{ fontSize: '14px', lineHeight: '1.7', color: 'var(--ink)' }}>
-                {doubt.answer?.split('\n').map((paragraph, i) =>
-                  paragraph.trim() ? (
-                    <p key={i} style={{ marginBottom: '14px' }}>
-                      {paragraph}
-                    </p>
-                  ) : null,
-                )}
-              </div>
+              {/* [n] na resposta leva à fonte; origem só declarada pela IA aparece sem link e marcada. */}
+              <AnswerText
+                answer={doubt.answer}
+                sources={doubt.sources || []}
+                className="research-answer"
+                paragraphStyle={{ marginBottom: '14px', fontSize: '14px', lineHeight: '1.7', color: 'var(--ink)' }}
+              />
               <div className="divider"></div>
               {doubt.sources?.length > 0 ? (
                 <div className="mt16">
-                  <h4 className="mb16">Fontes devolvidas pelo provedor</h4>
-                  <ol style={{ paddingLeft: 20, lineHeight: 1.8 }}>
-                    {doubt.sources.map(s => (
-                      <li key={s.url}>
-                        <a href={s.url} target="_blank" rel="noopener noreferrer">
-                          {s.title}
-                        </a>{' '}
-                        <span className="tiny muted">{new URL(s.url).hostname}</span>
-                      </li>
-                    ))}
-                  </ol>
-                  <p className="tiny muted">Fontes indicadas pelo provedor; confira se elas sustentam a resposta.</p>
+                  <h4 className="mb16">Fontes da resposta</h4>
+                  <AnswerSources sources={doubt.sources} />
+                  <p className="tiny muted">
+                    Links conferidos pelo Notee ou devolvidos pela busca do provedor; confira se eles sustentam a resposta. Origens
+                    “não conferidas” foram só informadas pela IA.
+                  </p>
                 </div>
               ) : (
                 <div className="callout warning mt16">

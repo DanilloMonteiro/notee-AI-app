@@ -1,5 +1,10 @@
-// Criação de nota assistida por IA (ADR-044): funções puras da prévia e a gravação do que foi aceito.
-// Nada é salvo antes de "Criar nota"; cada sugestão (gráfico, categoria, tag, fonte) tem aceite próprio.
+// Criação de nota assistida por IA (ADR-044/045): funções puras da prévia e a gravação do que foi aceito.
+// Nada é salvo antes de "Criar nota"; cada sugestão (gráfico, categoria, tag, fonte, origem) tem aceite próprio.
+import { locateQuote } from './anchors.js';
+
+/** Aviso gravado nas origens sem DOI/ISBN/URL conferido (ADR-045): aparece no card da fonte. */
+export const UNVERIFIED_ORIGIN_NOTE = 'Origem informada pela IA na criação da nota — não conferida.';
+export const UNRESOLVED_REFERENCE_NOTE = 'Referência indicada pela IA na criação da nota, mas não encontrada — não conferida.';
 
 const NOTE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SEGMENT = /^[A-Za-z0-9_-]{1,200}$/;
@@ -39,7 +44,13 @@ export function initialSelection(result) {
     category: Boolean(result.category),
     tags: (result.tags || []).map(() => true),
     sources: (result.sources || []).map(() => true),
+    origins: (result.origins || []).map(() => true),
   };
+}
+
+/** Marca/desmarca uma origem não conferida. */
+export function toggleOrigin(selection, index) {
+  return { ...selection, origins: (selection.origins || []).map((v, i) => (i === index ? !v : v)) };
 }
 
 /** Desmarcar a fonte de um gráfico gerado desmarca o gráfico (gráfico sempre com fonte). */
@@ -98,13 +109,56 @@ export function sourceInput(resolved, notes = null) {
   };
 }
 
+/** Origem sem identificador conferido → fonte "Outro", só com título e o aviso de não conferida (nunca com link). */
+export function originInput(origin) {
+  return {
+    kind: 'other',
+    title: String(origin.label || '').slice(0, 300),
+    authors: [],
+    year: null,
+    venue: null,
+    language: null,
+    doi: null,
+    isbn: null,
+    url: null,
+    license: 'unknown',
+    notes: origin.unresolvedIdentifier ? UNRESOLVED_REFERENCE_NOTE : UNVERIFIED_ORIGIN_NOTE,
+  };
+}
+
+/**
+ * Fontes a gravar: atribuição obrigatória, fontes conferidas aceitas e origens não conferidas aceitas.
+ * Cada item: { input (corpo de POST /sources), supports (trechos exatos do texto que ela apoia) }.
+ */
+export function acceptedSourceEntries(result, selection) {
+  const entries = (result.sources || [])
+    .map((s, i) => ({ s, i }))
+    .filter(({ i }) => selection.sources[i])
+    .map(({ s }) => ({ input: sourceInput(s.resolved, `Sugerida na criação da nota: ${s.reason}`.slice(0, 1000)), supports: s.supports || [] }));
+  if (result.attribution) entries.unshift({ input: sourceInput(result.attribution, 'Nota original usada como base.'), supports: [] });
+  (result.origins || []).forEach((origin, i) => {
+    if (selection.origins?.[i]) entries.push({ input: originInput(origin), supports: origin.supports || [] });
+  });
+  return entries;
+}
+
 /** Fontes aceitas + atribuição obrigatória, no formato de POST /sources. */
 export function acceptedSources(result, selection) {
-  const list = (result.sources || [])
-    .filter((_, i) => selection.sources[i])
-    .map(s => sourceInput(s.resolved, `Sugerida na criação da nota: ${s.reason}`.slice(0, 1000)));
-  if (result.attribution) list.unshift(sourceInput(result.attribution, 'Nota original usada como base.'));
-  return list;
+  return acceptedSourceEntries(result, selection).map(e => e.input);
+}
+
+/**
+ * Citações de uma fonte nos blocos criados: uma por trecho apoiado que exista no texto.
+ * Sem nenhum trecho localizado, cita a nota inteira (como antes).
+ */
+export function citationBodies(sourceId, supports, blocks) {
+  const anchored = [];
+  for (const quote of supports || []) {
+    const found = locateQuote(blocks, { exactQuote: quote });
+    if (found && !anchored.some(c => c.blockId === found.blockId && c.startIndex === found.startIndex))
+      anchored.push({ sourceId, blockId: found.blockId, exactQuote: quote, startIndex: found.startIndex, endIndex: found.endIndex });
+  }
+  return anchored.length ? anchored : [{ sourceId }];
 }
 
 /**
@@ -123,19 +177,21 @@ export async function createComposedNote({ api, title, result, selection }) {
     tagIds.push(tag.existingId || (await ensureTaxonomy(api, 'tags', tag.name)));
   }
 
+  const blocks = buildBlocks(result, selection);
   const note = await api.createNote({
     title,
-    content: JSON.stringify(buildBlocks(result, selection)),
+    content: JSON.stringify(blocks),
     categoryId,
     tagIds,
   });
 
-  for (const source of acceptedSources(result, selection)) {
+  // Cada fonte é citada nos trechos que apoia (âncora no texto); sem trecho, na nota inteira.
+  for (const { input, supports } of acceptedSourceEntries(result, selection)) {
     try {
-      const sourceId = await ensureSource(api, source);
-      await api.addCitation(note.id, { sourceId });
+      const sourceId = await ensureSource(api, input);
+      for (const body of citationBodies(sourceId, supports, blocks)) await api.addCitation(note.id, body);
     } catch {
-      warnings.push(source.title);
+      warnings.push(input.title);
     }
   }
   return { note, warnings };
@@ -160,7 +216,11 @@ async function ensureSource(api, source) {
     if (err?.status !== 409) throw err;
     const key = source.doi || source.isbn;
     const existing = (await api.listSources(key || source.title)).find(
-      s => (source.doi && s.doi?.toLowerCase() === source.doi.toLowerCase()) || (source.isbn && s.isbn === source.isbn),
+      s =>
+        (source.doi && s.doi?.toLowerCase() === source.doi.toLowerCase()) ||
+        (source.isbn && s.isbn === source.isbn) ||
+        // Origem sem identificador: mesma fonte "Outro" com o mesmo título.
+        (!key && !source.url && s.kind === source.kind && s.title?.toLowerCase() === source.title.toLowerCase()),
     );
     if (!existing) throw err;
     return existing.id;

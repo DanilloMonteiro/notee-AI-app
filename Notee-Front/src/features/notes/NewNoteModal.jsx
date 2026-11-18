@@ -9,7 +9,19 @@ import { sourcesApi } from '../sources/sourcesApi';
 import { ChartView } from '../charts/ChartView';
 import { PreviewBlock } from './OrganizeAiModal';
 import { costText } from './aiCost';
-import { createComposedNote, initialSelection, parseNoteLink, toggleChart, toggleSource } from './composeNote';
+import { createComposedNote, initialSelection, parseNoteLink, toggleChart, toggleOrigin, toggleSource } from './composeNote';
+
+// Trechos do texto que a fonte/origem apoia (viram citações ancoradas ao criar a nota).
+function SupportList({ supports }) {
+  if (!supports?.length) return <span className="small muted"> · cita a nota inteira</span>;
+  return (
+    <span className="new-note-supports">
+      {supports.map(quote => (
+        <q key={quote}>{quote}</q>
+      ))}
+    </span>
+  );
+}
 
 const MODES = [
   { id: 'manual', icon: 'note', label: 'Escrever eu mesmo', hint: 'Abre o editor com o título escolhido.' },
@@ -275,7 +287,7 @@ export function NewNoteModal({ onCreated, onClose }) {
           <>
             <p className="small muted mb16">
               Prévia · {costText(result.costUsd, (result.inputTokens || 0) + (result.outputTokens || 0), result.external)}
-              {result.discardedSources > 0 && ` · ${result.discardedSources} fonte(s) descartada(s): não foram encontradas`}
+              {result.discardedSources > 0 && ` · ${result.discardedSources} referência(s) não encontrada(s): aparecem abaixo como não conferidas`}
               {result.discardedCharts > 0 && ` · ${result.discardedCharts} gráfico(s) descartado(s) por falta de fonte verificável`}
             </p>
             <div className="organize-ai-preview">
@@ -349,13 +361,34 @@ export function NewNoteModal({ onCreated, onClose }) {
                         abrir <Icon name="external" className="sm" />
                       </a>
                     )}
+                    <SupportList supports={s.supports} />
                   </span>
                 </label>
               ))}
-              {!result.attribution && result.sources.length === 0 && (
+              {!result.attribution && result.sources.length === 0 && !(result.origins || []).length && (
                 <p className="small muted">Sem fonte. Nenhuma fonte sugerida pôde ser conferida; você pode adicionar fontes na aba Fontes da nota.</p>
               )}
             </div>
+
+            {(result.origins || []).length > 0 && (
+              <div className="new-note-group">
+                <h3>Origens informadas pela IA (não conferidas)</h3>
+                <p className="small muted">
+                  A IA disse que estas informações vieram daqui, mas o Notee não conseguiu conferir. Elas entram na nota como fontes
+                  marcadas “não conferida”, sem link.
+                </p>
+                {result.origins.map((o, i) => (
+                  <label key={`${o.label}-${i}`} className="new-note-check">
+                    <input type="checkbox" checked={!!selection.origins?.[i]} onChange={() => setSelection(sel => toggleOrigin(sel, i))} />
+                    <span>
+                      <strong>{o.label}</strong>{' '}
+                      <span className="pill amber">{o.unresolvedIdentifier ? 'referência não encontrada' : 'não conferida'}</span>
+                      <SupportList supports={o.supports} />
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
 
             <div className="modal-actions mt16">
               <button className="btn" onClick={onClose} disabled={state === 'saving'}>
