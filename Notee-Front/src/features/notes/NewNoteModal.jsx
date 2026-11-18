@@ -9,6 +9,11 @@ import { sourcesApi } from '../sources/sourcesApi';
 import { ChartView } from '../charts/ChartView';
 import { PreviewBlock } from './OrganizeAiModal';
 import { costText } from './aiCost';
+import { SOURCE_MODES, searchBasisText, sourcesEstimateText } from '../research/sourceMix';
+import { SourceComposition } from '../research/AnswerWithRefs';
+
+// Quem encontrou a fonte (ADR-047): artigo do OpenAlex, página da busca do DeepSeek ou referência conferida.
+const FOUND_BY = { openalex: 'artigo acadêmico · revise', 'deepseek-search': 'página da busca na web · revise' };
 import { createComposedNote, initialSelection, parseNoteLink, toggleChart, toggleOrigin, toggleSource } from './composeNote';
 
 // Trechos do texto que a fonte/origem apoia (viram citações ancoradas ao criar a nota).
@@ -60,8 +65,8 @@ export function NewNoteModal({ onCreated, onClose }) {
   const [estimate, setEstimate] = useState(null);
   const [result, setResult] = useState(null);
   const [selection, setSelection] = useState(null);
-  // Pesquisar fontes na web antes de escrever (marcado por padrão; ADR-046).
-  const [webSearch, setWebSearch] = useState(true);
+  // Origem das fontes desta nota (ADR-047): "account" = padrão da conta (Configurações > Fontes).
+  const [sources, setSources] = useState('account');
 
   const parsedLink = mode === 'rewrite' ? parseNoteLink(link) : null;
   const trimmedTitle = title.trim();
@@ -81,7 +86,7 @@ export function NewNoteModal({ onCreated, onClose }) {
     title: trimmedTitle,
     instructions: instructions.trim(),
     baseLink: parsedLink?.url ?? null,
-    webSearch, // ADR-046: pesquisar fontes na web antes de escrever (só com DeepSeek ativo)
+    sources, // ADR-047: account | mixed | academic | web | none
     ...extra,
   });
 
@@ -217,14 +222,18 @@ export function NewNoteModal({ onCreated, onClose }) {
             )}
 
             {mode !== 'manual' && (
-              <label className="new-note-check mt16">
-                <input type="checkbox" checked={webSearch} onChange={e => setWebSearch(e.target.checked)} />
-                <span>
-                  <strong>Pesquisar fontes na web</strong>
-                  <span className="small muted">
-                    {' '}
-                    O Notee busca páginas sobre o assunto e a IA escreve com base nelas; cada trecho fica ligado à página de onde veio.
-                  </span>
+              <label className="new-note-sources mt16">
+                <strong>Fontes</strong>
+                <select value={sources} onChange={e => setSources(e.target.value)}>
+                  <option value="account">Padrão da conta</option>
+                  {SOURCE_MODES.map(m => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="small muted">
+                  O Notee pesquisa antes de escrever e a IA usa só o que encontrar; cada trecho fica ligado ao artigo ou à página de onde veio.
                 </span>
               </label>
             )}
@@ -280,14 +289,8 @@ export function NewNoteModal({ onCreated, onClose }) {
                   </dd>
                 </>
               )}
-              <dt>Busca na web</dt>
-              <dd>
-                {estimate.webSearch?.willSearch
-                  ? `Sim — uma busca (≈ US$ ${Number(estimate.webSearch.estimatedCostUsd).toFixed(5)}), incluída no custo abaixo`
-                  : !webSearch
-                    ? 'Desligada'
-                    : 'Indisponível (só com o DeepSeek ativo e autorizado)'}
-              </dd>
+              <dt>Fontes</dt>
+              <dd>{sourcesEstimateText(estimate.sources)}</dd>
               <dt>Custo estimado</dt>
               <dd>{costText(estimate.estimatedCostUsd, estimate.estimatedInputTokens + estimate.estimatedOutputTokens, external)}</dd>
               <dt>Limite</dt>
@@ -313,7 +316,7 @@ export function NewNoteModal({ onCreated, onClose }) {
               Prévia · {costText(result.costUsd, (result.inputTokens || 0) + (result.outputTokens || 0), result.external)}
               {result.discardedSources > 0 && ` · ${result.discardedSources} referência(s) não encontrada(s): aparecem abaixo como não conferidas`}
               {result.discardedCharts > 0 && ` · ${result.discardedCharts} gráfico(s) descartado(s) por falta de fonte verificável`}
-              {result.webSearch?.used && ` · escrita com base em ${result.webSearch.results} página(s) da web`}
+              {result.webSearch?.used && ` · escrita com base em ${searchBasisText(result.sourceSearch, result.webSearch.results)}`}
             </p>
             {result.webSearch?.notice && (
               <div className="callout warning mb16">
@@ -321,6 +324,7 @@ export function NewNoteModal({ onCreated, onClose }) {
                 <span>{result.webSearch.notice}</span>
               </div>
             )}
+            <SourceComposition sources={result.sources.map(s => ({ ...s.resolved, origin: s.resolved.provider === 'openalex' ? 'academic' : s.resolved.provider === 'deepseek-search' ? 'web' : undefined }))} className="mb16" />
             <div className="organize-ai-preview">
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{trimmedTitle}</div>
               {result.blocks.map((b, i) => {
@@ -382,7 +386,7 @@ export function NewNoteModal({ onCreated, onClose }) {
                   <input type="checkbox" checked={selection.sources[i]} onChange={() => setSelection(sel => toggleSource(sel, result, i))} />
                   <span>
                     <strong>{s.resolved.title}</strong>{' '}
-                    <span className="pill green">{s.resolved.provider === 'deepseek-search' ? 'página da busca na web · revise' : 'conferida pelo sistema · revise'}</span>
+                    <span className="pill green">{FOUND_BY[s.resolved.provider] || 'conferida pelo sistema · revise'}</span>
                     <span className="small muted">
                       {' '}
                       {authorsYear(s.resolved)} · {s.reason}

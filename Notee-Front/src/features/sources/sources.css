@@ -75,7 +75,8 @@ a.source-group-name:hover { color: #1e5429; text-decoration: underline; }
 .source-group-name .icon { vertical-align: -2px; opacity: .6; }
 .source-group-status { flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px; }
 .source-group-status .pill { font-size: 11px; }
-.source-group-meta { font-size: 13px; color: var(--muted, #6b7280); }
+.source-group-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; color: var(--muted, #6b7280); }
+.source-group-meta:empty { display: none; }
 .source-group-note { margin: 2px 0 4px; padding: 6px 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink, #1f2937);
   background: color-mix(in srgb, #4d8a59 9%, transparent); border-left: 3px solid #4d8a59; border-radius: 0 6px 6px 0; }
 .source-citation-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 6px;

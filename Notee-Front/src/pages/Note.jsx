@@ -20,7 +20,7 @@ import { locateQuote } from '../features/notes/anchors';
 import { buildMarkedHtml, parseMarks } from '../features/notes/markSegments';
 import { MarkPopover } from '../features/notes/MarkPopover';
 import { BlockTypeMenu } from '../features/notes/BlockTypeMenu';
-import { AnswerSources, AnswerText } from '../features/research/AnswerWithRefs';
+import { AnswerSources, AnswerText, SourceComposition } from '../features/research/AnswerWithRefs';
 import {
   BLOCK_TYPES,
   MAX_INDENT,
@@ -1907,7 +1907,10 @@ export function Note() {
                             {/* Resposta com [n] ligados às fontes (link quando conferida). */}
                             <AnswerText answer={d.answer} sources={d.sources || []} className="ne-doubt-answer" />
                             {d.sources?.length > 0 ? (
-                              <AnswerSources sources={d.sources} compact />
+                              <>
+                                <SourceComposition sources={d.sources} />
+                                <AnswerSources sources={d.sources} compact />
+                              </>
                             ) : (
                               <p className="small muted">Sem fonte: a IA não indicou de onde veio a resposta.</p>
                             )}

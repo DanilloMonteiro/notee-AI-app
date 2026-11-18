@@ -8,6 +8,7 @@ import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import { useCurrentUser } from '../contexts/CurrentUserContext';
 import { publishingApi } from '../features/publishing/publishingApi';
+import { SourceSettings } from '../features/research/SourceSettings';
 
 const TABS = ['research', 'account'];
 
@@ -26,6 +27,7 @@ function handleFromName(name) {
 const consentText = providerName =>
   'Autorizo o Notee a enviar a pergunta da dúvida e o trecho selecionado da nota ao provedor externo de IA escolhido pela ' +
   `administração do Notee (atualmente ${providerName || 'não definido'}) para gerar uma resposta; o provedor pode buscar na web para indicar fontes. ` +
+  'Para encontrar artigos acadêmicos, palavras-chave da pergunta (em português e inglês) são enviadas à base pública OpenAlex. ' +
   'Outras notas, mapas e dados da conta não são enviados. ' +
   'Posso revogar a qualquer momento; a revogação vale para as próximas pesquisas.';
 
@@ -166,6 +168,27 @@ export function Settings() {
               <div>
                 <h4>Usar IA externa</h4>
                 <p>{consentText(prefs?.externalProviderName)}</p>
+                {prefs.externalAiConsent && prefs.consentVersion !== prefs.currentConsentVersion && (
+                  <div className="callout warning mt16">
+                    <Icon name="info" className="sm" />
+                    <span>
+                      O termo mudou (agora inclui a busca de artigos no OpenAlex). Até você aceitar de novo, nada é enviado à IA externa.{' '}
+                      <button
+                        type="button"
+                        className="btn compact"
+                        disabled={saving}
+                        onClick={() =>
+                          window.confirm(`${consentText(prefs?.externalProviderName)}
+
+Confirmar autorização?`) &&
+                          update({ externalAiConsent: true, consentVersion: prefs.currentConsentVersion })
+                        }
+                      >
+                        Ler e aceitar o termo atualizado
+                      </button>
+                    </span>
+                  </div>
+                )}
                 {prefs.consentedAt && (
                   <p className="tiny muted">
                     Autorizado em {new Date(prefs.consentedAt).toLocaleString('pt-BR')} (termo v{prefs.consentVersion}).
@@ -199,6 +222,10 @@ export function Settings() {
               </span>
             </div>
           </div>
+        )}
+
+        {activeTab === 'research' && prefs && (
+          <SourceSettings prefs={prefs} saving={saving} onChangeMode={sourceMode => update({ sourceMode })} />
         )}
 
         {activeTab === 'account' && (

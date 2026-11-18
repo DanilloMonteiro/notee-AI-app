@@ -4773,3 +4773,29 @@ a.answer-ref:hover {
   color: var(--brand);
   font-size: 11px;
 }
+
+/* ---- ADR-047: origem das fontes (artigos × internet) ---- */
+.source-composition { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.source-composition-bar { display: inline-flex; width: 72px; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); flex-shrink: 0; }
+.source-composition-bar .is-academic { background: #3f6fb5; }
+.source-composition-bar .is-web { background: #c9a23c; }
+.source-origin-badge { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 600; line-height: 1.6; vertical-align: 1px; }
+.source-origin-badge.is-academic { background: #e3ecf8; color: #2c5694; }
+.source-origin-badge.is-web { background: #f6eed8; color: #7a5d12; }
+.answer-sources-trusted { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 4px; font-size: 11px; background: #dcefe0; color: #1e5429; }
+.answer-sources-block { margin-left: 6px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 11px; text-decoration: underline; cursor: pointer; }
+.answer-sources-block:hover { color: #a33; }
+.source-mode-options { display: grid; gap: 8px; margin-bottom: 20px; }
+.source-mode-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.source-mode-option.is-selected { border-color: #3f6fb5; background: color-mix(in srgb, #3f6fb5 6%, transparent); }
+.source-mode-option > span { display: grid; gap: 2px; }
+.source-mode-option input { margin-top: 3px; }
+.source-rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.source-rules h4 { margin: 0 0 4px; }
+.source-rules-list { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 4px; }
+.source-rules-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border-radius: 6px; background: var(--surface-soft, #f6f6f3); font-size: 13px; }
+.source-rules-remove { width: 24px; height: 24px; }
+.source-rules-add { display: flex; gap: 6px; }
+.source-rules-add input { flex: 1; min-width: 0; }
+.new-note-sources { display: grid; gap: 6px; }
+.new-note-sources select { max-width: 360px; }

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from '../../components/Icon';
 import { formatLocator } from '../sources/citationFormatting';
 import { checkStatusInfo } from '../sources/checkStatus';
-import { AnswerSources, AnswerText } from '../research/AnswerWithRefs';
+import { AnswerSources, AnswerText, SourceComposition } from '../research/AnswerWithRefs';
 
 const DOUBT_STATUS = {
   Completed: { label: 'Respondida', className: 'green' },
@@ -31,7 +31,10 @@ function DoubtSection({ doubt, onShowPanel }) {
       )}
       {doubt.status === 'Completed' &&
         (doubt.sources?.length > 0 ? (
-          <AnswerSources sources={doubt.sources} compact />
+          <>
+            <SourceComposition sources={doubt.sources} />
+            <AnswerSources sources={doubt.sources} compact />
+          </>
         ) : (
           <p className="nm-card-muted">Sem fonte: a IA não indicou de onde veio a resposta.</p>
         ))}

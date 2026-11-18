@@ -6,7 +6,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
-import { AnswerSources, AnswerText } from '../features/research/AnswerWithRefs';
+import { AnswerSources, AnswerText, SourceComposition } from '../features/research/AnswerWithRefs';
+import { sourceRulesApi } from '../features/research/sourceRulesApi';
 
 const DOUBT_STATUS = {
   Pending: { label: 'Na fila', cls: 'amber' },
@@ -18,6 +19,20 @@ const DOUBT_STATUS = {
 
 const PROVIDER = { fake: 'Simulado (local, nada foi enviado)', gemini: 'Google Gemini (externo)' };
 const isActive = d => d?.latestJob && ['Queued', 'Running'].includes(d.latestJob.status);
+
+/** O que foi pesquisado nesta resposta (artigos e/ou internet). */
+function searchLabel(job, provider, sources = []) {
+  const academic = job?.academicSearches > 0;
+  const web = job?.webSearches > 0;
+  // Fontes com origem gravada = resposta embasada na busca; sem elas, a busca não achou nada bom.
+  if ((academic || web) && !sources.some(s => s.origin)) {
+    return 'A pesquisa não encontrou fontes boas o bastante; a resposta veio direto da IA (fontes citadas por ela são conferidas pelo Notee).';
+  }
+  if (academic && web) return 'Pesquisado em artigos acadêmicos e na internet: a resposta usa só o que foi encontrado.';
+  if (academic) return 'Pesquisado em artigos acadêmicos (OpenAlex): a resposta usa só o que foi encontrado.';
+  if (web) return 'Pesquisado na web: a resposta usa só as páginas encontradas.';
+  return provider === 'deepseek' ? 'Sem busca nesta resposta: fontes indicadas pela IA e conferidas pelo Notee.' : '';
+}
 
 export function ResearchDetail() {
   const { id } = useParams();
@@ -64,6 +79,16 @@ export function ResearchDetail() {
       addToast(err.message || 'Não foi possível iniciar a pesquisa.', 'warning');
     } finally {
       setBusy(false);
+    }
+  };
+
+  // ADR-047: "Não usar este site" — entra na lista de bloqueados e vale para as próximas pesquisas.
+  const blockSite = async domain => {
+    try {
+      await sourceRulesApi.save(domain, 'blocked');
+      addToast(`${domain} não será mais usado como fonte. Pesquise de novo para atualizar esta resposta.`);
+    } catch (err) {
+      addToast(err.message || 'Não foi possível bloquear o site.', 'warning');
     }
   };
 
@@ -142,10 +167,8 @@ export function ResearchDetail() {
                 <Icon name="info" className="sm" />
                 <span>
                   Resposta de: {PROVIDER[doubt.answerProvider] || doubt.answerProvider || 'provedor desconhecido'}.{' '}
-                  {/* ADR-046: com busca, a resposta usa só as páginas encontradas; sem busca, fontes só declaradas pela IA. */}
-                  {doubt.latestJob?.webSearches > 0
-                    ? 'Pesquisado na web: a resposta usa só as páginas encontradas.'
-                    : doubt.answerProvider === 'deepseek' && 'Sem busca na web nesta resposta: fontes indicadas pela IA e conferidas pelo Notee.'}
+                  {/* ADR-046/047: com busca, a resposta usa só o que foi encontrado; sem busca, fontes só declaradas pela IA. */}
+                  {searchLabel(doubt.latestJob, doubt.answerProvider, doubt.sources)}
                 </span>
               </div>
               {/* [n] na resposta leva à fonte; origem só declarada pela IA aparece sem link e marcada. */}
@@ -159,7 +182,8 @@ export function ResearchDetail() {
               {doubt.sources?.length > 0 ? (
                 <div className="mt16">
                   <h4 className="mb16">Fontes da resposta</h4>
-                  <AnswerSources sources={doubt.sources} />
+                  <SourceComposition sources={doubt.sources} className="mb16" />
+                  <AnswerSources sources={doubt.sources} onBlockSite={blockSite} />
                   <p className="tiny muted">
                     Links conferidos pelo Notee ou devolvidos pela busca do provedor; confira se eles sustentam a resposta. Origens
                     “não conferidas” foram só informadas pela IA.

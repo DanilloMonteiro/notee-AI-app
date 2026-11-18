@@ -7,6 +7,9 @@ import { SourceForm } from './SourceForm';
 import { detectCitations } from './detectCitations';
 import { formatLocator, parseTimestamp } from './citationFormatting';
 import { checkStatusHelp, checkStatusInfo } from './checkStatus';
+import { OriginBadge, SourceComposition } from '../research/AnswerWithRefs';
+import { blockableDomain } from '../research/sourceMix';
+import { sourceRulesApi } from '../research/sourceRulesApi';
 
 const locatorKinds = ['none', 'page', 'pages', 'timestamp', 'section', 'paragraph'];
 const locatorLabels = { none: 'Nota inteira', page: 'Página', pages: 'Páginas', timestamp: 'Minuto', section: 'Seção', paragraph: 'Parágrafo' };
@@ -158,12 +161,24 @@ export function SourcesPanel({ noteId, noteBlocks = [], isDirty, selectedAnchor,
   // Formulário recolhido por padrão; abre sozinho com trecho selecionado ou quando a nota ainda não tem fontes.
   const formShown = formOpen ?? (!!selectedAnchor?.quote || citations.length === 0);
 
+  // "Não usar este site": vale para as próximas pesquisas; a citação atual continua até ser removida.
+  const blockSite = async domain => {
+    try {
+      await sourceRulesApi.save(domain, 'blocked');
+      addToast(`${domain} não será mais usado como fonte nas próximas pesquisas.`);
+    } catch (err) {
+      addToast(err.message || 'Não foi possível bloquear o site.', 'warning');
+    }
+  };
+
   return (
     <div className="result-panel sources-panel">
       <div className="row between wrap gap8">
         <h4>Fontes desta nota</h4>
         <Link className="btn compact ghost" to="/sources">Biblioteca</Link>
       </div>
+      {/* ADR-047: quanto das fontes desta nota é artigo acadêmico e quanto é página da internet. */}
+      <SourceComposition sources={Object.values(grouped).map(g => g.source)} />
       {selectedAnchor?.quote && <blockquote className="quote-selection source-selection">{selectedAnchor.quote}</blockquote>}
       {selectedAnchor?.quote && isDirty && <p className="small muted">Salve a nota antes de citar este trecho.</p>}
 
@@ -235,7 +250,15 @@ export function SourcesPanel({ noteId, noteBlocks = [], isDirty, selectedAnchor,
               </span>}
             </span>
           </div>
-          {meta && <div className="source-group-meta">{meta}</div>}
+          <div className="source-group-meta">
+            <OriginBadge source={source} />
+            {meta && <span>{meta}</span>}
+            {blockableDomain(source) && (
+              <button type="button" className="answer-sources-block" title={`Nunca usar ${blockableDomain(source)} como fonte nas próximas pesquisas`} onClick={() => blockSite(blockableDomain(source))}>
+                Não usar este site
+              </button>
+            )}
+          </div>
           {/* Observação da fonte (ex.: por que a IA sugeriu a fonte) inteira e em destaque. */}
           {source.notes && <p className="source-group-note">{source.notes}</p>}
           {items.map(citation => {
