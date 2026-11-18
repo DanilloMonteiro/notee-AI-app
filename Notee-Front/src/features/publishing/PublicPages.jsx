@@ -10,6 +10,22 @@ import { parseBlocks as blocksOf } from '../notes/noteBlocks';
 import { apiFetch } from '../../api';
 import { locateQuote } from '../notes/anchors';
 import { formatBibliographyCitation } from '../sources/citationFormatting';
+import { segmentText } from '../notes/markSegments';
+import { listLabels } from '../notes/blockFormatting';
+
+// Trecho [from, to) do texto com negrito/itálico do bloco (block.styles). Sem estilos, texto puro.
+function styledSlice(text, styles, from, to = text.length) {
+  if (!styles?.length) return text.slice(from, to);
+  const local = styles
+    .map(s => ({ ...s, start: Math.max(s.start, from) - from, end: Math.min(s.end, to) - from }))
+    .filter(s => s.end > s.start);
+  return segmentText(text.slice(from, to), [], local).map((seg, i) => {
+    let node = seg.text;
+    if (seg.italic) node = <em>{node}</em>;
+    if (seg.bold) node = <strong>{node}</strong>;
+    return <React.Fragment key={`${from}-${i}`}>{node}</React.Fragment>;
+  });
+}
 
 function MarkedText({ block, comments, citations, onCommentClick }) {
   const text = block.text || '';
@@ -25,19 +41,19 @@ function MarkedText({ block, comments, citations, onCommentClick }) {
   for (const item of ranges) {
     const { location } = item;
     if (location.startIndex < cursor) continue;
-    parts.push(text.slice(cursor, location.startIndex));
+    parts.push(styledSlice(text, block.styles, cursor, location.startIndex));
     if (item.kind === 'citation') {
-      parts.push(<React.Fragment key={`citation-${item.citation.id}`}><mark className="source-mark">{text.slice(location.startIndex, location.endIndex)}</mark><sup className="source-reference-number">[{item.number}]</sup></React.Fragment>);
+      parts.push(<React.Fragment key={`citation-${item.citation.id}`}><mark className="source-mark">{styledSlice(text, block.styles, location.startIndex, location.endIndex)}</mark><sup className="source-reference-number">[{item.number}]</sup></React.Fragment>);
     } else {
-      parts.push(<mark key={item.comment.id} className="comment-mark" style={{ background: '#fef08a', color: '#713f12', cursor: 'pointer' }} onClick={() => onCommentClick?.(item.comment.id)}>{text.slice(location.startIndex, location.endIndex)}</mark>);
+      parts.push(<mark key={item.comment.id} className="comment-mark" style={{ background: '#fef08a', color: '#713f12', cursor: 'pointer' }} onClick={() => onCommentClick?.(item.comment.id)}>{styledSlice(text, block.styles, location.startIndex, location.endIndex)}</mark>);
     }
     cursor = location.endIndex;
   }
-  parts.push(text.slice(cursor));
+  parts.push(styledSlice(text, block.styles, cursor));
   return parts;
 }
 
-function Block({ block, comments = [], citations = [], onCommentClick }) {
+function Block({ block, listLabel, comments = [], citations = [], onCommentClick }) {
   const content = <MarkedText block={block} comments={comments} citations={citations} onCommentClick={onCommentClick} />;
   switch (block.type) {
     case 'chart':
@@ -57,6 +73,14 @@ function Block({ block, comments = [], citations = [], onCommentClick }) {
         </pre>
       );
     case 'list':
+      // Item de lista do editor novo (um bloco por item, com nível e rótulo 1. / 1.1 / a. / a.1).
+      if (block.listStyle) {
+        return (
+          <p className="public-list-item" data-label={listLabel || '•'} style={{ '--indent': block.indent || 0 }}>
+            {content}
+          </p>
+        );
+      }
       return (
         <ul style={{ paddingLeft: 22 }}>
           {block.text.split('\n').map((line, i) => (
@@ -110,6 +134,7 @@ function Article({ state, comments = [], onAnchor, onCommentClick, canComment = 
     );
   const note = state.data;
   const citations = note.citations || [];
+  const publicListLabels = listLabels(blocksOf(note.content));
   return (
     <article className="card pad" style={{ padding: 34 }}>
       <h1 style={{ fontSize: 32, marginBottom: 8 }}>{note.title}</h1>
@@ -130,7 +155,7 @@ function Article({ state, comments = [], onAnchor, onCommentClick, canComment = 
           if (!e.currentTarget.contains(range.startContainer) || !e.currentTarget.contains(range.endContainer)) return;
           const before = range.cloneRange(); before.selectNodeContents(e.currentTarget); before.setEnd(range.startContainer, range.startOffset);
           onAnchor({ blockId: b.id, exactQuote: selection.toString(), startIndex: before.toString().length });
-        }}><Block block={b} comments={comments} citations={citations} onCommentClick={onCommentClick} /></div>
+        }}><Block block={b} listLabel={publicListLabels.get(b.id)} comments={comments} citations={citations} onCommentClick={onCommentClick} /></div>
       ))}
       {citations.length > 0 && <section className="public-bibliography"><h2>Referências</h2><ol>{citations.map(citation => <li key={citation.id}>
         <span>{formatBibliographyCitation(citation) || citation.title}</span> <span className="pill">{citation.verificationStatus === 'unverified' ? 'Não verificada' : citation.verificationStatus}</span>

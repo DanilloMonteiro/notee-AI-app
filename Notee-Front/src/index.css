@@ -3576,12 +3576,30 @@ body.pane-is-resizing * {
   margin: 20px 38px 0;
 }
 
+/* Texto ocupa todo o espaço livre; só o painel de detalhes tem largura fixa. */
+.page:has(> .ne-page) {
+  max-width: none;
+}
 .ne-layout {
   display: grid;
-  grid-template-columns: minmax(0, 780px) 280px;
-  justify-content: center;
-  gap: 56px;
-  padding: 40px 38px 90px;
+  grid-template-columns: minmax(0, 1fr) 12px var(--ne-details-width, 290px);
+  gap: 14px;
+  padding: 32px 38px 90px;
+}
+/* Divisória arrastável entre o texto e "Detalhes da nota" (estilo base em .pane-resizer). */
+.ne-resizer {
+  width: 12px;
+  min-width: 12px;
+  margin: 0;
+  min-height: 420px;
+  align-self: stretch;
+}
+.ne-resizer::before {
+  left: 5px;
+}
+.ne-resizer::after {
+  left: 2px;
+  top: 160px;
 }
 .ne-editor {
   min-width: 0;
@@ -3611,7 +3629,7 @@ body.pane-is-resizing * {
   box-shadow: none !important;
   background: transparent !important;
   color: #18271f;
-  font-size: clamp(28px, 2.6vw, 38px) !important;
+  font-size: calc(clamp(28px, 2.6vw, 38px) * var(--ne-text-scale, 1)) !important;
   font-weight: 680;
   line-height: 1.25;
   letter-spacing: -0.04em;
@@ -3715,27 +3733,127 @@ body.pane-is-resizing * {
   flex: 1;
 }
 
+/* Área de escrita: "folha" branca com borda leve, para ficar claro que o texto é editável. */
+.ne-document {
+  min-height: 360px;
+  padding: 26px 32px 32px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(31, 54, 41, 0.04);
+  cursor: text;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ne-document:hover {
+  border-color: #d3ddcf;
+}
+.ne-document:focus-within {
+  border-color: #b9d0b1;
+  box-shadow: 0 0 0 4px rgba(82, 135, 92, 0.1);
+}
+.ne-document.is-readonly {
+  background: #fafbf8;
+  cursor: default;
+}
+.ne-document .editor-block {
+  border-radius: 6px;
+}
+.ne-document .editor-block:hover {
+  background-color: rgba(237, 245, 231, 0.45) !important;
+}
+.ne-document .editor-block.code:hover {
+  background-color: #eaefe4 !important;
+}
+.ne-document .editor-block:empty::before {
+  content: attr(data-placeholder);
+  color: #a9b2a6;
+  pointer-events: none;
+}
+.ne-title {
+  border-radius: 6px !important;
+}
+.ne-title:hover {
+  background: rgba(237, 245, 231, 0.6) !important;
+}
+
+/* Cor da seleção acompanha a aba ativa: dúvida (azul), comentário (amarelo) ou fonte (verde). */
+.ne-document[data-mode='doubts'] ::selection {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+.ne-document[data-mode='comments'] ::selection {
+  background: #fde68a;
+  color: #713f12;
+}
+.ne-document[data-mode='sources'] ::selection {
+  background: #bfe3c7;
+  color: #1e5429;
+}
+
+/* Aviso ao sair da nota sem salvar. */
+.ne-leave-modal {
+  max-width: 440px;
+  text-align: center;
+}
+.ne-leave-modal h2 {
+  margin: 12px 0 8px;
+  font-size: 20px;
+}
+.ne-leave-modal p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.ne-leave-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+  border-radius: 12px;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.ne-leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
 /* Texto da nota: serifado para leitura longa; títulos e código mantêm suas fontes. */
 .ne-document #editor-blocks {
   color: #33423a;
   font-family: Georgia, 'Times New Roman', serif;
   caret-color: var(--brand);
 }
+/* Todos os tamanhos do texto da nota seguem --ne-text-scale (botões A− / A+). */
 .ne-document .editor-block {
-  font-size: 16px;
+  font-size: calc(16px * var(--ne-text-scale, 1));
   line-height: 1.85;
 }
 .ne-document .editor-block.heading {
-  margin-top: 26px;
+  margin-top: calc(26px * var(--ne-text-scale, 1));
   color: #1c2c23;
   font-family: var(--font) !important;
-  font-size: 20px;
+  font-size: calc(20px * var(--ne-text-scale, 1));
   font-weight: 680;
   line-height: 1.35;
   letter-spacing: -0.02em;
 }
+.ne-document .editor-block.heading.level-1 {
+  font-size: calc(25px * var(--ne-text-scale, 1));
+  font-weight: 720;
+}
+.ne-document .editor-block.heading.level-3 {
+  margin-top: calc(18px * var(--ne-text-scale, 1));
+  font-size: calc(17px * var(--ne-text-scale, 1));
+  color: #2c4a38;
+}
 .ne-document .editor-block.code {
-  font-size: 13px;
+  font-size: calc(13px * var(--ne-text-scale, 1));
 }
 .ne-document .editor-block.quote {
   color: #5f6f53;
@@ -3987,7 +4105,10 @@ body.pane-is-resizing * {
 /* Telas estreitas: detalhes viram gaveta aberta pelo botão "Detalhes". */
 @media (max-width: 1240px) {
   .ne-layout {
-    grid-template-columns: minmax(0, 780px);
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ne-resizer {
+    display: none;
   }
   .ne-details-toggle {
     display: inline-flex !important;
@@ -4037,4 +4158,609 @@ body.pane-is-resizing * {
     display: block;
     padding: 0;
   }
+}
+
+/* ==========================================================================
+   Cabeçalho e lateral: nome da página à esquerda; avisos e usuário (com menu) à direita.
+   Configurações do sistema no rodapé da lateral.
+   ========================================================================== */
+.topbar-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.topbar-title strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.topbar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  color: #536259;
+  font-size: 14px;
+  font-weight: 600;
+}
+.topbar-back:hover {
+  background: var(--surface-soft);
+  color: var(--brand);
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar-popover-anchor {
+  position: relative;
+}
+.topbar-popover-anchor > .icon-btn {
+  position: relative;
+}
+.topbar-popover-anchor > .icon-btn .badge-count {
+  position: absolute;
+  top: 2px;
+  right: 0;
+}
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 260px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.topbar-user:hover,
+.topbar-user[aria-expanded='true'] {
+  border-color: #cdd8c8;
+  background: var(--surface-soft);
+}
+.topbar-user .avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 11px;
+}
+.topbar-user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.topbar-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(31, 54, 41, 0.14);
+}
+.topbar-notifications {
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 16px;
+}
+.topbar-user-menu {
+  width: 250px;
+}
+.topbar-user-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.topbar-user-menu-head > div {
+  min-width: 0;
+}
+.topbar-user-menu-head strong,
+.topbar-user-menu-head span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbar-user-menu-head strong {
+  font-size: 13px;
+}
+.topbar-user-menu-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.topbar-user-menu a,
+.topbar-user-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.topbar-user-menu a:hover,
+.topbar-user-menu button:hover {
+  background: var(--surface-soft);
+}
+.topbar-user-menu .danger {
+  color: var(--danger);
+}
+.topbar-user-menu .danger:hover {
+  background: var(--danger-soft);
+}
+.nav-divider {
+  height: 1px;
+  margin: 14px 12px;
+  background: var(--line);
+}
+.sidebar-bottom {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+/* ==========================================================================
+   Marcações no texto da nota (todas juntas) e card ao passar o mouse.
+   Dúvida = azul, comentário = amarelo, fonte = sublinhado verde com [n].
+   Sem padding nos <mark>: padding faz o texto "saltar" quando a marcação é redesenhada.
+   ========================================================================== */
+mark.nm {
+  color: inherit;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+mark.nm-comment {
+  background: #fef08a;
+  color: #713f12;
+}
+mark.nm-doubt {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+mark.nm-source {
+  text-decoration: underline;
+  text-decoration-color: #5c9a6a;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+mark.nm-source:not(.nm-doubt):not(.nm-comment) {
+  background: rgba(220, 239, 224, 0.55);
+}
+/* [n] da fonte: desenhado por CSS, não faz parte do texto salvo. */
+mark.nm[data-ref]::after {
+  content: '[' attr(data-ref) ']';
+  margin-left: 1px;
+  color: #2f7a46;
+  font-family: var(--font);
+  font-size: 0.68em;
+  font-weight: 700;
+  vertical-align: super;
+  line-height: 0;
+}
+mark.nm:hover {
+  filter: brightness(0.96);
+}
+
+.nm-card {
+  position: fixed;
+  z-index: 60;
+  width: min(380px, calc(100vw - 16px));
+  max-height: min(440px, calc(100vh - 16px));
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(31, 54, 41, 0.18);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.nm-card-section {
+  padding: 10px 12px;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+}
+.nm-card-section + .nm-card-section {
+  margin-top: 6px;
+}
+.nm-card-section.is-doubt {
+  border-left-color: #93c5fd;
+  background: #f5f9ff;
+}
+.nm-card-section.is-comment {
+  border-left-color: #facc15;
+  background: #fffdf0;
+}
+.nm-card-section.is-source {
+  border-left-color: #6fae7d;
+  background: #f5faf6;
+}
+.nm-card-section header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.nm-card-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.nm-card-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.nm-card-answer {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+.nm-card-text {
+  margin: 0;
+  white-space: pre-line;
+}
+.nm-card-muted {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.nm-card-quote {
+  margin: 6px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid #cfe3d3;
+  color: #4d5d53;
+  font-size: 12px;
+  font-style: italic;
+}
+.nm-card-links {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+.nm-card-links a {
+  color: var(--brand);
+  overflow-wrap: anywhere;
+}
+.nm-card-section footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.nm-card-section footer a,
+.nm-card-section footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nm-card-section footer a:hover,
+.nm-card-section footer button:hover {
+  text-decoration: underline;
+}
+@media print {
+  .nm-card,
+  .ne-resizer {
+    display: none !important;
+  }
+  mark.nm {
+    background: transparent !important;
+  }
+}
+
+/* ==========================================================================
+   Editor de nota: "+" por bloco, tipos, negrito/itálico, listas numeradas e zoom.
+   ========================================================================== */
+/* Linha de cada bloco: o "+" fica na margem esquerda e aparece no hover. */
+.ne-block-row {
+  position: relative;
+}
+.ne-block-gutter {
+  position: absolute;
+  top: 4px;
+  left: -30px;
+  z-index: 5;
+}
+.ne-block-add {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #9aa69a;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.ne-block-row:hover .ne-block-add,
+.ne-block-row:focus-within .ne-block-add,
+.ne-block-row.menu-open .ne-block-add,
+.ne-block-add:focus-visible {
+  opacity: 1;
+}
+.ne-block-add:hover,
+.ne-block-row.menu-open .ne-block-add {
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--brand);
+}
+.ne-block-menu-anchor {
+  position: relative;
+}
+.ne-block-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 240px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(31, 54, 41, 0.16);
+  font-family: var(--font);
+}
+.ne-block-menu-title {
+  padding: 6px 8px 4px;
+  color: #8a958c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ne-block-menu button,
+.ne-tools .ne-block-menu button {
+  width: 100%;
+  height: auto;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.ne-block-menu button:hover,
+.ne-block-menu button:focus-visible {
+  background: var(--surface-soft);
+  outline: none;
+}
+
+/* Negrito / itálico e zoom na barra. */
+.ne-tools .ne-format-btn {
+  width: 32px;
+  padding: 0;
+  font-size: 14px;
+  color: #4f5e55;
+}
+.ne-tools select {
+  width: 170px;
+}
+.ne-zoom {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.ne-tools .ne-zoom button {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.ne-tools .ne-zoom .ne-zoom-value {
+  min-width: 46px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Listas: um bloco por item; rótulo (1., 1.1, a., a.1, •) desenhado por CSS a partir de data-label. */
+.ne-document .editor-block.list {
+  position: relative;
+  padding: 4px 4px 4px calc((30px + var(--indent, 0) * 26px) * var(--ne-text-scale, 1)) !important;
+  border-left: 0 !important;
+  border-radius: 6px;
+  background: transparent;
+  line-height: 1.85;
+}
+.ne-document .editor-block.list::before {
+  content: attr(data-label);
+  position: absolute;
+  top: 4px;
+  left: calc(var(--indent, 0) * 26px * var(--ne-text-scale, 1));
+  min-width: calc(24px * var(--ne-text-scale, 1));
+  margin: 0;
+  color: #5d7a63;
+  font-family: var(--font);
+  font-size: 0.9em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.ne-document .editor-block.list.list-bullet::before {
+  color: #829477;
+  font-weight: 400;
+}
+/* Placeholder do item vazio fica depois do rótulo. */
+.ne-document .editor-block.list:empty::before {
+  content: attr(data-label);
+}
+.ne-document .editor-block.list:empty::after {
+  content: attr(data-placeholder);
+  color: #a9b2a6;
+  pointer-events: none;
+}
+
+.ne-document strong {
+  font-weight: 700;
+}
+.ne-document em {
+  font-style: italic;
+}
+
+@media print {
+  .ne-block-gutter,
+  .ne-zoom {
+    display: none !important;
+  }
+}
+
+/* Leitura pública: itens de lista do editor novo (rótulo 1. / 1.1 / a. / a.1 vindo de data-label). */
+.public-list-item {
+  position: relative;
+  margin: 0 0 6px;
+  padding-left: calc(30px + var(--indent, 0) * 26px);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.public-list-item::before {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(var(--indent, 0) * 26px);
+  color: #5d7a63;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Prévia "Nova nota": trechos que cada fonte/origem apoia. */
+.new-note-supports {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+.new-note-supports q {
+  padding-left: 8px;
+  border-left: 2px solid #cfe3d3;
+  color: #4d5d53;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ==========================================================================
+   Resposta de dúvida com [n] ligados às fontes (ADR-045).
+   ========================================================================== */
+.answer-ref {
+  margin-left: 1px;
+  color: #2f7a46;
+  font-size: 0.75em;
+  font-weight: 700;
+  vertical-align: super;
+  line-height: 0;
+  text-decoration: none;
+}
+a.answer-ref:hover {
+  text-decoration: underline;
+}
+.answer-ref.is-unverified {
+  color: #9b641f;
+  cursor: help;
+}
+.answer-sources {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.answer-sources li {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.answer-sources.is-compact {
+  font-size: 12px;
+}
+.answer-sources-n {
+  flex: none;
+  color: #2f7a46;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.answer-sources a {
+  color: var(--brand);
+  overflow-wrap: anywhere;
+}
+.answer-sources-host {
+  color: var(--muted);
+  font-size: 11px;
+}
+.answer-sources-unverified {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 11px;
+}
+/* Resposta dentro do card do mouse e do painel: altura limitada com rolagem. */
+.nm-card-answer,
+.ne-doubt-answer {
+  display: block;
+  max-height: 12em;
+  overflow-y: auto;
+  -webkit-line-clamp: unset;
+}
+.nm-card-answer p,
+.ne-doubt-answer p {
+  margin: 0 0 6px;
+}
+.ne-doubt-answer {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.nm-card-note {
+  color: var(--amber);
 }

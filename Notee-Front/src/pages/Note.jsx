@@ -1,6 +1,6 @@
 // src/pages/Note.jsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useBlocker } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
@@ -17,61 +17,47 @@ import { splitPastedText } from '../features/charts/detectTables';
 import { cleanBlock, hasStructure, organizeText } from '../features/notes/organizeText';
 import { OrganizeAiModal } from '../features/notes/OrganizeAiModal';
 import { locateQuote } from '../features/notes/anchors';
+import { buildMarkedHtml, parseMarks } from '../features/notes/markSegments';
+import { MarkPopover } from '../features/notes/MarkPopover';
+import { BlockTypeMenu } from '../features/notes/BlockTypeMenu';
+import { AnswerSources, AnswerText } from '../features/research/AnswerWithRefs';
+import {
+  BLOCK_TYPES,
+  MAX_INDENT,
+  adjustStylesForEdit,
+  blockTypeKey,
+  convertBlockType,
+  createTextBlock,
+  listLabels,
+  splitBlockAt,
+  toggleStyle,
+  deleteTextRange,
+  formatTextRange,
+  orderPositions,
+  textInRange,
+} from '../features/notes/blockFormatting';
 
 const generateId = () => 'b-' + Math.random().toString(36).substr(2, 9);
-
-// --- HELPERS DE HIGHLIGHT -------------------------------------------------
-
-const escapeHtml = s =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-// Encontra a ocorrência de `quote` mais próxima de `hint` (startIndex gravado na dúvida).
-// Assim, se o mesmo trecho aparecer várias vezes, marcamos o que foi selecionado.
-const findQuote = (text, quote, hint = 0) => {
-  if (!quote) return -1;
-  let best = -1;
-  let idx = text.indexOf(quote);
-  while (idx !== -1) {
-    if (best === -1 || Math.abs(idx - hint) < Math.abs(best - hint)) best = idx;
-    idx = text.indexOf(quote, idx + 1);
-  }
-  return best;
+const HISTORY_LIMIT = 100; // passos guardados para Ctrl+Z
+const PLACEHOLDERS = {
+  paragraph: 'Escreva aqui…',
+  heading: 'Título',
+  list: 'Item da lista',
+  quote: 'Citação',
+  code: 'Código',
 };
+// Zoom de leitura do texto da nota (A− / A+), lembrado no navegador.
+const TEXT_SCALE_KEY = 'notee-editor-text-scale';
+const TEXT_SCALES = [0.85, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];
+// Largura do painel "Detalhes da nota" (px), ajustável pela divisória e lembrada no navegador.
+const DETAILS_WIDTH_KEY = 'notee-editor-details-width';
+const DETAILS_DEFAULT = 290;
+const DETAILS_MIN = 240;
+const DETAILS_MAX = 560;
+const EDITOR_MIN = 420;
+const RESIZER_WIDTH = 12;
 
-// Constrói o HTML a partir do texto CRU + intervalos (nunca faz replace sobre HTML já gerado,
-// o que evitaria marcar texto dentro de atributos como style="...").
-const buildHighlightedHtml = (text, anchors, markClass = 'doubt-mark') => {
-  const ranges = anchors
-    .map(d => {
-      const start = findQuote(text, d.exactQuote, d.startIndex || 0);
-      return start === -1 ? null : { start, end: start + d.exactQuote.length, id: d.id, number: d.referenceNumber };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.start - b.start);
-
-  // Junta intervalos sobrepostos para não gerar <mark> aninhados
-  const merged = [];
-  for (const r of ranges) {
-    const last = merged[merged.length - 1];
-    if (last && r.start <= last.end) { last.end = Math.max(last.end, r.end); last.count++; }
-    else merged.push({ ...r, count: 1 });
-  }
-
-  let html = '';
-  let cursor = 0;
-  for (const r of merged) {
-    html += escapeHtml(text.slice(cursor, r.start));
-    const style = markClass === 'comment-mark' ? COMMENT_MARK_STYLE : markClass === 'source-mark' ? SOURCE_MARK_STYLE : MARK_STYLE;
-    html += `<mark class="${markClass}" data-comment-id="${r.id || ''}" data-count="${r.count}" data-reference-number="${r.number || ''}" style="${style}">${escapeHtml(text.slice(r.start, r.end))}</mark>`;
-    cursor = r.end;
-  }
-  return html + escapeHtml(text.slice(cursor));
-};
-
-// Sem padding: padding no <mark> faz o texto "saltar" quando o highlight é removido/reposto.
-const MARK_STYLE = 'background-color:#dbeafe;color:#1e40af;border-radius:3px;';
-const COMMENT_MARK_STYLE = 'background-color:#fef08a;color:#713f12;border-radius:3px;';
-const SOURCE_MARK_STYLE = 'background-color:#dcefe0;color:#1e5429;border-radius:3px;';
+// Marcações do texto (dúvidas, comentários e fontes juntas): ver features/notes/markSegments.js.
 
 // "plaintext-only" impede HTML colado e <div>/<b> gerados pelo browser.
 // Fallback para browsers antigos que não o suportam.
@@ -86,23 +72,174 @@ const PLAINTEXT_SUPPORTED = (() => {
 })();
 
 // --- COMPONENTE DO EDITOR (contentEditable) -------------------------------
-function ContentEditableBlock({ block, doubts, markClass, onMarkClick, onChange, onSelect, onPasteTables, onPasteStructured, onRemoveEmpty }) {
+// Posição do cursor/seleção em caracteres do texto do bloco (ignora <mark>/<strong>/<em>).
+function getSelectionOffsets(el) {
+  const sel = window.getSelection();
+  if (!el || !sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+  const pre = document.createRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(range.startContainer, range.startOffset);
+  const start = pre.toString().length;
+  return { start, end: start + range.toString().length };
+}
+
+// Recoloca a seleção pelos mesmos offsets depois de redesenhar o bloco.
+function setSelectionOffsets(el, start, end) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let pos = 0;
+  let startSet = false;
+  let node;
+  while ((node = walker.nextNode())) {
+    const len = node.textContent.length;
+    if (!startSet && start <= pos + len) { range.setStart(node, start - pos); startSet = true; }
+    if (startSet && end <= pos + len) { range.setEnd(node, end - pos); break; }
+    pos += len;
+  }
+  if (!startSet) { range.selectNodeContents(el); range.collapse(false); }
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// Setas no limite do bloco: devolve { direction, x } quando o cursor deve passar para o bloco vizinho.
+// ↑ só na primeira linha visual, ↓ só na última, ← no início, → no fim. Seleção não vazia segue o padrão.
+function caretBoundary(el, key) {
+  const sel = window.getSelection();
+  if (!el || !sel || sel.rangeCount === 0 || !sel.isCollapsed) return null;
+  const range = sel.getRangeAt(0);
+  if (!el.contains(range.startContainer)) return null;
+  const offsets = getSelectionOffsets(el);
+  const length = el.textContent.length;
+  if (key === 'ArrowLeft') return offsets?.start === 0 ? { direction: 'left' } : null;
+  if (key === 'ArrowRight') return offsets?.start >= length ? { direction: 'right' } : null;
+
+  const caret = range.getClientRects()[0] || range.getBoundingClientRect();
+  const box = el.getBoundingClientRect();
+  const style = getComputedStyle(el);
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.6 || 24;
+  const x = caret && caret.height ? caret.left : box.left + parseFloat(style.paddingLeft || 0);
+  // Bloco vazio, ou cursor sem posição medível: qualquer seta vertical sai do bloco.
+  if (length === 0 || !caret || caret.height === 0) return { direction: key === 'ArrowUp' ? 'up' : 'down', x };
+  const contentTop = box.top + parseFloat(style.paddingTop || 0);
+  const contentBottom = box.bottom - parseFloat(style.paddingBottom || 0);
+  if (key === 'ArrowUp' && caret.top - contentTop < lineHeight * 0.75) return { direction: 'up', x };
+  if (key === 'ArrowDown' && contentBottom - caret.bottom < lineHeight * 0.75) return { direction: 'down', x };
+  return null;
+}
+
+// Põe o cursor no ponto (x, y) da tela se ele cair dentro de `el`; devolve false se não der.
+function placeCaretAtPoint(el, x, y) {
+  let node = null;
+  let offset = 0;
+  if (document.caretPositionFromPoint) {
+    const pos = document.caretPositionFromPoint(x, y);
+    if (pos) ({ offsetNode: node, offset } = pos);
+  } else if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(x, y);
+    if (r) { node = r.startContainer; offset = r.startOffset; }
+  }
+  if (!node || !el.contains(node)) return false;
+  const range = document.createRange();
+  range.setStart(node, offset);
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  return true;
+}
+
+// --- Seleção entre vários blocos -------------------------------------------------------
+// Cada bloco é um contentEditable próprio, e o navegador não deixa a seleção atravessar dois.
+// Para selecionar entre blocos, os blocos ficam temporariamente NÃO editáveis (seleção de leitura normal)
+// e a página trata apagar/digitar/recortar/formatar. Posições são { blockId, offset } no texto do bloco.
+
+// Nó de texto + offset dentro do bloco para um offset em caracteres.
+function nodeAtOffset(el, offset) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let pos = 0;
+  let node;
+  let last = null;
+  while ((node = walker.nextNode())) {
+    const len = node.textContent.length;
+    if (offset <= pos + len) return { node, offset: Math.max(0, offset - pos) };
+    pos += len;
+    last = node;
+  }
+  return last ? { node: last, offset: last.textContent.length } : { node: el, offset: el.childNodes.length };
+}
+
+// Posição no texto (bloco + offset) para um ponto da tela; fora dos blocos, usa o bloco mais próximo na vertical.
+function textPositionFromPoint(container, x, y) {
+  let node = null;
+  let offset = 0;
+  if (document.caretPositionFromPoint) {
+    const pos = document.caretPositionFromPoint(x, y);
+    if (pos) ({ offsetNode: node, offset } = pos);
+  } else if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(x, y);
+    if (r) { node = r.startContainer; offset = r.startOffset; }
+  }
+  const host = node && (node.nodeType === Node.TEXT_NODE ? node.parentElement : node)?.closest?.('[data-block-id]');
+  if (host && container.contains(host)) {
+    const range = document.createRange();
+    range.selectNodeContents(host);
+    range.setEnd(node, offset);
+    return { blockId: host.dataset.blockId, offset: range.toString().length };
+  }
+  const els = [...container.querySelectorAll('[data-block-id]')];
+  if (!els.length) return null;
+  let best = els[0];
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (y >= r.top) best = el;
+  }
+  const r = best.getBoundingClientRect();
+  return { blockId: best.dataset.blockId, offset: y > r.bottom || x > r.right ? best.textContent.length : 0 };
+}
+
+// anchors: todas as marcações da nota ({ kind, id, blockId, exactQuote, startIndex, referenceNumber }).
+// listLabel: rótulo calculado da lista ('1.', 'a.1'…), desenhado por CSS (não entra no texto).
+// repaintToken: muda depois de negrito/itálico para redesenhar o bloco mesmo em foco, mantendo a seleção.
+// editable = false: seleção entre blocos em andamento (bloco vira texto de leitura até a seleção acabar).
+// onSelectAll: Ctrl+A com o bloco inteiro já selecionado (ou vazio) seleciona a nota toda.
+function ContentEditableBlock({ block, anchors, listLabel, repaintToken, editable = true, onChange, onSelect, onFocusBlock, onFormat, onListKey, onNavigate, onSelectAll, onPasteTables, onPasteStructured, onRemoveEmpty }) {
   const divRef = useRef(null);
 
-  const blockDoubts = useMemo(
-    () => doubts.filter(d => d.blockId === block.id && d.exactQuote),
-    [doubts, block.id],
+  // Chave estável: as âncoras são recalculadas a cada render da página, mas só repintamos se mudarem.
+  const anchorsKey = JSON.stringify(
+    anchors
+      .filter(a => a.blockId === block.id && a.exactQuote)
+      .map(a => [a.kind, a.id, a.exactQuote, a.startIndex || 0, a.referenceNumber || 0]),
+  );
+  const blockAnchors = useMemo(
+    () => JSON.parse(anchorsKey).map(([kind, id, exactQuote, startIndex, referenceNumber]) => ({ kind, id, exactQuote, startIndex, referenceNumber })),
+    [anchorsKey],
   );
 
+  const stylesKey = JSON.stringify(block.styles || []);
+
   const paint = () => {
-    if (divRef.current) divRef.current.innerHTML = buildHighlightedHtml(block.text || '', blockDoubts, markClass);
+    if (divRef.current) divRef.current.innerHTML = buildMarkedHtml(block.text || '', blockAnchors, block.styles || []);
   };
 
   // Só reescreve o DOM quando o bloco NÃO está em foco -> nunca mexe no cursor durante a digitação.
   useEffect(() => {
     if (divRef.current && document.activeElement !== divRef.current) paint();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.text, blockDoubts, markClass]);
+  }, [block.text, blockAnchors, stylesKey]);
+
+  // Negrito/itálico aplicado com o bloco em foco: redesenha e devolve a seleção ao mesmo trecho.
+  useEffect(() => {
+    if (!repaintToken || !divRef.current) return;
+    if (document.activeElement !== divRef.current) return paint();
+    const offsets = getSelectionOffsets(divRef.current);
+    paint();
+    if (offsets) setSelectionOffsets(divRef.current, offsets.start, offsets.end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repaintToken]);
 
   // Durante a digitação: apenas o texto cru (sem <mark>) sobe para o estado React.
   const handleInput = e => onChange(e.currentTarget.innerText);
@@ -166,29 +303,83 @@ function ContentEditableBlock({ block, doubts, markClass, onMarkClick, onChange,
     onSelect({ quote, startIndex, endIndex: startIndex + quote.length });
   };
 
-  // Backspace num bloco vazio remove o bloco (evita faixas em branco na nota).
   const handleKeyDown = e => {
-    if (e.key !== 'Backspace' || !onRemoveEmpty) return;
-    const text = (divRef.current?.innerText || '').replace(/\n/g, '');
-    if (text === '') {
+    const el = divRef.current;
+    const text = (el?.innerText || '').replace(/\n/g, '');
+    const isList = block.type === 'list';
+
+    // Ctrl+A: 1ª vez seleciona o bloco (padrão do navegador); com o bloco já todo selecionado, a nota inteira.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'a' && onSelectAll) {
+      const offsets = getSelectionOffsets(el);
+      const length = el?.textContent.length || 0;
+      if (length === 0 || (offsets && offsets.start === 0 && offsets.end >= length)) {
+        e.preventDefault();
+        onSelectAll();
+        return;
+      }
+    }
+
+    // Ctrl+B / Ctrl+I: negrito e itálico no trecho selecionado.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && ['b', 'i'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      const offsets = getSelectionOffsets(el);
+      if (offsets && offsets.end > offsets.start) onFormat?.(e.key.toLowerCase() === 'b' ? 'bold' : 'italic', offsets);
+      return;
+    }
+
+    // Setas: no limite do bloco, o cursor continua no bloco vizinho (como num texto corrido).
+    if (onNavigate && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.startsWith('Arrow')) {
+      const move = caretBoundary(el, e.key);
+      if (move) {
+        e.preventDefault();
+        onNavigate(move.direction, move.x);
+        return;
+      }
+    }
+
+    if (isList && onListKey) {
+      // Enter: próximo item (divide no cursor); item vazio sai da lista ou sobe um nível.
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        onListKey('enter', { empty: text === '', offset: getSelectionOffsets(el)?.start ?? (block.text || '').length, text: el?.innerText || '' });
+        return;
+      }
+      // Tab / Shift+Tab: aumenta ou diminui o nível (1. → 1.1 → 1.1.1).
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        onListKey(e.shiftKey ? 'outdent' : 'indent');
+        return;
+      }
+      // Backspace em item vazio: sobe um nível; no primeiro nível vira parágrafo.
+      if (e.key === 'Backspace' && text === '') {
+        e.preventDefault();
+        onListKey('backspace-empty');
+        return;
+      }
+    }
+
+    // Backspace num bloco vazio remove o bloco (evita faixas em branco na nota).
+    if (e.key === 'Backspace' && onRemoveEmpty && text === '') {
       e.preventDefault();
       onRemoveEmpty();
     }
   };
 
+  const listClass = block.type === 'list' ? ` list-${block.listStyle || 'bullet'}` : '';
   return (
     <div
       ref={divRef}
       data-block-id={block.id}
-      contentEditable={PLAINTEXT_SUPPORTED ? 'plaintext-only' : true}
+      data-label={block.type === 'list' ? listLabel || '•' : undefined}
+      contentEditable={!editable ? 'false' : PLAINTEXT_SUPPORTED ? 'plaintext-only' : true}
       suppressContentEditableWarning
-      className={`editor-block ${block.type}${block.type === 'heading' ? ` level-${block.level || 2}` : ''}`}
+      className={`editor-block ${block.type}${block.type === 'heading' ? ` level-${block.level || 2}` : ''}${listClass}`}
       onInput={handleInput}
       onBlur={handleBlur}
+      onFocus={() => onFocusBlock?.(block.id)}
       onPaste={handlePaste}
       onKeyDown={handleKeyDown}
       onMouseUp={handleSelect}
-      onClick={e => { const mark = e.target.closest('mark[data-comment-id]'); if (mark?.dataset.commentId) onMarkClick?.(mark.dataset.commentId); }}
       onKeyUp={handleSelect}
       style={{
         width: '100%',
@@ -199,8 +390,9 @@ function ContentEditableBlock({ block, doubts, markClass, onMarkClick, onChange,
         backgroundColor: block.type === 'code' ? '#f1f4ed' : 'transparent',
         borderLeft: block.type === 'quote' ? '3px solid #b8d794' : 'none',
         whiteSpace: 'pre-wrap',
+        '--indent': block.type === 'list' ? block.indent || 0 : undefined,
       }}
-      data-placeholder={`Escreva o seu ${block.type}...`}
+      data-placeholder={PLACEHOLDERS[block.type] || 'Escreva aqui…'}
     />
   );
 }
@@ -244,7 +436,27 @@ export function Note() {
   const closePublish = useCallback(() => setShowPublish(false), []);
   const wasPublishOpen = useRef(false);
   const [blocks, setBlocks] = useState([]);
-  const [newBlockType, setNewBlockType] = useState('paragraph');
+  // Bloco de texto com o cursor (ou o último que teve): o seletor de tipo e o "+" da barra agem nele.
+  const [focusedBlockId, setFocusedBlockId] = useState(null);
+  // Bloco cujo menu "+" está aberto ('__toolbar' = "+" da barra).
+  const [blockMenuFor, setBlockMenuFor] = useState(null);
+  // Muda após negrito/itálico para o bloco formatado redesenhar mantendo a seleção.
+  const [formatTick, setFormatTick] = useState({ id: null, n: 0 });
+  const [textScale, setTextScale] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem(TEXT_SCALE_KEY));
+      return TEXT_SCALES.includes(saved) ? saved : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const changeTextScale = direction =>
+    setTextScale(current => {
+      const i = TEXT_SCALES.indexOf(current);
+      const next = direction === 0 ? 1 : TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, (i < 0 ? 2 : i) + direction))];
+      try { localStorage.setItem(TEXT_SCALE_KEY, String(next)); } catch { /* armazenamento indisponível */ }
+      return next;
+    });
   // Gráfico em edição: { id, isNew } — cancelar um gráfico recém-criado o remove.
   const [editingChart, setEditingChart] = useState(null);
   // Aviso com "Desfazer": { message, restore: { blocks, title } | null, offerOrganize } (colagem, organizar, IA).
@@ -259,6 +471,12 @@ export function Note() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Abas Dúvidas / Comentários / Fontes no rodapé da nota.
   const bottomRef = useRef(null);
+  // Histórico do desfazer/refazer (ver "Desfazer / refazer" mais abaixo).
+  const historyRef = useRef({ past: [], present: null, future: [] });
+  const historyTimerRef = useRef(null);
+  const applyingHistoryRef = useRef(false);
+  const latestRef = useRef(null);
+  const historyActionsRef = useRef({ move: () => {}, enabled: false });
 
   // Estados da seleção
   const [showModal, setShowModal] = useState(false);
@@ -302,6 +520,10 @@ export function Note() {
 
   // Aplica uma nota vinda da API ao estado do editor (carga inicial e restauração de revisão).
   const applyLoadedNote = noteData => {
+    // Nota carregada ou versão restaurada: o histórico de desfazer recomeça a partir dela.
+    clearTimeout(historyTimerRef.current);
+    historyTimerRef.current = null;
+    historyRef.current = { past: [], present: null, future: [] };
     setNote(noteData);
     setTitle(noteData.title || '');
     setCategoryId(noteData.categoryId ?? null);
@@ -369,10 +591,270 @@ export function Note() {
     return () => window.removeEventListener('keydown', onKey);
   }, [detailsOpen]);
 
+  // --- Divisória entre o texto e "Detalhes da nota" ----------------------------------
+  // Arrastar (ou ←/→ com foco na divisória) muda a largura do painel; duplo clique volta ao padrão.
+  const [detailsWidth, setDetailsWidth] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem(DETAILS_WIDTH_KEY));
+      return saved >= DETAILS_MIN && saved <= DETAILS_MAX ? saved : DETAILS_DEFAULT;
+    } catch {
+      return DETAILS_DEFAULT;
+    }
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const layoutRef = useRef(null);
+  const dragRef = useRef(null);
+
+  // Limita a largura do painel e garante espaço mínimo para o texto.
+  const clampDetailsWidth = useCallback(width => {
+    const layoutWidth = layoutRef.current?.clientWidth || Infinity;
+    const max = Math.min(DETAILS_MAX, layoutWidth - EDITOR_MIN - RESIZER_WIDTH);
+    return Math.round(Math.max(DETAILS_MIN, Math.min(width, max)));
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) return;
+    try { localStorage.setItem(DETAILS_WIDTH_KEY, String(detailsWidth)); } catch { /* armazenamento indisponível */ }
+  }, [detailsWidth, isResizing]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const onMove = e => setDetailsWidth(clampDetailsWidth(dragRef.current.startWidth - (e.clientX - dragRef.current.startX)));
+    const onUp = () => {
+      setIsResizing(false);
+      document.body.classList.remove('pane-is-resizing');
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [isResizing, clampDetailsWidth]);
+
+  const handleResizerPointerDown = e => {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startWidth: detailsWidth };
+    document.body.classList.add('pane-is-resizing');
+    setIsResizing(true);
+  };
+  const handleResizerKeyDown = e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    // Seta para a esquerda aumenta o painel (a divisória anda para a esquerda).
+    setDetailsWidth(w => clampDetailsWidth(w + (e.key === 'ArrowLeft' ? 16 : -16)));
+  };
+
+  // --- Card das marcações (passar o mouse ou clicar num trecho marcado) ---------------
+  const [markCard, setMarkCard] = useState(null); // { marks: [{ kind, id }], rect, key }
+  const markHideTimerRef = useRef(null);
+  const cancelHideMarkCard = () => clearTimeout(markHideTimerRef.current);
+  const scheduleHideMarkCard = () => {
+    clearTimeout(markHideTimerRef.current);
+    markHideTimerRef.current = setTimeout(() => setMarkCard(null), 200);
+  };
+  const showMarkCard = markEl => {
+    cancelHideMarkCard();
+    const key = markEl.dataset.marks;
+    setMarkCard(prev => (prev?.key === key && prev.el === markEl ? prev : { key, el: markEl, marks: parseMarks(key), rect: markEl.getBoundingClientRect() }));
+  };
+  const handleBlocksMouseOver = e => {
+    // Durante a seleção entre blocos o card atrapalharia: não abre.
+    if (selectDragRef.current?.active || multiSelRef.current) return;
+    const markEl = e.target.closest?.('mark[data-marks]');
+    if (markEl) showMarkCard(markEl);
+  };
+  const handleBlocksMouseOut = e => {
+    const markEl = e.target.closest?.('mark[data-marks]');
+    if (markEl && !markEl.contains(e.relatedTarget)) scheduleHideMarkCard();
+  };
+  const handleBlocksClick = e => {
+    const markEl = e.target.closest?.('mark[data-marks]');
+    if (!markEl) return;
+    showMarkCard(markEl);
+    const comment = parseMarks(markEl.dataset.marks).find(m => m.kind === 'comment');
+    if (comment) setSelectedCommentId(comment.id);
+  };
+  // Esc, rolar a página ou começar a digitar fecham o card.
+  useEffect(() => {
+    if (!markCard) return;
+    const close = () => setMarkCard(null);
+    const onKey = e => { if (!['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) close(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [markCard]);
+  useEffect(() => () => clearTimeout(markHideTimerRef.current), []);
+
+  // --- Seleção que atravessa vários blocos (arrastar, Shift+clique, Ctrl+A duas vezes) --------
+  // multiSel = { anchor, focus } em { blockId, offset }. Enquanto existe, os blocos ficam não editáveis
+  // (a seleção do navegador passa entre eles) e as teclas abaixo agem sobre o trecho todo.
+  const [multiSel, setMultiSel] = useState(null);
+  const multiSelRef = useRef(null);
+  multiSelRef.current = multiSel;
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
+  const selectDragRef = useRef(null);
+  const readOnly = note?.status === 'Trashed';
+
+  const caretPositionNow = () => {
+    const el = document.activeElement;
+    if (!el?.dataset?.blockId) return null;
+    const offsets = getSelectionOffsets(el);
+    return offsets ? { blockId: el.dataset.blockId, offset: offsets.start } : null;
+  };
+  const enterMultiSelect = (anchor, focus) => {
+    document.activeElement?.blur?.();
+    setMarkCard(null);
+    setSelection(null);
+    setMultiSel({ anchor, focus });
+  };
+  const focusTextPosition = pos => {
+    setTimeout(() => {
+      const el = pos && document.querySelector(`[data-block-id="${pos.blockId}"]`);
+      if (!el) return;
+      el.focus();
+      setSelectionOffsets(el, pos.offset, pos.offset);
+      setFocusedBlockId(pos.blockId);
+    }, 0);
+  };
+  const exitMultiSelect = collapseTo => {
+    setMultiSel(null);
+    if (collapseTo) focusTextPosition(collapseTo);
+  };
+  const selectAllBlocks = () => {
+    const textBlocks = blocksRef.current.filter(b => !isChartBlock(b));
+    if (!textBlocks.length) return;
+    const last = textBlocks[textBlocks.length - 1];
+    enterMultiSelect({ blockId: textBlocks[0].id, offset: 0 }, { blockId: last.id, offset: (last.text || '').length });
+  };
+  // Apaga o trecho (e opcionalmente digita `insert` no lugar), juntando o primeiro e o último bloco.
+  const deleteMultiSelection = (insert = '') => {
+    const sel = multiSelRef.current;
+    if (!sel) return;
+    const { blocks: next, caret } = deleteTextRange(blocksRef.current, sel.anchor, sel.focus, insert);
+    setBlocks(next);
+    exitMultiSelect(caret);
+  };
+  const formatMultiSelection = kind => {
+    const sel = multiSelRef.current;
+    if (sel) setBlocks(prev => formatTextRange(prev, sel.anchor, sel.focus, kind));
+  };
+
+  // Reaplica a seleção do navegador depois de cada render (inclusive após os blocos se redesenharem).
+  // useEffect do pai roda depois dos efeitos dos blocos, então a pintura dos blocos já aconteceu.
+  useEffect(() => {
+    if (!multiSel) return;
+    const a = document.querySelector(`[data-block-id="${multiSel.anchor.blockId}"]`);
+    const f = document.querySelector(`[data-block-id="${multiSel.focus.blockId}"]`);
+    if (!a || !f) return setMultiSel(null);
+    const start = nodeAtOffset(a, multiSel.anchor.offset);
+    const end = nodeAtOffset(f, multiSel.focus.offset);
+    try {
+      window.getSelection().setBaseAndExtent(start.node, start.offset, end.node, end.offset);
+    } catch {
+      /* posição inválida após edição: a próxima interação corrige */
+    }
+  }, [multiSel, blocks]);
+
+  // Arrastar o mouse de um bloco para outro entra no modo de seleção entre blocos.
+  useEffect(() => {
+    const onMove = e => {
+      const drag = selectDragRef.current;
+      if (!drag || !(e.buttons & 1)) return;
+      const pos = textPositionFromPoint(drag.container, e.clientX, e.clientY);
+      if (!pos) return;
+      if (!drag.active) {
+        if (pos.blockId === drag.anchor.blockId) return; // ainda dentro do mesmo bloco: seleção normal
+        drag.active = true;
+        enterMultiSelect(drag.anchor, pos);
+        return;
+      }
+      e.preventDefault();
+      setMultiSel(cur => (cur && (cur.focus.blockId !== pos.blockId || cur.focus.offset !== pos.offset) ? { ...cur, focus: pos } : cur));
+    };
+    const onUp = () => { selectDragRef.current = null; };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Teclas com a seleção entre blocos ativa.
+  useEffect(() => {
+    if (!multiSel) return;
+    const onKey = e => {
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (mod && key === 'c') return; // cópia tratada no evento "copy"
+      if (mod && (key === 'z' || key === 'y')) return setMultiSel(null); // o desfazer global cuida do resto
+      if (mod && key === 'a') { e.preventDefault(); return selectAllBlocks(); }
+      if (mod && (key === 'b' || key === 'i')) { e.preventDefault(); return formatMultiSelection(key === 'b' ? 'bold' : 'italic'); }
+      if (mod && key === 'x') {
+        e.preventDefault();
+        navigator.clipboard?.writeText(textInRange(blocksRef.current, multiSel.anchor, multiSel.focus)).catch(() => {});
+        return deleteMultiSelection();
+      }
+      if (mod || e.altKey) return;
+      if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Enter') { e.preventDefault(); return deleteMultiSelection(); }
+      if (e.key.length === 1) { e.preventDefault(); return deleteMultiSelection(e.key); } // digitar substitui a seleção
+      if (e.key === 'Escape' || e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        const [start, end] = orderPositions(blocksRef.current, multiSel.anchor, multiSel.focus);
+        exitMultiSelect(e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? start : end);
+      }
+    };
+    // Copiar: texto puro dos blocos (sem rótulos de lista nem [n] desenhados por CSS).
+    const onCopy = e => {
+      e.clipboardData?.setData('text/plain', textInRange(blocksRef.current, multiSel.anchor, multiSel.focus));
+      e.preventDefault();
+    };
+    // Clique fora da nota encerra a seleção.
+    const onPointerDown = e => { if (!e.target.closest?.('#editor-blocks, .ne-tools')) setMultiSel(null); };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiSel]);
+
+  const handleBlocksPointerDown = e => {
+    if (e.button !== 0 || readOnly) return;
+    if (e.target.closest('button, input, select, textarea, a, .editor-chart-block, .ne-block-gutter')) return;
+    const container = e.currentTarget;
+    const pos = textPositionFromPoint(container, e.clientX, e.clientY);
+    if (!pos) return;
+    // Shift+clique: estende do cursor atual (ou da seleção em andamento) até o ponto clicado.
+    if (e.shiftKey) {
+      const anchor = multiSelRef.current?.anchor || caretPositionNow();
+      if (anchor && anchor.blockId !== pos.blockId) {
+        e.preventDefault();
+        enterMultiSelect(anchor, pos);
+        selectDragRef.current = { container, anchor, active: true };
+        return;
+      }
+    }
+    if (multiSelRef.current) setMultiSel(null); // clique comum encerra a seleção e volta a editar
+    selectDragRef.current = { container, anchor: pos, active: false };
+  };
+
+  // Devolve true quando salvou (usado por "Salvar e sair" no aviso de alterações não salvas).
   const handleSave = async () => {
     if (editingChart) {
       addToast('Conclua ou cancele a edição do gráfico antes de salvar.', 'info');
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -388,27 +870,145 @@ export function Note() {
       setNote(saved);
       setNotice(null);
       addToast('Alterações salvas.', 'check');
+      return true;
     } catch (err) {
       addToast(
         err?.status === 409 ? 'A nota foi alterada em outro lugar. Copie seu texto e recarregue a página.' : err?.message || 'Falha ao salvar.',
         'warning',
       );
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAddBlock = () => {
-    if (newBlockType !== 'chart') {
-      setBlocks(prev => [...prev, { id: generateId(), type: newBlockType, text: '' }]);
+  // Põe o cursor num bloco de texto (no início ou no fim).
+  const focusBlock = (blockId, atEnd = false) => {
+    setTimeout(() => {
+      const el = document.querySelector(`[data-block-id="${blockId}"]`);
+      if (!el) return;
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(!atEnd);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }, 0);
+  };
+
+  // Setas entre blocos: ↑/↓ mantêm a coluna (x) e vão para a última/primeira linha do vizinho;
+  // ←/→ vão para o fim/início. Gráficos são pulados; ↑ no primeiro bloco volta ao título.
+  const navigateFromBlock = (blockId, direction, x) => {
+    const textBlocks = blocks.filter(b => !isChartBlock(b));
+    const index = textBlocks.findIndex(b => b.id === blockId);
+    const target = direction === 'up' || direction === 'left' ? textBlocks[index - 1] : textBlocks[index + 1];
+    if (!target) {
+      if (direction === 'up' || direction === 'left') {
+        const titleInput = document.querySelector('.ne-title');
+        titleInput?.focus();
+        titleInput?.setSelectionRange(titleInput.value.length, titleInput.value.length);
+      }
       return;
     }
-    if (editingChart) return addToast('Conclua o gráfico em edição antes de adicionar outro.', 'info');
-    if (blocks.filter(isChartBlock).length >= CHART_LIMITS.maxCharts)
-      return addToast(`Uma nota pode ter no máximo ${CHART_LIMITS.maxCharts} gráficos.`, 'warning');
-    const chart = createEmptyChart();
-    setBlocks(prev => [...prev, chart]);
-    setEditingChart({ id: chart.id, isNew: true });
+    const el = document.querySelector(`[data-block-id="${target.id}"]`);
+    if (!el) return;
+    el.focus();
+    setFocusedBlockId(target.id);
+    if (direction === 'left' || direction === 'right') return setSelectionOffsets(el, direction === 'left' ? el.textContent.length : 0, direction === 'left' ? el.textContent.length : 0);
+    el.scrollIntoView({ block: 'nearest' });
+    const box = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const lineHeight = parseFloat(style.lineHeight) || 24;
+    const y = direction === 'up'
+      ? box.bottom - parseFloat(style.paddingBottom || 0) - lineHeight / 2
+      : box.top + parseFloat(style.paddingTop || 0) + lineHeight / 2;
+    const left = Math.max(box.left + parseFloat(style.paddingLeft || 0) + 1, Math.min(x ?? 0, box.right - 2));
+    if (!placeCaretAtPoint(el, left, y)) {
+      const end = direction === 'up' ? el.textContent.length : 0;
+      setSelectionOffsets(el, end, end);
+    }
+  };
+  const handleTitleKeyDown = e => {
+    if ((e.key === 'ArrowDown' || e.key === 'Enter') && !e.shiftKey) {
+      const first = blocks.find(b => !isChartBlock(b));
+      if (!first) return;
+      e.preventDefault();
+      setFocusedBlockId(first.id);
+      focusBlock(first.id);
+    }
+  };
+
+  // "+" ao lado de um bloco (ou na barra): insere o novo bloco LOGO ABAIXO dele.
+  // Sem bloco de referência, insere no fim da nota.
+  const insertBlockAfter = (afterId, key) => {
+    setBlockMenuFor(null);
+    const index = afterId ? blocks.findIndex(b => b.id === afterId) : -1;
+    const at = index >= 0 ? index + 1 : blocks.length;
+    if (key === 'chart') {
+      if (editingChart) return addToast('Conclua o gráfico em edição antes de adicionar outro.', 'info');
+      if (blocks.filter(isChartBlock).length >= CHART_LIMITS.maxCharts)
+        return addToast(`Uma nota pode ter no máximo ${CHART_LIMITS.maxCharts} gráficos.`, 'warning');
+      const chart = createEmptyChart();
+      setBlocks(prev => [...prev.slice(0, at), chart, ...prev.slice(at)]);
+      setEditingChart({ id: chart.id, isNew: true });
+      return;
+    }
+    const block = createTextBlock(key, generateId(), index >= 0 ? blocks[index] : null);
+    setBlocks(prev => [...prev.slice(0, at), block, ...prev.slice(at)]);
+    setFocusedBlockId(block.id);
+    focusBlock(block.id);
+  };
+
+  // Seletor de tipo da barra: converte o bloco em foco (ex.: parágrafo → título).
+  const changeBlockType = (blockId, key) => {
+    if (!blockId) return addToast('Clique num trecho do texto para escolher o tipo dele.', 'info');
+    setBlocks(prev => prev.flatMap(b => (b.id === blockId && !isChartBlock(b) ? convertBlockType(b, key, generateId) : [b])));
+    focusBlock(blockId, true);
+  };
+
+  // Negrito/itálico no trecho [start, end) do bloco; aplicar de novo remove.
+  const applyFormat = (blockId, { start, end }, kind) => {
+    if (!blockId || end <= start) return addToast('Selecione um trecho do texto para formatar.', 'info');
+    setBlocks(prev =>
+      prev.map(b => {
+        if (b.id !== blockId) return b;
+        const styles = toggleStyle(b.styles || [], start, end, kind, (b.text || '').length);
+        const next = { ...b };
+        if (styles.length) next.styles = styles;
+        else delete next.styles;
+        return next;
+      }),
+    );
+    setFormatTick(prev => ({ id: blockId, n: prev.n + 1 }));
+  };
+  const formatSelection = kind =>
+    multiSel ? formatMultiSelection(kind) : selection ?applyFormat(selection.blockId, { start: selection.startIndex, end: selection.endIndex }, kind) : addToast('Selecione um trecho do texto para formatar.', 'info');
+
+  // Teclas especiais dentro de um item de lista.
+  const handleListKey = (blockId, action, info = {}) => {
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+    const indent = block.indent || 0;
+    const update = patch => setBlocks(prev => prev.map(b => (b.id === blockId ? { ...b, ...patch } : b)));
+    if (action === 'indent') return update({ indent: Math.min(MAX_INDENT, indent + 1) });
+    if (action === 'outdent') return update({ indent: Math.max(0, indent - 1) });
+    if (action === 'backspace-empty' || (action === 'enter' && info.empty)) {
+      // Item vazio: sobe um nível; no primeiro nível sai da lista e vira parágrafo.
+      if (indent > 0) return update({ indent: indent - 1 });
+      setBlocks(prev => prev.flatMap(b => (b.id === blockId ? convertBlockType(b, 'paragraph', generateId) : [b])));
+      return;
+    }
+    if (action === 'enter') {
+      // Divide no cursor: o texto depois do cursor vai para o próximo item.
+      const newId = generateId();
+      const current = { ...block, text: info.text ?? block.text };
+      const [head, tail] = splitBlockAt(current, info.offset, newId);
+      document.activeElement?.blur?.();
+      setBlocks(prev => prev.flatMap(b => (b.id === blockId ? [head, tail] : [b])));
+      setFocusedBlockId(newId);
+      focusBlock(newId);
+    }
   };
   const handleChartDone = updated => {
     setBlocks(prev => prev.map(b => (b.id === updated.id ? updated : b)));
@@ -600,8 +1200,20 @@ export function Note() {
       }, 0);
     }
   };
+  // Digitação: atualiza o texto e desloca negrito/itálico junto com a edição.
   const handleUpdateBlock = (blockId, newText) =>
-    setBlocks(prev => prev.map(b => (b.id === blockId ? { ...b, text: newText } : b)));
+    setBlocks(prev =>
+      prev.map(b => {
+        if (b.id !== blockId) return b;
+        const next = { ...b, text: newText };
+        if (b.styles?.length) {
+          const styles = adjustStylesForEdit(b.text || '', newText, b.styles);
+          if (styles.length) next.styles = styles;
+          else delete next.styles;
+        }
+        return next;
+      }),
+    );
 
   const handleTextSelect = (blockId, sel) => setSelection(sel ? { blockId, ...sel } : null);
 
@@ -692,6 +1304,129 @@ export function Note() {
 
   const handleKeepDoubt = doubtId => updateKeptDoubts(prev => (prev.includes(doubtId) ? prev : [...prev, doubtId]));
 
+  // Calculado antes dos retornos antecipados porque os hooks abaixo dependem dele.
+  const savedTagIds = (note?.tags || []).map(t => t.id);
+  const isDirty =
+    !!note &&
+    (title !== note.title ||
+      JSON.stringify(blocks) !== (note.content || '[]') ||
+      (categoryId || null) !== (note.categoryId || null) ||
+      tagIds.length !== savedTagIds.length ||
+      tagIds.some(t => !savedTagIds.includes(t)));
+
+  // --- Desfazer / refazer (Ctrl+Z, Ctrl+Y ou Ctrl+Shift+Z) -------------------------------
+  // Histórico de { blocks, title }. A digitação é agrupada: um passo a cada pausa de 500 ms.
+  const commitHistory = snap => {
+    const h = historyRef.current;
+    if (!h.present || (h.present.blocks === snap.blocks && h.present.title === snap.title)) return;
+    h.past.push(h.present);
+    if (h.past.length > HISTORY_LIMIT) h.past.shift();
+    h.present = snap;
+    h.future = [];
+  };
+
+  useEffect(() => {
+    const snap = { blocks, title };
+    latestRef.current = snap;
+    const h = historyRef.current;
+    if (applyingHistoryRef.current || !h.present) {
+      applyingHistoryRef.current = false;
+      h.present = snap;
+      return;
+    }
+    clearTimeout(historyTimerRef.current);
+    historyTimerRef.current = setTimeout(() => commitHistory(snap), 500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocks, title]);
+
+  const applySnapshot = snap => {
+    // Tira o foco do bloco para ele poder ser redesenhado; depois devolve o cursor ao mesmo bloco.
+    const active = document.activeElement;
+    const focusedBlockId = active?.dataset?.blockId;
+    const focusedTitle = active?.classList?.contains('ne-title');
+    if (focusedBlockId) active.blur();
+    applyingHistoryRef.current = true;
+    setBlocks(snap.blocks);
+    setTitle(snap.title);
+    setTimeout(() => {
+      if (focusedTitle) return document.querySelector('.ne-title')?.focus();
+      const el = focusedBlockId && document.querySelector(`[data-block-id="${focusedBlockId}"]`);
+      if (!el) return;
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }, 0);
+  };
+
+  const moveHistory = direction => {
+    const h = historyRef.current;
+    // Digitação ainda não registrada vira um passo antes de desfazer.
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+      commitHistory(latestRef.current);
+    }
+    const from = direction === 'undo' ? h.past : h.future;
+    const to = direction === 'undo' ? h.future : h.past;
+    if (!from.length) return;
+    to.push(h.present);
+    h.present = from.pop();
+    applySnapshot(h.present);
+  };
+
+  historyActionsRef.current = {
+    move: moveHistory,
+    enabled: !!note && note.status !== 'Trashed' && !editingChart,
+  };
+
+  useEffect(() => {
+    const onKeyDown = e => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      const isUndo = key === 'z' && !e.shiftKey;
+      const isRedo = key === 'y' || (key === 'z' && e.shiftKey);
+      if (!isUndo && !isRedo) return;
+      const target = e.target instanceof Element ? e.target : null;
+      // Campos fora do texto da nota (tags, modais, gráficos) mantêm o desfazer nativo do navegador.
+      const inNote = target?.closest('.ne-title, #editor-blocks');
+      const inOtherField = target?.closest('input, textarea, select, [contenteditable], .modal-overlay');
+      if (inOtherField && !inNote) return;
+      if (!historyActionsRef.current.enabled) return;
+      e.preventDefault();
+      historyActionsRef.current.move(isUndo ? 'undo' : 'redo');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // --- Aviso ao sair com alterações não salvas -----------------------------------------
+  // Navegação dentro do app: modal próprio. Fechar/recarregar a aba: aviso nativo do navegador
+  // (o texto desse aviso não pode ser personalizado).
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) => isDirty && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = e => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isDirty]);
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const saveAndLeave = async () => {
+    setLeaveBusy(true);
+    const ok = await handleSave();
+    setLeaveBusy(false);
+    if (ok) blocker.proceed?.();
+    else blocker.reset?.();
+  };
+
   if (loading)
     return (
       <div className="empty">
@@ -708,13 +1443,6 @@ export function Note() {
       </div>
     );
 
-  const savedTagIds = (note.tags || []).map(t => t.id);
-  const isDirty =
-    title !== note.title ||
-    JSON.stringify(blocks) !== (note.content || '[]') ||
-    (categoryId || null) !== (note.categoryId || null) ||
-    tagIds.length !== savedTagIds.length ||
-    tagIds.some(t => !savedTagIds.includes(t));
   const isTrashed = note.status === 'Trashed';
   const sourceMarks = sourceCitations.map((c, index) => {
     const found = locateQuote(blocks, c);
@@ -722,10 +1450,33 @@ export function Note() {
   });
   const commentMarks = [...privateComments, ...publicComments
     .filter(c => c.anchorQuote && !c.isHidden && !c.isDeleted)
-    .map(c => ({ ...c, exactQuote: c.anchorQuote, blockId: c.anchorBlockId, startIndex: c.anchorStart }))]
+    .map(c => ({ ...c, isPublic: true, exactQuote: c.anchorQuote, blockId: c.anchorBlockId, startIndex: c.anchorStart }))]
     .map(c => { const found = locateQuote(blocks, c); return found ? { ...c, blockId: found.blockId, startIndex: found.startIndex } : c; });
   const doubtMarks = doubts.map(d => { const found = locateQuote(blocks, d); return found ? { ...d, blockId: found.blockId, startIndex: found.startIndex } : d; });
-  const activeMarks = activeAside === 'sources' ? sourceMarks : activeAside === 'comments' ? commentMarks : doubtMarks;
+  const labels = listLabels(blocks);
+  const focusedBlock = blocks.find(b => b.id === focusedBlockId && !isChartBlock(b)) || null;
+
+  // Todas as marcações aparecem juntas no texto, qualquer que seja a aba ativa.
+  const toAnchor = kind => m => ({ kind, id: m.id, blockId: m.blockId, exactQuote: m.exactQuote, startIndex: m.startIndex, referenceNumber: m.referenceNumber });
+  const allAnchors = [
+    ...doubtMarks.map(toAnchor('doubt')),
+    ...commentMarks.map(toAnchor('comment')),
+    ...sourceMarks.map(toAnchor('source')),
+  ];
+  const markLookup = { doubt: doubtMarks, comment: commentMarks, source: sourceMarks };
+  const markCardItems = markCard
+    ? markCard.marks
+        .map(m => {
+          const data = markLookup[m.kind]?.find(x => String(x.id) === m.id);
+          return data ? { kind: m.kind, data } : null;
+        })
+        .filter(Boolean)
+    : [];
+  const showInPanel = kind => {
+    setMarkCard(null);
+    selectAside(kind === 'doubt' ? 'doubts' : kind === 'comment' ? 'comments' : kind === 'source' ? 'sources' : kind);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
 
   const handleLifecycle = async action => {
     if (isDirty) {
@@ -759,6 +1510,21 @@ export function Note() {
     { key: 'comments', label: 'Comentários', icon: 'message', count: commentCount },
     { key: 'sources', label: 'Fontes', icon: 'book', count: sourceCitations.length },
   ];
+  // Clique no espaço vazio da folha (fora dos blocos) põe o cursor no fim do último bloco de texto.
+  const focusDocumentEnd = e => {
+    if (isTrashed || (e.target !== e.currentTarget && e.target.id !== 'editor-blocks')) return;
+    const textBlocks = e.currentTarget.querySelectorAll('[data-block-id]');
+    const last = textBlocks[textBlocks.length - 1];
+    if (!last) return;
+    e.preventDefault();
+    last.focus();
+    const range = document.createRange();
+    range.selectNodeContents(last);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
   const openTagInput = () => {
     setDetailsOpen(true);
     setTimeout(() => document.getElementById('ne-tag-input')?.focus(), 0);
@@ -768,10 +1534,6 @@ export function Note() {
     <div className="ne-page">
       <header className="ne-topbar">
         <div className="ne-topbar-left">
-          <Link to="/notes" className="ne-back-link">
-            <Icon name="back" className="sm" /> Minhas notas
-          </Link>
-          <span className="ne-topbar-divider" />
           <span className="ne-save-state" role="status">
             <span className={`ne-status-dot ${isDirty || saving ? 'unsaved' : ''}`} />
             {saveStateLabel}
@@ -830,8 +1592,8 @@ export function Note() {
         />
       )}
 
-      <div className="ne-layout">
-        <article className="ne-editor">
+      <div className="ne-layout" ref={layoutRef} style={{ '--ne-details-width': `${detailsWidth}px` }}>
+        <article className="ne-editor" style={{ '--ne-text-scale': textScale }}>
           <div className="ne-context">
             <span className="ne-category-dot" />
             {note.categoryName || 'Sem categoria'}
@@ -843,6 +1605,7 @@ export function Note() {
             className="ne-title"
             value={title}
             onChange={e => setTitle(e.target.value)}
+            onKeyDown={handleTitleKeyDown}
             placeholder="Sem título"
             aria-label="Título da nota"
           />
@@ -861,17 +1624,39 @@ export function Note() {
           </div>
 
           <div className="ne-tools" role="toolbar" aria-label="Ferramentas da nota">
-            <select value={newBlockType} onChange={e => setNewBlockType(e.target.value)} aria-label="Tipo do novo bloco">
-              <option value="paragraph">Parágrafo</option>
-              <option value="heading">Título</option>
-              <option value="list">Lista</option>
-              <option value="quote">Citação</option>
-              <option value="code">Código</option>
-              <option value="chart">Gráfico</option>
+            {/* Tipo do bloco onde está o cursor; trocar aqui converte o bloco (ex.: parágrafo → título). */}
+            <select
+              value={blockTypeKey(focusedBlock)}
+              onChange={e => changeBlockType(focusedBlock?.id, e.target.value)}
+              disabled={isTrashed || !focusedBlock}
+              aria-label="Tipo do texto onde está o cursor"
+              title={focusedBlock ? 'Tipo do texto onde está o cursor' : 'Clique num trecho do texto para trocar o tipo'}
+            >
+              {BLOCK_TYPES.map(t => (
+                <option key={t.key} value={t.key}>{t.label}</option>
+              ))}
             </select>
-            <button onClick={handleAddBlock} disabled={isTrashed} aria-label="Adicionar bloco" title="Adicionar bloco">
-              <Icon name="plus" className="sm" />
+            <button className="ne-format-btn" onMouseDown={e => e.preventDefault()} onClick={() => formatSelection('bold')} disabled={isTrashed} aria-label="Negrito" title="Negrito (Ctrl+B)">
+              <strong>B</strong>
             </button>
+            <button className="ne-format-btn" onMouseDown={e => e.preventDefault()} onClick={() => formatSelection('italic')} disabled={isTrashed} aria-label="Itálico" title="Itálico (Ctrl+I)">
+              <em>I</em>
+            </button>
+            <div className="ne-block-menu-anchor">
+              <button
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => setBlockMenuFor(m => (m === '__toolbar' ? null : '__toolbar'))}
+                disabled={isTrashed}
+                aria-label="Inserir bloco abaixo do cursor"
+                aria-expanded={blockMenuFor === '__toolbar'}
+                title="Inserir bloco abaixo de onde está o cursor"
+              >
+                <Icon name="plus" className="sm" />
+              </button>
+              {blockMenuFor === '__toolbar' && (
+                <BlockTypeMenu onPick={key => insertBlockAfter(focusedBlock?.id || blocks[blocks.length - 1]?.id, key)} onClose={() => setBlockMenuFor(null)} />
+              )}
+            </div>
             <span className="ne-tool-divider" />
             {/* onMouseDown preventDefault: não rouba o foco nem apaga a seleção do editor */}
             <button onMouseDown={e => e.preventDefault()} onClick={handleMarkDoubt} disabled={isTrashed} title="Selecione um trecho e marque como dúvida">
@@ -884,6 +1669,19 @@ export function Note() {
               <Icon name="book" className="sm" /> Citar
             </button>
             <span className="ne-tool-spacer" />
+            {/* Zoom de leitura: aumenta ou diminui todo o texto da nota na mesma proporção. */}
+            <div className="ne-zoom" role="group" aria-label="Tamanho do texto">
+              <button onClick={() => changeTextScale(-1)} disabled={textScale <= TEXT_SCALES[0]} aria-label="Diminuir texto" title="Diminuir texto">
+                A−
+              </button>
+              <button className="ne-zoom-value" onClick={() => changeTextScale(0)} title="Voltar ao tamanho padrão">
+                {Math.round(textScale * 100)}%
+              </button>
+              <button onClick={() => changeTextScale(1)} disabled={textScale >= TEXT_SCALES[TEXT_SCALES.length - 1]} aria-label="Aumentar texto" title="Aumentar texto">
+                A+
+              </button>
+            </div>
+            <span className="ne-tool-divider" />
             <button
               onClick={handleOrganize}
               disabled={isTrashed}
@@ -911,7 +1709,8 @@ export function Note() {
             />
           )}
 
-          <div className="ne-document">
+          {/* data-mode: cor da seleção de texto acompanha a aba ativa (dúvida, comentário ou fonte). */}
+          <div className={`ne-document ${isTrashed ? 'is-readonly' : ''} ${multiSel ? 'is-multi-select' : ''}`} data-mode={activeAside} onMouseDown={focusDocumentEnd}>
 
             {notice && (
               <div className="callout neutral mb16 paste-chart-notice" role="status">
@@ -935,10 +1734,37 @@ export function Note() {
               </div>
             )}
 
-            <div id="editor-blocks" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {blocks.map(block =>
-                isChartBlock(block) ? (
-                  <div key={block.id} className="editor-chart-block">
+            <div
+              id="editor-blocks"
+              style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
+              onMouseOver={handleBlocksMouseOver}
+              onMouseOut={handleBlocksMouseOut}
+              onClick={handleBlocksClick}
+              onPointerDown={handleBlocksPointerDown}
+            >
+              {blocks.map(block => (
+                <div key={block.id} className={`ne-block-row ${blockMenuFor === block.id ? 'menu-open' : ''}`}>
+                  {/* "+" à esquerda do bloco (aparece no hover): insere o novo bloco logo abaixo deste. */}
+                  {!isTrashed && (
+                    <div className="ne-block-gutter">
+                      <button
+                        type="button"
+                        className="ne-block-add"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => setBlockMenuFor(m => (m === block.id ? null : block.id))}
+                        aria-label="Inserir bloco abaixo"
+                        aria-expanded={blockMenuFor === block.id}
+                        title="Inserir bloco abaixo"
+                      >
+                        <Icon name="plus" className="sm" />
+                      </button>
+                      {blockMenuFor === block.id && (
+                        <BlockTypeMenu onPick={key => insertBlockAfter(block.id, key)} onClose={() => setBlockMenuFor(null)} />
+                      )}
+                    </div>
+                  )}
+                {isChartBlock(block) ? (
+                  <div className="editor-chart-block">
                     {editingChart?.id === block.id ? (
                       <ChartEditor chart={block} onDone={handleChartDone} onCancel={handleChartCancel} />
                     ) : (
@@ -963,21 +1789,27 @@ export function Note() {
                   </div>
                 ) : (
                 <ContentEditableBlock
-                  key={block.id}
                   block={block}
-                  doubts={activeMarks}
-                  markClass={activeAside === 'comments' ? 'comment-mark' : activeAside === 'sources' ? 'source-mark' : 'doubt-mark'}
-                  onMarkClick={setSelectedCommentId}
+                  anchors={allAnchors}
+                  listLabel={labels.get(block.id)}
+                  repaintToken={formatTick.id === block.id ? formatTick.n : 0}
                   onChange={newText => handleUpdateBlock(block.id, newText)}
                   onSelect={sel => handleTextSelect(block.id, sel)}
+                  onFocusBlock={setFocusedBlockId}
+                  onFormat={isTrashed ? undefined : (kind, offsets) => applyFormat(block.id, offsets, kind)}
+                  onListKey={isTrashed ? undefined : (action, info) => handleListKey(block.id, action, info)}
+                  onNavigate={(direction, x) => navigateFromBlock(block.id, direction, x)}
+                  editable={!multiSel}
+                  onSelectAll={isTrashed ? undefined : selectAllBlocks}
                   onPasteTables={isTrashed ? undefined : payload => handlePasteTables(block.id, payload)}
                   onPasteStructured={() =>
                     setNotice({ message: 'Texto com títulos, listas ou negritos colado.', restore: null, offerOrganize: true })
                   }
                   onRemoveEmpty={isTrashed ? undefined : () => handleRemoveEmpty(block.id)}
                 />
-                ),
-              )}
+                )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1072,19 +1904,13 @@ export function Note() {
 
                         {d.status === 'Completed' ? (
                           <>
-                            <p
-                              style={{
-                                marginTop: '10px',
-                                fontSize: '12px',
-                                lineHeight: '1.6',
-                                display: '-webkit-box',
-                                WebkitLineClamp: '3',
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              {d.answer}
-                            </p>
+                            {/* Resposta com [n] ligados às fontes (link quando conferida). */}
+                            <AnswerText answer={d.answer} sources={d.sources || []} className="ne-doubt-answer" />
+                            {d.sources?.length > 0 ? (
+                              <AnswerSources sources={d.sources} compact />
+                            ) : (
+                              <p className="small muted">Sem fonte: a IA não indicou de onde veio a resposta.</p>
+                            )}
                             <Link to={`/research/${d.id}`} className="btn compact ghost mt16" style={{ width: '100%' }}>
                               Ler detalhe <Icon name="arrow" className="sm" />
                             </Link>
@@ -1110,6 +1936,22 @@ export function Note() {
             </div>
           </section>
         </article>
+
+        <div
+          className={`pane-resizer ne-resizer ${isResizing ? 'is-resizing' : ''}`}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ajustar largura entre o texto e os detalhes da nota"
+          aria-controls="ne-details"
+          aria-valuemin={DETAILS_MIN}
+          aria-valuemax={DETAILS_MAX}
+          aria-valuenow={detailsWidth}
+          tabIndex={0}
+          title="Arraste para ajustar a largura · duplo clique volta ao padrão"
+          onPointerDown={handleResizerPointerDown}
+          onKeyDown={handleResizerKeyDown}
+          onDoubleClick={() => setDetailsWidth(clampDetailsWidth(DETAILS_DEFAULT))}
+        />
 
         {detailsOpen && <button type="button" className="ne-details-backdrop" onClick={() => setDetailsOpen(false)} aria-label="Fechar detalhes" />}
         <aside id="ne-details" className={`ne-details ${detailsOpen ? 'is-open' : ''}`} aria-label="Detalhes da nota">
@@ -1199,6 +2041,39 @@ export function Note() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+      {markCard && markCardItems.length > 0 && (
+        <MarkPopover
+          anchorRect={markCard.rect}
+          items={markCardItems}
+          onShowPanel={showInPanel}
+          onMouseEnter={cancelHideMarkCard}
+          onMouseLeave={scheduleHideMarkCard}
+        />
+      )}
+      {blocker.state === 'blocked' && (
+        <div className="modal-overlay">
+          <section className="modal ne-leave-modal" role="alertdialog" aria-modal="true" aria-labelledby="ne-leave-title" aria-describedby="ne-leave-text">
+            <div className="ne-leave-icon">
+              <Icon name="warning" />
+            </div>
+            <h2 id="ne-leave-title">Sair sem salvar?</h2>
+            <p id="ne-leave-text">
+              Você tem alterações não salvas em <strong>{title || 'Sem título'}</strong>. Se sair agora, elas serão perdidas.
+            </p>
+            <div className="ne-leave-actions">
+              <button type="button" className="btn" onClick={() => blocker.reset()} disabled={leaveBusy} autoFocus>
+                Continuar editando
+              </button>
+              <button type="button" className="btn danger" onClick={() => blocker.proceed()} disabled={leaveBusy}>
+                Sair sem salvar
+              </button>
+              <button type="button" className="btn primary" onClick={saveAndLeave} disabled={leaveBusy || isTrashed}>
+                {leaveBusy ? 'Salvando…' : 'Salvar e sair'}
+              </button>
+            </div>
           </section>
         </div>
       )}
