@@ -192,7 +192,7 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 
 - Implementado somente o F1 de `PLANO_LENTES_E_CRITICA.md`: entidade `PerspectiveSuggestion` (`Research/Domain`), gerador Fake determinístico `PerspectiveRules` (`Research/Application`) e `Doubt.FromPerspective` com nova origem `DoubtOrigin.Perspective`. Sem endpoints, sem tabela/migration e sem interface; F2–F5 continuam como proposta.
 - Validação executada: `dotnet test tests/NoteLab.Tests --artifacts-path <pasta temporária>` **207/207** (195 anteriores + 12 novos em `PerspectiveTests.cs`). A saída foi isolada porque uma instância local da API estava travando `bin/`. Não foram executados `npm test`, `npm run build`, suítes HTTP ou checagem de migrations, porque F1 não altera frontend nem `DbContext`.
-- Commit: pendente.
+- Commit: `d5d6f42` (código) e `59c4c81` (docs).
 
 ## Atualização 17/11/2026 — Nova nota com IA: gerar, partir de outra nota, gráficos com fonte (ADR-044)
 
@@ -204,4 +204,16 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
   - Suítes HTTP contra Postgres 16 descartável (porta 55432) e API Release na 5099, mensageria `inprocess`, IA sem chave (Fake): `compose` 16/16, `notes` 36/36, `publishing` 30/30, `taxonomy` 6/6, `organize` 12/12.
   - `source-checks`: 10 ok e 8 falhas. Os 5 casos de `/sources/resolve` passaram. As falhas são do worker de verificação, do arquivamento e das etapas seguintes, que dependem do S3/LocalStack (não estava rodando). Na mesma rodada havia uma alteração não commitada em `SourceCheckWorker.cs`. A relação das falhas com esta entrega não foi isolada.
 - Não verificado: provedor real (DeepSeek ou outro) gerando fontes e gráficos; interface no navegador; suítes com LocalStack.
-- Commit: pendente.
+- Commit: `8e9cb1e` (código) e `59c4c81` (docs).
+
+## Atualização 18/11/2026 — Editor (redesign Figma) + fontes ligadas ao texto (ADR-045)
+
+- Branch `feature/editor-nota-redesign-figma`. Inclui o redesign do editor de nota já registrado no commit `35938ec` e, por cima: cabeçalho com usuário/avisos e configurações do sistema na lateral; Ctrl+Z/Ctrl+Y; aviso ao sair sem salvar (roteador de dados + `useBlocker`); divisória redimensionável texto ↔ detalhes; marcações de dúvida/comentário/fonte juntas no texto com card ao passar o mouse; "+" que insere abaixo do bloco; troca de tipo; negrito/itálico (`block.styles`); listas `1./1.1` e `a./a.1` (um bloco por item); zoom do texto; setas ↑/↓/←/→ atravessando blocos; seleção entre blocos (arrastar, Shift+clique, Ctrl+A duas vezes) para apagar, digitar, copiar, recortar e formatar; fontes da nota criada com IA ancoradas nos trechos e origens não conferidas; respostas de dúvidas com `[n]` ligados a fontes conferidas ou declaradas (ADR-045).
+- Validações executadas:
+  - `dotnet test tests/NoteLab.Tests --artifacts-path <temp>` **233/233** (224 anteriores + 3 em `NoteComposerTests` + 6 em `ResearchReferencesTests`).
+  - `dotnet ef migrations has-pending-model-changes --configuration Release`: sem diferenças após `AddResearchSourceVerification`.
+  - `npm test` **61/61**; `npm run build` aprovado (aviso conhecido de chunk > 500 kB); `oxlint` nos arquivos alterados sem avisos novos (avisos restantes já existiam).
+  - Suítes HTTP contra Postgres 16 descartável (55432) e API Release na 5099, mensageria `inprocess`, variáveis do CI, IA com servidores falsos locais: `compose` 16/16, `research` 19/19, `admin` 31/31, `provider` 7/7, `citations` 24/24, `sources` 10/10. Numa rodada completa anterior também passaram `analysis`, `auth`, `charts`, `comments`, `communities`, `discovery`, `graph-ai`, `maps`, `moderation`, `note-comments`, `notes`, `ops`, `organize`, `preferences`, `publishing`, `revisions`, `social`, `taxonomy`. `admin`/`provider` só passam anulando as chaves do `appsettings.json` local (arquivo ignorado pelo git): com as chaves locais, as verificações de cadastro de chave falham.
+  - Não executados: `source-checks` e `source-files` (dependem de S3/LocalStack).
+- Não verificado: interface no navegador (extensão indisponível na sessão); provedor real (DeepSeek) gerando `[n]` e referências; banco local de desenvolvimento ainda sem a migration `AddResearchSourceVerification` (rodar `dotnet ef database update` e reiniciar a API).
+- Commits: `188f45b` (API, ADR-045), `f070aee` (cabeçalho/configurações), `dcd58ce` (front das fontes), `1f7078e` (editor) e o commit de documentação desta entrada.
