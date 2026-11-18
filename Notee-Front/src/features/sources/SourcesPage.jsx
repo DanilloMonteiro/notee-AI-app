@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon';
 import { useToast } from '../../contexts/ToastContext';
 import { sourcesApi } from './sourcesApi';
 import { SourceForm } from './SourceForm';
+import { checkStatusInfo } from './checkStatus';
 import './sources.css';
 
 const kinds = [['', 'Todos os tipos'], ['book', 'Livros'], ['article', 'Artigos'], ['video', 'Vídeos'], ['study', 'Estudos'], ['dataset', 'Dados'], ['document', 'Documentos'], ['website', 'Sites'], ['person', 'Pesquisadores'], ['interview', 'Entrevistas'], ['other', 'Outros']];
@@ -109,7 +110,7 @@ export function SourcesPage() {
       {loading ? <p className="muted">Carregando biblioteca…</p> : sources.length === 0 ? <div className="empty"><h3>Nenhuma fonte encontrada</h3><p>Cadastre fontes ou cite um trecho no editor de uma nota.</p></div> : (
         <div className="stack source-library-list">
           {sources.map(source => <article className="card pad source-library-item" key={source.id}>
-            <div className="row between wrap gap8"><div><span className="pill">{source.kind}</span> <span className="pill">{source.status === 'unverified' ? 'Não verificada' : source.status}</span><h3>{source.title}</h3></div><div className="row gap8"><button type="button" className="btn compact" onClick={() => setForm(source)}>Editar</button><button type="button" className="btn compact ghost" disabled={busy || source.citationCount > 0} title={source.citationCount ? 'Remova as citações antes de excluir a fonte.' : 'Excluir fonte'} onClick={() => remove(source)}>Excluir</button></div></div>
+            <div className="row between wrap gap8"><div><span className="pill">{source.kind}</span> <span className={`pill ${checkStatusInfo(source.status).tone}`}>{checkStatusInfo(source.status).label}</span><h3>{source.title}</h3></div><div className="row gap8"><button type="button" className="btn compact" onClick={() => setForm(source)}>Editar</button><button type="button" className="btn compact ghost" disabled={busy || source.citationCount > 0} title={source.citationCount ? 'Remova as citações antes de excluir a fonte.' : 'Excluir fonte'} onClick={() => remove(source)}>Excluir</button></div></div>
             <p className="small muted">{[source.authors?.join(', '), source.year, source.venue, source.doi && `DOI ${source.doi}`, source.isbn && `ISBN ${source.isbn}`].filter(Boolean).join(' · ')}</p>
             {source.url && <a href={source.url} target="_blank" rel="noopener noreferrer nofollow">Abrir link ↗</a>}
             {source.notes && <p>{source.notes}</p>}

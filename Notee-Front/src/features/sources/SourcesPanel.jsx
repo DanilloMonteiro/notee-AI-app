@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
+import { Icon } from '../../components/Icon';
 import { sourcesApi } from './sourcesApi';
 import { SourceForm } from './SourceForm';
 import { detectCitations } from './detectCitations';
 import { formatLocator, parseTimestamp } from './citationFormatting';
+import { checkStatusHelp, checkStatusInfo } from './checkStatus';
 
 const locatorKinds = ['none', 'page', 'pages', 'timestamp', 'section', 'paragraph'];
 const locatorLabels = { none: 'Nota inteira', page: 'Página', pages: 'Páginas', timestamp: 'Minuto', section: 'Seção', paragraph: 'Parágrafo' };
@@ -25,8 +27,7 @@ export function SourcesPanel({ noteId, noteBlocks = [], isDirty, selectedAnchor,
   const [loading, setLoading] = useState(true);
   const [suggestions, setSuggestions] = useState([]);
   const [accepted, setAccepted] = useState([]);
-  const [checkHistory, setCheckHistory] = useState({});
-  const [expandedCheck, setExpandedCheck] = useState(null);
+  const [formOpen, setFormOpen] = useState(null);
   const { addToast } = useToast();
 
   const refresh = async () => {
@@ -154,31 +155,8 @@ export function SourcesPanel({ noteId, noteBlocks = [], isDirty, selectedAnchor,
     finally { setBusy(false); }
   };
 
-  const showChecks = async citation => {
-    try {
-      const rows = await sourcesApi.citationChecks(citation.id);
-      setCheckHistory(prev => ({ ...prev, [citation.id]: rows || [] }));
-      setExpandedCheck(citation.id);
-    } catch (err) { addToast(err.message || 'Não foi possível carregar verificações.', 'warning'); }
-  };
-
-  const retryQuoteCheck = async citation => {
-    try { await sourcesApi.retryCitationCheck(citation.id); addToast('Conferência do trecho agendada.'); await showChecks(citation); }
-    catch (err) { addToast(err.message || 'Não foi possível agendar a conferência.', 'warning'); }
-  };
-
-  const analyzeWithAi = async citation => {
-    try {
-      const estimate = await sourcesApi.estimateAiCheck(citation.id);
-      const cost = estimate.estimatedCostUsd == null ? 'não configurado' : `$${Number(estimate.estimatedCostUsd).toFixed(6)} USD`;
-      const disclosure = estimate.hasArchive
-        ? `Dados enviados:\nAfirmação/contexto: ${estimate.claim}\n\nTrecho da fonte: ${estimate.sourceExcerpt}\n\nProvedor: ${estimate.provider}. Custo estimado: ${cost}. Deseja continuar?`
-        : 'Não há texto arquivado. O Notee registrará “não verificável” sem chamar a IA. Continuar?';
-      if (!window.confirm(disclosure)) return;
-      await sourcesApi.runAiCheck(citation.id);
-      await showChecks(citation);
-    } catch (err) { addToast(err.message || 'Não foi possível analisar a citação.', 'warning'); }
-  };
+  // Formulário recolhido por padrão; abre sozinho com trecho selecionado ou quando a nota ainda não tem fontes.
+  const formShown = formOpen ?? (!!selectedAnchor?.quote || citations.length === 0);
 
   return (
     <div className="result-panel sources-panel">
@@ -205,7 +183,10 @@ export function SourcesPanel({ noteId, noteBlocks = [], isDirty, selectedAnchor,
       </section>
 
       <div className="card pad source-citation-form">
-        <strong>Adicionar citação</strong>
+        <button type="button" className="source-form-toggle" aria-expanded={formShown} onClick={() => setFormOpen(!formShown)}>
+          <strong>Adicionar citação</strong><span className="tiny muted">{formShown ? 'Ocultar' : 'Mostrar'}</span>
+        </button>
+        {formShown && <>
         {!createMode ? <>
           {sources.length > 0 && <label>Fonte
             <select value={selectedSourceId} onChange={e => setSelectedSourceId(e.target.value)}>
@@ -231,31 +212,50 @@ export function SourcesPanel({ noteId, noteBlocks = [], isDirty, selectedAnchor,
           {['section', 'paragraph'].includes(locatorKind) && <label>Seção ou parágrafo<input value={locatorText} onChange={e => setLocatorText(e.target.value)} maxLength={200} /></label>}
           <label>Trecho da fonte (opcional)<textarea value={sourceQuote} onChange={e => setSourceQuote(e.target.value)} maxLength={2000} rows={2} /></label>
         </div>
+        </>}
       </div>
 
-      {loading ? <p className="small muted">Carregando fontes…</p> : Object.values(grouped).length === 0 ? <p className="small muted">Nenhuma fonte citada nesta nota.</p> : Object.values(grouped).map(({ source, citations: items }) => (
+      {loading ? <p className="small muted">Carregando fontes…</p> : Object.values(grouped).length === 0 ? <p className="small muted">Nenhuma fonte citada nesta nota.</p> : Object.values(grouped).map(({ source, citations: items }) => {
+        const sourceStatus = checkStatusInfo(source.status);
+        const meta = [source.authors?.join(', '), source.year, source.venue].filter(Boolean).join(' · ');
+        return (
         <section className="source-citation-group" key={source.id}>
-          <div className="row between wrap gap8"><div><strong>{source.title}</strong><div className="tiny muted">{source.authors?.join(', ')}{source.year ? ` · ${source.year}` : ''}{source.venue ? ` · ${source.venue}` : ''}</div></div><span className="pill">{source.status === 'unverified' ? 'Não verificada' : source.status}</span></div>
-          {items.map(citation => <div className="source-citation-item" key={citation.id}>
-            {citation.exactQuote && <blockquote className="quote-selection">{citation.exactQuote}</blockquote>}
-            <p className="small muted">{formatLocator(citation)}</p>
-            {citation.sourceQuote && <p className="tiny">“{citation.sourceQuote}”</p>}
-            <div className="row wrap gap8">
-              <button type="button" className="btn compact" disabled={busy} onClick={() => retryQuoteCheck(citation)}>Conferir trecho</button>
-              <button type="button" className="btn compact" disabled={busy} onClick={() => analyzeWithAi(citation)}>Analisar com IA (pode ter custo)</button>
-              <button type="button" className="btn compact ghost" onClick={() => expandedCheck === citation.id ? setExpandedCheck(null) : showChecks(citation)}>Histórico e evidências</button>
-            </div>
-            {expandedCheck === citation.id && <div className="source-check-history">
-              {(checkHistory[citation.id] || []).length === 0 ? <p className="tiny muted">Nenhuma conferência concluída. Aguarde o job ou atualize o histórico.</p> : (checkHistory[citation.id] || []).map(check => <article key={check.id}>
-                <div className="row between wrap gap8"><strong>{check.layer === 'ai' ? `IA: ${check.verdict || check.status}` : check.status}</strong><span className="tiny muted">{check.provider || 'local'}{check.costUsd != null ? ` · $${Number(check.costUsd).toFixed(6)} USD` : ''}</span></div>
-                <p className="small">{check.summary}</p>
-                {check.arguments?.map((arg, index) => <div className="source-evidence-row" key={index}><div><strong>{arg.point}</strong></div><blockquote>{arg.evidence}</blockquote></div>)}
-              </article>)}
-            </div>}
-            <button type="button" className="btn compact ghost" disabled={busy} onClick={() => removeCitation(citation.id)}>Remover citação</button>
-          </div>)}
+          <div className="source-group-head">
+            {/* Nome da fonte em destaque; com link, o próprio nome abre a fonte (como no card do trecho). */}
+            {source.url
+              ? <a className="source-group-name" href={source.url} target="_blank" rel="noopener noreferrer" title={`${source.title} — abrir fonte`}>{source.title} <Icon name="external" className="sm" /></a>
+              : <strong className="source-group-name" title={source.title}>{source.title}</strong>}
+            <span className="source-group-status">
+              <span className={`pill ${sourceStatus.tone}`}>{sourceStatus.label}</span>
+              {checkStatusHelp(source.status) && <span className="source-status-help">
+                <button type="button" className="source-status-help-btn" aria-label={`O que significa “${sourceStatus.label}”`} aria-describedby={`status-help-${source.id}`}>
+                  <Icon name="info" className="sm" />
+                </button>
+                <span role="tooltip" id={`status-help-${source.id}`} className="source-status-tooltip">{checkStatusHelp(source.status)}</span>
+              </span>}
+            </span>
+          </div>
+          {meta && <div className="source-group-meta">{meta}</div>}
+          {/* Observação da fonte (ex.: por que a IA sugeriu a fonte) inteira e em destaque. */}
+          {source.notes && <p className="source-group-note">{source.notes}</p>}
+          {items.map(citation => {
+            const locator = formatLocator(citation);
+            const detail = [locator !== 'Nota inteira' ? locator : '', citation.sourceQuote ? `“${citation.sourceQuote}”` : ''].filter(Boolean).join(' · ');
+            return <div className="source-citation-row" key={citation.id}>
+              {/* Mesmo número [n] mostrado no texto da nota (ordem das citações). */}
+              <span className="source-citation-n">[{citations.indexOf(citation) + 1}]</span>
+              <div className="source-citation-body">
+                <span className="source-citation-quote" title={citation.exactQuote || locator}>{citation.exactQuote || locator}</span>
+                {citation.exactQuote && detail && <span className="tiny muted source-citation-detail" title={detail}>{detail}</span>}
+              </div>
+              <button type="button" className="icon-btn source-citation-remove" disabled={busy} title="Remover citação" aria-label="Remover citação" onClick={() => removeCitation(citation.id)}>
+                <Icon name="trash" className="sm" />
+              </button>
+            </div>;
+          })}
         </section>
-      ))}
+        );
+      })}
       <p className="tiny muted">As fontes são referências declaradas. A presença de metadados ainda não confirma o conteúdo da fonte.</p>
     </div>
   );

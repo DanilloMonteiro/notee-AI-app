@@ -5,25 +5,13 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/Icon';
 import { formatLocator } from '../sources/citationFormatting';
+import { checkStatusInfo } from '../sources/checkStatus';
 import { AnswerSources, AnswerText } from '../research/AnswerWithRefs';
 
 const DOUBT_STATUS = {
   Completed: { label: 'Respondida', className: 'green' },
   Running: { label: 'Pesquisando…', className: 'blue' },
   Pending: { label: 'Pendente', className: 'blue' },
-};
-// Status vem de SourceCheckStatus (API) em minúsculas, ou "unverified".
-const SOURCE_STATUS = {
-  unverified: 'Não verificada',
-  pending: 'Conferindo…',
-  running: 'Conferindo…',
-  confirmed: 'Confirmada',
-  foundwithdifferences: 'Encontrada com diferenças',
-  quotenotfound: 'Trecho não encontrado',
-  mismatch: 'Não confere',
-  notfound: 'Não encontrada',
-  unverifiable: 'Não verificável',
-  failed: 'Falha na conferência',
 };
 const GAP = 8;
 
@@ -79,7 +67,7 @@ function SourceSection({ citation, onShowPanel }) {
     <section className="nm-card-section is-source">
       <header>
         <span className="nm-card-kind"><Icon name="book" className="sm" /> Fonte [{citation.referenceNumber}]</span>
-        {source.status && <span className="pill">{SOURCE_STATUS[String(source.status).toLowerCase()] || source.status}</span>}
+        {source.status && <span className={`pill ${checkStatusInfo(source.status).tone}`}>{checkStatusInfo(source.status).label}</span>}
       </header>
       <strong className="nm-card-title">{source.title || 'Fonte sem título'}</strong>
       {meta && <p className="nm-card-muted">{meta}</p>}
