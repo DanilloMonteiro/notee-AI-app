@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { createBrowserRouter, createRoutesFromElements, RouterProvider, Route } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { PrivateRoute } from './components/PrivateRoute';
 import { Login } from './pages/Login';
@@ -25,11 +25,10 @@ import { AdminAiPage, AdminLoginPage } from './features/admin/AdminPages';
 import { ADMIN_PATH } from './features/admin/adminApi';
 import { LibraryPage, PublicNotePage, PublicProfilePage, SharedNotePage } from './features/publishing/PublicPages';
 
-function App() {
-  return (
-    <ToastProvider>
-      <BrowserRouter>
-        <Routes>
+// Roteador de dados: necessário para o useBlocker (aviso ao sair da nota sem salvar).
+const router = createBrowserRouter(
+  createRoutesFromElements(
+        <>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -61,8 +60,14 @@ function App() {
               <Route path="/publications" element={<MyPublicationsPage />} />
             </Route>
           </Route>
-        </Routes>
-      </BrowserRouter>
+        </>,
+  ),
+);
+
+function App() {
+  return (
+    <ToastProvider>
+      <RouterProvider router={router} />
     </ToastProvider>
   );
 }

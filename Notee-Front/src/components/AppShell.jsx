@@ -1,5 +1,5 @@
 // src/components/AppShell.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { UserAvatar } from './UserAvatar';
@@ -14,10 +14,53 @@ export function AppShell() {
   );
 }
 
+const PAGE_NAMES = {
+  '/discover': 'Descobrir notas',
+  '/communities': 'Comunidades',
+  '/feed': 'Seu feed',
+  '/home': 'Visão geral',
+  '/notes': 'Minhas notas',
+  '/sources': 'Fontes',
+  '/boards': 'Mapas de ideias',
+  '/research': 'Dúvidas e pesquisas',
+  '/publications': 'Publicações',
+  '/search': 'Buscar nas notas',
+  '/settings': 'Configurações',
+};
+
+// Páginas internas mostram a seção de origem como link de volta (ex.: nota → "Minhas notas").
+const PARENT_PAGES = [
+  { prefix: '/note/', to: '/notes', name: 'Minhas notas' },
+  { prefix: '/research/', to: '/research', name: 'Dúvidas e pesquisas' },
+  { prefix: '/boards/', to: '/boards', name: 'Mapas de ideias' },
+  { prefix: '/communities/', to: '/communities', name: 'Comunidades' },
+];
+
+// Fecha um popover ao clicar fora dele ou apertar Esc.
+function useDismiss(open, setOpen, ref) {
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = e => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, setOpen, ref]);
+}
+
 function AppShellLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const notificationsRef = useRef(null);
+  const userMenuRef = useRef(null);
+  useDismiss(showNotifications, setShowNotifications, notificationsRef);
+  useDismiss(showUserMenu, setShowUserMenu, userMenuRef);
+
   useEffect(() => {
     let alive = true;
     const load = () => apiFetch('/me/notifications').then(rows => { if (alive) setNotifications(rows || []); }).catch(() => {});
@@ -26,21 +69,26 @@ function AppShellLayout() {
     window.addEventListener('focus', load);
     return () => { alive = false; clearInterval(interval); window.removeEventListener('focus', load); };
   }, []);
+  const unread = notifications.filter(n => !n.readAt).length;
   const openNotifications = async () => {
     setShowNotifications(open => !open);
-    if (notifications.some(n => !n.readAt)) {
+    setShowUserMenu(false);
+    if (unread > 0) {
       try { await apiFetch('/me/notifications/read', { method: 'POST', body: JSON.stringify({ ids: notifications.filter(n => !n.readAt).map(n => n.id) }) }); setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() }))); }
       catch { /* mantém avisos não lidos */ }
     }
   };
+
   const { user, loading } = useCurrentUser();
   const displayName = user?.fullName || user?.email || (loading ? 'Carregando…' : 'Sua conta');
-  const { pathname } = useLocation();
-  const pageName = pathname.startsWith('/communities/') ? 'Comunidade' : ({ '/discover': 'Descobrir notas', '/communities': 'Comunidades', '/feed': 'Seu feed', '/home': 'Visão geral', '/notes': 'Minhas notas', '/sources': 'Fontes', '/boards': 'Mapas de ideias', '/research': 'Dúvidas e pesquisas', '/publications': 'Publicações', '/search': 'Buscar nas notas', '/settings': 'Configurações' }[pathname] || 'Meu espaço');
-  const navigate = useNavigate(); // <-- Inicialize o hook
+  const { pathname, search } = useLocation();
+  const parent = PARENT_PAGES.find(p => pathname.startsWith(p.prefix));
+  const isAccountPage = pathname === '/settings' && search.includes('tab=account');
+  const pageName = isAccountPage ? 'Minha conta' : PAGE_NAMES[pathname] || parent?.name || '';
+  const navigate = useNavigate();
 
-  // Função para limpar o token e sair
   const handleLogout = async () => {
+    setShowUserMenu(false);
     await logout(); // revoga o refresh token no servidor
     navigate('/login');
   };
@@ -50,23 +98,12 @@ function AppShellLayout() {
     <div className={`app-shell ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <Link className="logo" to="/home" aria-label="Notee, meu espaço">
+          <Link className="logo" to="/home" aria-label="Notee, visão geral">
             <span className="logo-mark">n</span>notee<span style={{ color: '#a7c17e' }}>.</span>
           </Link>
-          <button className="icon-btn sidebar-collapse-button" onClick={() => setIsCollapsed(!isCollapsed)}>
+          <button className="icon-btn sidebar-collapse-button" onClick={() => setIsCollapsed(!isCollapsed)} aria-label={isCollapsed ? 'Expandir menu' : 'Recolher menu'}>
             <Icon name={isCollapsed ? 'panel-left-open' : 'panel-left-close'} />
           </button>
-        </div>
-
-        <div className="workspace row gap8">
-          <UserAvatar name={user?.fullName || user?.email} imageUrl={user?.avatarUrl} />
-          <span className="grow">
-            <strong className="small">Meu espaço</strong>
-            <span className="tiny muted" style={{ display: 'block' }}>
-              Pessoal
-            </span>
-          </span>
-          <Icon name="down" className="sm" />
         </div>
 
         <nav>
@@ -74,7 +111,7 @@ function AppShellLayout() {
           <NavLink to="/discover" className={navClass}><Icon name="search" /><span>Descobrir</span></NavLink>
           <NavLink to="/communities" className={navClass}><Icon name="user" /><span>Comunidades</span></NavLink>
           <NavLink to="/feed" className={navClass}><Icon name="book" /><span>Feed</span></NavLink>
-          <div className="nav-label">Meu espaço</div>
+          <div className="nav-divider" role="separator" />
           <NavLink to="/home" className={navClass}>
             <Icon name="home" />
             <span>Visão geral</span>
@@ -103,50 +140,79 @@ function AppShellLayout() {
             <Icon name="search" />
             <span>Buscar nas notas</span>
           </NavLink>
+        </nav>
 
-          <div className="nav-label">Organizar</div>
-          <NavLink to="/settings" className={navClass}>
+        {/* Configurações do sistema (IA e pesquisas). As da conta ficam no menu do usuário, no topo. */}
+        <div className="sidebar-bottom">
+          <NavLink to="/settings" end className={({ isActive }) => `nav-item ${isActive && !isAccountPage ? 'active' : ''}`} title="Configurações do sistema">
             <Icon name="settings" />
             <span>Configurações</span>
           </NavLink>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="user-switch row gap8">
-            <Link
-              to="/settings?tab=account"
-              className="user-card row gap8"
-              aria-label={`${displayName}: abrir configurações da conta`}
-              title="Configurações da conta"
-            >
-              <UserAvatar name={user?.fullName || user?.email} imageUrl={user?.avatarUrl} />
-              <div className="grow">
-                <strong className="small">{displayName}</strong>
-                {user?.fullName && user?.email && <div className="tiny muted">{user.email}</div>}
-              </div>
-            </Link>
-
-            <button className="icon-btn" onClick={handleLogout} aria-label="Sair da conta" title="Sair">
-              <Icon name="logout" />
-            </button>
-          </div>
         </div>
       </aside>
       <div className="main-wrap">
         <header className="topbar">
-          <div className="crumb">
-            Meu espaço <span>/</span> <strong>{pageName}</strong>
+          <div className="topbar-title">
+            {parent ? (
+              <Link to={parent.to} className="topbar-back" title={`Voltar para ${parent.name}`}>
+                <Icon name="back" className="sm" /> {parent.name}
+              </Link>
+            ) : (
+              <strong>{pageName}</strong>
+            )}
           </div>
-          <div className="row">
-            <button className="icon-btn" aria-label={`Avisos: ${notifications.filter(n => !n.readAt).length} não lidos`} aria-expanded={showNotifications} onClick={openNotifications}>
-              <Icon name="bell" />
-              {notifications.some(n => !n.readAt) && <span className="badge-count">{notifications.filter(n => !n.readAt).length}</span>}
-            </button>
-            {showNotifications && <div className="card pad" style={{ position: 'absolute', right: 24, top: 58, width: 320, zIndex: 20, maxHeight: 420, overflowY: 'auto' }}><strong>Avisos</strong>{notifications.length ? notifications.map(n => <Link key={n.id} className="row gap8 mt16 small" to={`${n.path}#comment-${n.commentId}`} onClick={() => setShowNotifications(false)}>{n.kind === 'reply' ? 'Nova resposta' : 'Novo comentário'} · {new Date(n.createdAt).toLocaleString('pt-BR')}</Link>) : <p className="small muted mt16">Nenhum aviso.</p>}</div>}
+          <div className="topbar-right">
+            <div className="topbar-popover-anchor" ref={notificationsRef}>
+              <button className="icon-btn" aria-label={`Avisos: ${unread} não lidos`} aria-expanded={showNotifications} onClick={openNotifications}>
+                <Icon name="bell" />
+                {unread > 0 && <span className="badge-count">{unread}</span>}
+              </button>
+              {showNotifications && (
+                <div className="topbar-popover topbar-notifications">
+                  <strong>Avisos</strong>
+                  {notifications.length ? notifications.map(n => (
+                    <Link key={n.id} className="row gap8 mt16 small" to={`${n.path}#comment-${n.commentId}`} onClick={() => setShowNotifications(false)}>
+                      {n.kind === 'reply' ? 'Nova resposta' : 'Novo comentário'} · {new Date(n.createdAt).toLocaleString('pt-BR')}
+                    </Link>
+                  )) : <p className="small muted mt16">Nenhum aviso.</p>}
+                </div>
+              )}
+            </div>
+
+            <div className="topbar-popover-anchor" ref={userMenuRef}>
+              <button
+                type="button"
+                className="topbar-user"
+                aria-haspopup="menu"
+                aria-expanded={showUserMenu}
+                onClick={() => { setShowUserMenu(open => !open); setShowNotifications(false); }}
+              >
+                <UserAvatar name={user?.fullName || user?.email} imageUrl={user?.avatarUrl} />
+                <span className="topbar-user-name">{displayName}</span>
+                <Icon name="down" className="sm" />
+              </button>
+              {showUserMenu && (
+                <div className="topbar-popover topbar-user-menu" role="menu">
+                  <div className="topbar-user-menu-head">
+                    <UserAvatar name={user?.fullName || user?.email} imageUrl={user?.avatarUrl} />
+                    <div>
+                      <strong>{displayName}</strong>
+                      {user?.fullName && user?.email && <span>{user.email}</span>}
+                    </div>
+                  </div>
+                  <Link role="menuitem" to="/settings?tab=account" onClick={() => setShowUserMenu(false)}>
+                    <Icon name="user" className="sm" /> Editar perfil
+                  </Link>
+                  <button role="menuitem" type="button" className="danger" onClick={handleLogout}>
+                    <Icon name="logout" className="sm" /> Sair da conta
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         <main className="page" id="main-content">
-          {/* É aqui que as páginas vão aparecer! */}
           <Outlet />
         </main>
       </div>

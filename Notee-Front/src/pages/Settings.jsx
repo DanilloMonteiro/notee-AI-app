@@ -30,10 +30,9 @@ const consentText = providerName =>
   'Posso revogar a qualquer momento; a revogação vale para as próximas pesquisas.';
 
 export function Settings() {
-  // A aba fica na URL (?tab=account) para o card da conta na sidebar abrir direto em "Conta".
-  const [searchParams, setSearchParams] = useSearchParams();
+  // ?tab=account (menu do usuário no topo) mostra só a conta; sem parâmetro, as configurações do sistema.
+  const [searchParams] = useSearchParams();
   const activeTab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'research';
-  const setActiveTab = tab => setSearchParams(tab === 'research' ? {} : { tab }, { replace: true });
 
   const { user: me } = useCurrentUser();
   const [prefs, setPrefs] = useState(null);
@@ -104,21 +103,21 @@ export function Settings() {
 
   return (
     <div>
+      {/* Sidebar → configurações do sistema; menu do usuário (topo) → ?tab=account, só a conta. */}
       <div className="page-heading">
-        <div>
-          <div className="overline">CONFIGURAÇÕES</div>
-          <h1>Um assistente do seu jeito.</h1>
-          <p>Configure a organização e a pesquisa sem perder o controle sobre suas notas.</p>
-        </div>
-      </div>
-
-      <div className="tabbar">
-        <button className={`tab ${activeTab === 'research' ? 'active' : ''}`} onClick={() => setActiveTab('research')}>
-          Inteligência e pesquisas
-        </button>
-        <button className={`tab ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')}>
-          Conta
-        </button>
+        {activeTab === 'account' ? (
+          <div>
+            <div className="overline">MINHA CONTA</div>
+            <h1>Seu perfil.</h1>
+            <p>Nome, foto e dados de acesso da sua conta.</p>
+          </div>
+        ) : (
+          <div>
+            <div className="overline">CONFIGURAÇÕES</div>
+            <h1>Um assistente do seu jeito.</h1>
+            <p>Configure a organização e a pesquisa sem perder o controle sobre suas notas.</p>
+          </div>
+        )}
       </div>
 
       {error && (
