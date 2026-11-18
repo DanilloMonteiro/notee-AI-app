@@ -287,3 +287,15 @@ Status: Aceito para a fatia F1 (domínio + Fake). API, migration, interface e pr
   - `GET /doubts/note/{noteId}` passa a devolver `sources`; `SourceResponse` ganha `Verified` e `Url` anulável (migration `AddResearchSourceVerification`; linhas antigas = conferidas).
 - Escopo de dados inalterado: a IA continua recebendo só a pergunta e o trecho (dúvidas) e o mesmo conteúdo de antes (criação). Nada é marcado como verificado sem conferência; "conferida" significa que a referência existe, não que sustenta o texto.
 - Aberto: conferir se a fonte realmente sustenta o trecho (camada de IA/verificação já existente em `SourceVerification`); números `[n]` inline para Claude/Gemini.
+
+## ADR-046 — Respostas e notas embasadas na busca na web do DeepSeek (18/11/2026)
+
+- Contexto: com o DeepSeek ativo, o modelo não pesquisava; as fontes eram só lembradas pela IA (ADR-045) e muitas não eram encontradas. O DeepSeek passou a oferecer Search/Fetch (`POST /v1/tools/search`, US$ 0,75 por 1.000 buscas com resultado; falha, vazio e tempo esgotado não são cobrados).
+- Decisão (opção "o Notee pesquisa, a IA responde só com o que foi encontrado"):
+  - Dúvidas: com o DeepSeek ativo, consentimento e chave, o worker pesquisa a pergunta (até 128 caracteres + `lang:pt,en`; o trecho não vai para a busca), filtra (`rerank_score` ≥ 1,5, no máximo 2 por site, até 6) e envia ao modelo só título/site/data/resumo numerados. A resposta cita [n]; ficam só os resultados citados, renumerados, com link, site, data e autoridade. Marcador sem resultado é removido.
+  - Criação de nota: caixa "Pesquisar fontes na web" (marcada por padrão). A busca usa título + descrição; a IA indica `{"result": n, "supports": [...]}` e essas fontes entram como páginas reais (sem passar pelo resolvedor). Estimativa e custo incluem a busca.
+  - Reserva: busca desligada, sem chave, com erro (402/401/429/5xx/tempo), sem resultado acima da nota mínima ou acima do teto diário → caminho do ADR-045 (referências declaradas e conferidas). A interface indica se houve busca.
+  - Nunca é enviado `localization` (IP). Uma nova tentativa só para 408/429/5xx; tempo limite de 10 s.
+  - Configuração `Research:WebSearch` (`Enabled`, `MinScore`, `MaxResults`, `MaxPerSite`, `MaxPerDay`, `PricePer1000Usd`); `ResearchJob.WebSearches` registra as buscas cobradas; `ResearchSource` ganha `SiteName`, `PublishedAt`, `Authority` (migration `AddWebSearchMetadata`).
+- Escopo de dados: sai só a pergunta (dúvidas) ou título + descrição (criação), para o mesmo provedor que já recebia esse conteúdo; o consentimento vigente já prevê que "o provedor pode buscar na web para indicar fontes".
+- Aberto: a documentação do DeepSeek não informa retenção das consultas de busca; Claude/Gemini seguem com a busca própria; desde 18/11/2026 buscas disparadas pelo próprio modelo (Web Tools) não são cobradas — reavaliar a opção 2 se o custo da busca direta pesar; leitura da página inteira (Fetch) não usada.

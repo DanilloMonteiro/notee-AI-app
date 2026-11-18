@@ -217,3 +217,23 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
   - Não executados: `source-checks` e `source-files` (dependem de S3/LocalStack).
 - Não verificado: interface no navegador (extensão indisponível na sessão); provedor real (DeepSeek) gerando `[n]` e referências; banco local de desenvolvimento ainda sem a migration `AddResearchSourceVerification` (rodar `dotnet ef database update` e reiniciar a API).
 - Commits: `188f45b` (API, ADR-045), `f070aee` (cabeçalho/configurações), `dcd58ce` (front das fontes), `1f7078e` (editor) e o commit de documentação desta entrada.
+
+## Atualização 18/11/2026 — Busca na web do DeepSeek embasando dúvidas e notas (ADR-046)
+
+- Implementado: `DeepSeekWebSearch` (`/v1/tools/search`), `WebSearchQuery` (consulta e filtro: nota ≥ 1,5, ≤ 2 por site, ≤ 6), `GroundedAnswer` (prompt só com os resultados, leitura do JSON, renumeração de [n]); worker usa a busca com DeepSeek ativo e cai no ADR-045 sem busca; criação de nota com caixa "Pesquisar fontes na web" (marcada), fontes da busca sem resolvedor e custo incluído; fontes com site, data e "alta autoridade"; detalhe da dúvida indica se houve busca. Migration `AddWebSearchMetadata`.
+- Validações executadas:
+  - `dotnet test tests/NoteLab.Tests --artifacts-path <temp>` **241/241** (8 novos em `WebSearchTests`); `dotnet ef migrations has-pending-model-changes`: sem diferenças.
+  - `npm test` **62/62**; `npm run build` aprovado; `oxlint` sem avisos novos.
+  - Suítes HTTP (Postgres 16 descartável na 55432, API Release na 5099, variáveis do CI com as chaves do `appsettings.json` local anuladas, servidores falsos de IA): `admin` 37/37 (inclui o fluxo DeepSeek com busca: consulta enviada, filtro, resposta embasada, [n] inválido removido, fonte com site/autoridade, busca registrada), `provider` 7/7, `research` 19/19, `compose` 16/16, `notes` 36/36, `citations` 24/24, `sources` 10/10.
+- Não verificado: chamada real ao DeepSeek (busca e chat) com chave de verdade; criação de nota com busca via HTTP (coberta só por testes unitários); interface no navegador.
+- Commit: ver histórico da branch `feature/editor-nota-redesign-figma` (merge na main).
+
+## Atualização 18/11/2026 — Painel de fontes compacto
+
+- `SourcesPanel.jsx`: citação em poucas linhas (trecho com 2 linhas, localizador e trecho da fonte na mesma linha); formulário "Adicionar citação" recolhido (abre com trecho selecionado ou nota sem fontes).
+- Botões "Conferir trecho" e "Analisar com IA" retirados do painel da nota a pedido (ficam para outra etapa); a API (`/citations/{id}/checks`, `/ai-check`) continua existindo, sem tela.
+- Card da fonte no painel: nome em destaque (abre o link quando há URL), autores/ano/observação numa linha, cada citação numa linha com `[n]` igual ao do texto, trecho em até 2 linhas e lixeira que aparece ao passar o mouse.
+- Novo `features/sources/checkStatus.js` (rótulos/cores dos status, veredito da IA, dica para "não verificável"), usado também na Biblioteca de fontes e no card do trecho.
+- Observação da fonte (ex.: "Sugerida na criação da nota: …") em destaque; ícone (i) ao lado da etiqueta de status explica o que ela significa (`checkStatusHelp`).
+- Validação: `npm test` 67/67; `npm run build` ok; `oxlint` sem avisos nos arquivos alterados. Não verificado no navegador.
+- Commit: ver histórico da branch `feature/editor-nota-redesign-figma` (merge na main).
