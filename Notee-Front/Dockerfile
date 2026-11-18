@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+ARG VITE_API_URL
+ARG VITE_ADMIN_PATH
 RUN npm run build
 
 # ---- Servidor estático ----

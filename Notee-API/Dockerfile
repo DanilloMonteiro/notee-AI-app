@@ -26,4 +26,6 @@ WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=5000
 EXPOSE 5000
 COPY --from=build /app/publish .
+# Disponível também no runtime para o comando de pré-deploy executar migrations.
+COPY --from=build /app/efbundle /app/efbundle
 ENTRYPOINT ["dotnet", "NoteLab.dll"]
