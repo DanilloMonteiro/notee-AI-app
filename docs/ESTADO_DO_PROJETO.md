@@ -246,3 +246,15 @@ Modo atual da IA: [mentora | desenvolvedora autorizada]
 - Observação da fonte (ex.: "Sugerida na criação da nota: …") em destaque; ícone (i) ao lado da etiqueta de status explica o que ela significa (`checkStatusHelp`).
 - Validação: `npm test` 67/67; `npm run build` ok; `oxlint` sem avisos nos arquivos alterados. Não verificado no navegador.
 - Commit: ver histórico da branch `feature/editor-nota-redesign-figma` (merge na main).
+
+## Atualização 18/11/2026 — Fontes de artigos acadêmicos (OpenAlex) misturadas com a internet (ADR-047)
+
+- Branch `feature/fontes-academicas` (a partir da `main`). Backend: `ffabeb1`; front: `f715b2b`.
+- Backend: origens de fonte plugáveis (`ISourceSearchProvider`: DeepSeek web e OpenAlex), `SourceSearchService` (artigos primeiro; web só completa), `SourceQueryPlanner` (palavras-chave pt/en), regras de sites (`/me/source-rules`, Wikipédia fixa), `sourceMode` nas preferências, `Sources` na criação de nota, consentimento v3, migration `AddSourceOriginsAndRules`.
+- Front: Configurações > Fontes, seletor na criação de nota, composição em %, selos Artigo/Site/confiável, "Não usar este site", aviso para aceitar o termo v3.
+- Validação:
+  - `dotnet test`: 252/252 (novos: `SourceSearchTests`, `WebSearchTests` reescrito). `has-pending-model-changes`: sem pendências.
+  - HTTP (banco descartável): admin 51/51 (OpenAlex e DeepSeek falsos: artigos suficientes sem web, web completando, Wikipédia e site bloqueado filtrados, modo só internet, regras de sites), provider 7/7, research 19/19, compose 16/16, notes 36/36, citations 24/24, sources 10/10, preferences 9/9 e demais suítes (analysis, auth, charts, comments, communities, discovery, graph-ai, maps, moderation, note-comments, ops, organize, publishing, revisions, social, taxonomy) sem falhas. `source-checks` e `source-files` (LocalStack) não executadas.
+  - `npm test` 71/71; `npm run build` ok; `oxlint` sem avisos novos nos arquivos alterados.
+  - Uma consulta real ao OpenAlex com termo genérico ("photosynthesis efficiency", sem dados do usuário) confirmou filtros e campos. Não verificados: criação de nota com artigos de ponta a ponta com provedor real, e a interface no navegador.
+- Para usar localmente: `dotnet ef database update --project src/NoteLab` e reiniciar a API; aceitar o termo v3 em Configurações. Opcional: chave gratuita do OpenAlex em `OpenAlex:ApiKey`.

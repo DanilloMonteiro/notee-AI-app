@@ -14,7 +14,8 @@ Prefixo: `/api/v1`; autenticação obrigatória em recursos privados; documenta�
 | Ciclo de vida | `POST /notes/{id}/archive`, `/trash`, `/restore`; `DELETE /notes/{id}` apenas na lixeira |
 | Revisões | `GET /notes/{id}/revisions`, `GET /notes/{id}/revisions/{revisionId}`, `POST /notes/{id}/restore-revision` |
 | Categorias/tags | `GET/POST /categories`, `GET/POST /tags`, `PATCH/DELETE /categories/{id}`, `PATCH/DELETE /tags/{id}` |
-| Preferências | `GET/PATCH /me/preferences`, `GET/PATCH /notes/{id}/settings` |
+| Preferências | `GET/PATCH /me/preferences` (inclui `sourceMode`: mixed/academic/web/none, ADR-047), `GET/PATCH /notes/{id}/settings` |
+| Sites de fontes (ADR-047) | `GET /me/source-rules`, `PUT /me/source-rules` `{domain, kind: blocked|trusted}`, `DELETE /me/source-rules/{domain}`; bloqueios fixos do servidor vêm com `fixed: true` |
 | Dúvidas | `POST /notes/{id}/doubts`; `POST /notes/{id}/analysis-runs`; `GET /analysis-runs/{id}`; `POST /suggestions/{id}/accept` e `/dismiss` |
 | Pesquisa | `POST /doubts/{id}/research-jobs`, `GET /research-jobs/{id}`, `POST /research-jobs/{id}/cancel`, `GET /doubts/{id}/answers`, `POST /answers/{id}/review` |
 | Publicação | `POST /notes/{id}/publications`, `POST /publications/{id}/revisions`, `DELETE /publications/{id}`; leitura `/public/notes/{handle}/{slug}`, `/shared/{token}`, `/public/profiles/{handle}`, `/public/notes` |
